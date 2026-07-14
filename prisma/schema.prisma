@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ═══════════════════════════════════
+// AUTH & PROFILES
+// ═══════════════════════════════════
+
+model Profile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  username      String    @unique
+  displayName   String?
+  bio           String?   @db.VarChar(200)
+  github        String?
+  discord       String?
+  reddit        String?
+  monkeytype    String?
+  website       String?
+  voteCredits   Int       @default(25)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  votes         Vote[]
+  wishlist      Wishlist[]
+  collection    Collection[]
+
+  @@index([username])
+}
+
+// ═══════════════════════════════════
+// BRANDS & VENDORS
+// ═══════════════════════════════════
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  logo        String?
+  website     String?
+  country     String    @default("IN")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+
+  @@index([slug])
+}
+
+model Vendor {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  logo            String?
+  website         String
+  affiliateLink   String?
+  shippingPolicy  String?
+  enabled         Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vendorProducts  VendorProduct[]
+
+  @@index([slug])
+}
+
+// ═══════════════════════════════════
+// CATEGORIES
+// ═══════════════════════════════════
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  icon      String?
+  createdAt DateTime  @default(now())
+
+  products  Product[]
+
+  @@index([slug])
+}
+
+// ═══════════════════════════════════
+// PRODUCTS
+// ═══════════════════════════════════
+
+model Product {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  brandId     String?
+  categoryId  String
+  image       String?
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  brand         Brand?          @relation(fields: [brandId], references: [id])
+  category      Category        @relation(fields: [categoryId], references: [id])
+  specifications Specification[]
+  vendorProducts VendorProduct[]
+  votes         Vote[]
+  wishlist      Wishlist[]
+  collection    Collection[]
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([brandId])
+}
+
+// ═══════════════════════════════════
+// FLEXIBLE SPECIFICATIONS (EAV pattern)
+// ═══════════════════════════════════
+
+model SpecField {
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  categoryId String
+  group      String    @default("General") // e.g. General, Layout & Build, Mounting, PCB, etc.
+  type       String    @default("text") // text, number, boolean, select
+  options    String?   // JSON array for select type
+  order      Int       @default(0) // display order within group
+  createdAt  DateTime  @default(now())
+
+  specs      Specification[]
+
+  @@index([categoryId])
+  @@index([categoryId, group])
+}
+
+model Specification {
+  id          String    @id @default(cuid())
+  productId   String
+  specFieldId String
+  value       String
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  specField SpecField @relation(fields: [specFieldId], references: [id])
+
+  @@unique([productId, specFieldId])
+  @@index([productId])
+}
+
+// ═══════════════════════════════════
+// PRICING
+// ═══════════════════════════════════
+
+model VendorProduct {
+  id              String    @id @default(cuid())
+  vendorId        String
+  productId       String
+  vendorUrl       String
+  price           Decimal   @db.Decimal(10,2)
+  shippingCost    Decimal   @default(0) @db.Decimal(10,2)
+  shippingIncluded Boolean  @default(false)
+  totalPrice      Decimal   @db.Decimal(10,2)
+  stockStatus     String    @default("in_stock") // in_stock, preorder, group_buy, coming_soon, out_of_stock
+  lastChecked     DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vendor        Vendor        @relation(fields: [vendorId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  priceHistory  PriceHistory[]
+
+  @@unique([vendorId, productId])
+  @@index([productId])
+  @@index([vendorId])
+  @@index([totalPrice])
+}
+
+model PriceHistory {
+  id              String    @id @default(cuid())
+  vendorProductId String
+  price           Decimal   @db.Decimal(10,2)
+  shippingCost    Decimal   @default(0) @db.Decimal(10,2)
+  totalPrice      Decimal   @db.Decimal(10,2)
+  stockStatus     String    @default("in_stock")
+  recordedAt      DateTime  @default(now())
+
+  vendorProduct VendorProduct @relation(fields: [vendorProductId], references: [id], onDelete: Cascade)
+
+  @@index([vendorProductId])
+  @@index([recordedAt])
+}
+
+// ═══════════════════════════════════
+// SWITCHES (extended product data)
+// ═══════════════════════════════════
+
+model SwitchData {
+  id              String    @id @default(cuid())
+  productId       String    @unique
+  manufacturer    String?
+  type            String?   // linear, tactile, clicky, silent_linear, silent_tactile
+  operatingForce  Int?      // grams
+  bottomOutForce  Int?      // grams
+  travel          Decimal?  @db.Decimal(3,1) // mm
+  factoryLubed    Boolean   @default(false)
+  soundTags       String?   // JSON array: thock, clack, creamy, etc.
+  feelTags        String?   // JSON array: smooth, scratchy, snappy, etc.
+  useTags         String?   // JSON array: gaming, office, coding, etc.
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([productId])
+}
+
+// ═══════════════════════════════════
+// KEYCAPS (extended product data)
+// ═══════════════════════════════════
+
+model KeycapData {
+  id              String    @id @default(cuid())
+  productId       String    @unique
+  profile         String?   // cherry, oem, sa, mt3, xda, dsa, etc.
+  material        String?   // abs, pbtpom
+  manufactureMethod String? // doubleshot, dye-sub, etc.
+  language        String?   @default("English")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([productId])
+}
+
+// ═══════════════════════════════════
+// COMMUNITY VOTING
+// ═══════════════════════════════════
+
+model Vote {
+  id        String   @id @default(cuid())
+  profileId String
+  productId String
+  type      String   // upvote, downvote
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, productId])
+  @@index([productId])
+}
+
+// ═══════════════════════════════════
+// BANNER MANAGEMENT
+// ═══════════════════════════════════
+
+model Banner {
+  id            String   @id @default(cuid())
+  title         String
+  status        String   @default("draft")       // active | draft
+  priority      Int      @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  desktopImage  String?
+  mobileImage   String?
+  linkType      String   @default("url")         // url | internal | vendor | product | category
+  linkUrl       String?
+  openNewTab    Boolean  @default(false)
+  displayRule   String   @default("both")        // both | desktop | mobile
+  bannerType    String   @default("hero")        // hero | inline | sidebar
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  locations     BannerLocation[]
+
+  @@index([status])
+  @@index([priority])
+}
+
+model BannerLocation {
+  id        String @id @default(cuid())
+  bannerId  String
+  location  String // home | keyboards | switches | keycaps | mouse | vendors | builders | brands | search | guide | about
+
+  banner    Banner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+
+  @@unique([bannerId, location])
+  @@index([location])
+}
+
+// ═══════════════════════════════════
+// WISHLISTS & COLLECTIONS
+// ═══════════════════════════════════
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  profileId String
+  productId String
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, productId])
+}
+
+model Collection {
+  id        String   @id @default(cuid())
+  profileId String
+  productId String
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, productId])
+}

@@ -1,0 +1,35 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toggleCollection } from '@/lib/profile/actions';
+
+interface SaveButtonsProps {
+  productId: string;
+  inCollection: boolean;
+}
+
+export function SaveButtons({ productId, inCollection }: SaveButtonsProps) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  async function handleCollection() {
+    setLoading(true);
+    await toggleCollection(productId);
+    setLoading(false);
+    router.refresh();
+  }
+
+  return (
+    <div className="save-buttons">
+      <button
+        className={`save-btn ${inCollection ? 'active' : ''}`}
+        onClick={handleCollection}
+        disabled={loading}
+      >
+        <span className="save-btn-icon">{inCollection ? '+' : '+'}</span>
+        {loading ? '...' : inCollection ? 'In Collection' : 'Collection'}
+      </button>
+    </div>
+  );
+}

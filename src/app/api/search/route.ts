@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(request: NextRequest) {
+  const q = request.nextUrl.searchParams.get('q')?.trim();
+  if (!q || q.length < 2) {
+    return NextResponse.json({ products: [], vendors: [], brands: [] });
+  }
+
+  const pattern = { contains: q, mode: 'insensitive' as const };
+
+  const [products, vendors, brands] = await Promise.all([
+    prisma.product.findMany({
+      where: {
+        OR: [
+          { name: pattern },
+          { brand: { name: pattern } },
+        ],
+      },
+      select: {
+        name: true,
+        slug: true,
+        image: true,
+        brand: { select: { name: true } },
+        category: { select: { name: true, slug: true } },
+      },
+      take: 8,
+    }),
+    prisma.vendor.findMany({
+      where: { name: pattern },
+      select: { name: true, slug: true },
+      take: 5,
+    }),
+    prisma.brand.findMany({
+      where: { name: pattern },
+      select: { name: true, slug: true },
+      take: 5,
+    }),
+  ]);
+
+  return NextResponse.json({
+    products: products.map((p) => ({
+      name: p.name,
+      slug: p.slug,
+      image: p.image,
+      brand: p.brand?.name ?? null,
+      category: p.category?.name ?? null,
+      categorySlug: p.category?.slug ?? null,
+    })),
+    vendors: vendors.map((v) => ({ name: v.name, slug: v.slug })),
+    brands: brands.map((b) => ({ name: b.name, slug: b.slug })),
+  });
+}
