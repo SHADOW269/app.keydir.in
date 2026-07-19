@@ -3,15 +3,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
-import { SpecTable } from '@/components/product/spec-table';
 import { VendorCard } from '@/components/product/vendor-card';
 import { PriceHistoryChart } from '@/components/product/price-history-chart';
-import { VoteWidget } from '@/components/product/vote-widget';
-import { SaveButtons } from '@/components/product/save-buttons';
+import { ProductHeroCommunity } from '@/components/product/product-hero-community';
+import { ProductHeroSpecs } from '@/components/product/product-hero-specs';
+import { ProductSpecs } from '@/components/product/product-specs';
 import { prisma } from '@/lib/prisma';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, timeAgo } from '@/lib/utils';
 import { getCurrentUser } from '@/lib/profile/actions';
 import type { Metadata } from 'next';
+
+export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -44,11 +46,14 @@ export default async function ProductPage({ params }: Props) {
     where: { slug },
     include: {
       brand: true,
-      category: true,
-      specifications: { include: { specField: true } },
+      keyboardSpec: true,
+      switchSpec: true,
+      keycapSpec: true,
+      mouseSpec: true,
       vendorProducts: {
         include: {
           vendor: true,
+          variants: { orderBy: { createdAt: 'asc' } },
           priceHistory: {
             orderBy: { recordedAt: 'asc' },
             take: 500,
@@ -62,6 +67,20 @@ export default async function ProductPage({ params }: Props) {
   });
 
   if (!product) notFound();
+
+  const serializedVendorProducts = product.vendorProducts.map((vp) => ({
+    ...vp,
+    price: Number(vp.price),
+    shippingCost: Number(vp.shippingCost),
+    totalPrice: Number(vp.totalPrice),
+    variants: vp.variants.map((v) => ({
+      ...v,
+      color: v.color as string[] | null,
+      switches: v.switches as string[] | null,
+      keycaps: v.keycaps as string[] | null,
+      price: Number(v.price),
+    })),
+  }));
 
   const currentUser = await getCurrentUser();
 
@@ -82,7 +101,16 @@ export default async function ProductPage({ params }: Props) {
 
   const upvotes = product.votes.filter((v) => v.type === 'upvote').length;
   const downvotes = product.votes.filter((v) => v.type === 'downvote').length;
-  const lowestPrice = product.vendorProducts[0]?.totalPrice ?? null;
+  const lowestPrice = serializedVendorProducts[0]?.totalPrice ?? null;
+  const highestPrice = serializedVendorProducts.length > 1
+    ? serializedVendorProducts[serializedVendorProducts.length - 1]?.totalPrice ?? null
+    : null;
+  const vendorCount = serializedVendorProducts.length;
+
+  const lastUpdated = serializedVendorProducts.reduce<Date | null>((latest, vp) => {
+    const newest = vp.priceHistory.at(-1)?.recordedAt ?? vp.updatedAt;
+    return !latest || newest > latest ? newest : latest;
+  }, null);
 
   function priceNum(v: unknown): number {
     if (typeof v === 'number') return v;
@@ -91,7 +119,7 @@ export default async function ProductPage({ params }: Props) {
     return 0;
   }
 
-  const allHistory = product.vendorProducts
+  const allHistory = serializedVendorProducts
     .flatMap((vp) =>
       vp.priceHistory.map((ph) => ({
         price: priceNum(ph.price),
@@ -100,6 +128,13 @@ export default async function ProductPage({ params }: Props) {
       }))
     )
     .sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
+
+  const vendorColors: Record<string, string> = {};
+  for (const vp of serializedVendorProducts) {
+    if (vp.vendor.chartColor) {
+      vendorColors[vp.vendor.name] = vp.vendor.chartColor;
+    }
+  }
 
   return (
     <>
@@ -110,8 +145,8 @@ export default async function ProductPage({ params }: Props) {
         <div className="product-breadcrumb">
           <Link href="/" className="hover:text-[var(--text)]">Home</Link>
           {' / '}
-          <Link href={`/${product.category.slug}`} className="hover:text-[var(--text)]">
-            {product.category.name}
+          <Link href={`/${product.productType}`} className="hover:text-[var(--text)]">
+            {product.productType}
           </Link>
           {' / '}
           <span className="text-[var(--text)]">{product.name}</span>
@@ -119,8 +154,9 @@ export default async function ProductPage({ params }: Props) {
 
         {/* ═══ HERO ═══ */}
         <section className="product-hero">
+          {/* Product Image panel */}
           <div className="product-hero-image">
-            <div className="neo-card overflow-hidden">
+            <div className="neo-card product-hero-panel product-hero-image-card">
               {product.image ? (
                 <Image
                   src={product.image}
@@ -138,53 +174,96 @@ export default async function ProductPage({ params }: Props) {
             </div>
           </div>
 
+          {/* Product Summary panel */}
           <div className="product-hero-info">
-            <h1 className="product-hero-name">
-              {product.name}
-            </h1>
+            <div className="neo-card product-hero-panel">
+              <div className="product-hero-summary-body">
+                <h1 className="product-hero-name">{product.name}</h1>
 
-            <div className="product-hero-votes">
-              <VoteWidget
-                productId={product.id}
-                upvotes={upvotes}
-                downvotes={downvotes}
-                userVote={userVote}
-              />
-              <span className="product-hero-score-label">
-                ★ Community Score
-              </span>
-            </div>
+                {lowestPrice && (
+                  <div className="product-hero-price-block">
+                    <span className="product-hero-price-label">PRICE</span>
+                    <div className="product-hero-price-row">
+                      <span className="product-hero-price">{formatPrice(priceNum(lowestPrice))}</span>
+                      {highestPrice && highestPrice !== lowestPrice && (
+                        <>
+                          <span className="product-hero-price-range-sep">→</span>
+                          <span className="product-hero-price-alt">{formatPrice(priceNum(highestPrice))}</span>
+                        </>
+                      )}
+                    </div>
+                    <span className="product-hero-price-sub">
+                      Lowest across {vendorCount} vendor{vendorCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
 
-            {lowestPrice && (
-              <div className="product-hero-price">
-                From {formatPrice(priceNum(lowestPrice))}
+                <ProductHeroSpecs
+                  productType={product.productType}
+                  spec={product.keyboardSpec ?? product.switchSpec ?? product.keycapSpec ?? product.mouseSpec}
+                />
+
+                <div className="product-hero-overview">
+                  <span className="product-hero-overview-label">DESCRIPTION</span>
+                  {product.description?.trim() ? (
+                    <p className="product-hero-overview-text">{product.description}</p>
+                  ) : (
+                    <p className="product-hero-overview-text product-hero-overview-empty">No product overview available.</p>
+                  )}
+                </div>
+
+                <ProductHeroCommunity
+                  productId={product.id}
+                  productSlug={product.slug}
+                  productName={product.name}
+                  productImage={product.image}
+                  productPrice={lowestPrice}
+                  productCategory={product.productType}
+                  upvotes={upvotes}
+                  downvotes={downvotes}
+                  userVote={userVote}
+                  inCollection={inCollection}
+                  showVoting={product.productType === 'keyboards' || product.productType === 'mouse'}
+                  showCompare={product.productType === 'keyboards' || product.productType === 'mouse'}
+                />
               </div>
-            )}
-
-            {product.description && (
-              <p className="product-hero-desc">
-                {product.description}
-              </p>
-            )}
-
-            <div className="product-hero-actions">
-              <SaveButtons
-                productId={product.id}
-                inCollection={inCollection}
-              />
             </div>
           </div>
         </section>
 
-        {/* ═══ SPECIFICATIONS ═══ */}
-        <section className="product-section">
-          <div className="sec-head">
-            <h2>
-              <em className="text-[var(--yellow)]">SPECIFICATIONS</em>
-            </h2>
+        {/* ═══ HERO STATS ═══ */}
+        <div className="product-hero-stats">
+          <div className="product-stat-card">
+            <div className="product-stat-label">Available</div>
+            <div className="product-stat-big">{vendorCount}</div>
+            <div className="product-stat-unit">VENDOR{vendorCount !== 1 ? 'S' : ''}</div>
           </div>
-          <SpecTable specifications={product.specifications} />
-        </section>
+          <div className="product-stat-card">
+            <div className="product-stat-label">Price Range</div>
+            {lowestPrice ? (
+              <div className="product-stat-price-row">
+                <span className="product-stat-big">{formatPrice(priceNum(lowestPrice))}</span>
+                {highestPrice && highestPrice !== lowestPrice && (
+                  <>
+                    <span className="product-stat-arrow">→</span>
+                    <span className="product-stat-big alt">{formatPrice(priceNum(highestPrice))}</span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="product-stat-big">—</div>
+            )}
+          </div>
+          <div className="product-stat-card">
+            <div className="product-stat-label">Last Updated</div>
+            <div className="product-stat-big">
+              {lastUpdated ? lastUpdated.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+            </div>
+            {lastUpdated && (
+              <div className="product-stat-unit">{timeAgo(lastUpdated)}</div>
+            )}
+          </div>
+        </div>
 
         {/* ═══ AVAILABLE VENDORS ═══ */}
         <section className="product-section">
@@ -193,11 +272,11 @@ export default async function ProductPage({ params }: Props) {
               AVAILABLE <em className="text-[var(--green)]">VENDORS</em>
             </h2>
             <div className="sec-tag text-[var(--green)]">
-              {product.vendorProducts.length} VENDOR{product.vendorProducts.length !== 1 ? 'S' : ''}
+              {serializedVendorProducts.length} VENDOR{serializedVendorProducts.length !== 1 ? 'S' : ''}
             </div>
           </div>
           <div className="vendor-cards">
-            {product.vendorProducts.map((vp, i) => (
+            {serializedVendorProducts.map((vp, i) => (
               <VendorCard
                 key={vp.id}
                 vendorProduct={vp}
@@ -214,8 +293,14 @@ export default async function ProductPage({ params }: Props) {
               <em className="text-[var(--yellow)]">PRICE HISTORY</em>
             </h2>
           </div>
-          <PriceHistoryChart history={allHistory} />
+          <PriceHistoryChart history={allHistory} vendorColors={vendorColors} />
         </section>
+
+        {/* ═══ SPECIFICATIONS ═══ */}
+        <ProductSpecs
+          productType={product.productType}
+          spec={product.keyboardSpec ?? product.switchSpec ?? product.keycapSpec ?? product.mouseSpec}
+        />
       </div>
 
       <Footer />

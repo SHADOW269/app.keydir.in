@@ -2,7 +2,13 @@ export type VoteType = 'upvote' | 'downvote';
 
 export type StockStatus = 'in_stock' | 'preorder' | 'group_buy' | 'coming_soon' | 'out_of_stock';
 
-export type SwitchType = 'linear' | 'tactile' | 'clicky' | 'silent_linear' | 'silent_tactile';
+export type Availability = 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK';
+
+export type ScrapeStatus = 'SUCCESS' | 'FAILED' | 'PENDING' | 'MANUAL_OVERRIDE' | 'NEEDS_REVIEW';
+
+export type PriceSource = 'SCRAPER' | 'MANUAL';
+
+export type SwitchType = 'linear' | 'tactile' | 'clicky' | 'silent_linear' | 'silent_tactile' | 'silent_clicky' | 'magnetic' | 'optical' | 'low_profile';
 
 export type SortOption = 'lowest' | 'highest' | 'newest' | 'popular' | 'vendors' | 'drops';
 
@@ -13,9 +19,8 @@ export interface ProductWithRelations {
   image: string | null;
   description: string | null;
   brand: { name: string; slug: string } | null;
-  category: { name: string; slug: string };
+  productType: string;
   vendorProducts: VendorProductWithVendor[];
-  specifications: SpecificationWithField[];
   votes: { type: string }[];
 }
 
@@ -26,25 +31,30 @@ export interface VendorProductWithVendor {
   shippingIncluded: boolean;
   totalPrice: number | { toNumber(): number };
   stockStatus: string;
-  lastChecked: Date;
+  availability?: Availability;
+  lastChecked?: Date;
+  lastCheckedAt?: Date | null;
   vendorUrl: string;
+  scrapeStatus?: ScrapeStatus;
+  scrapeError?: string | null;
   vendor: {
     name: string;
     slug: string;
     logo: string | null;
     affiliateLink: string | null;
   };
-}
-
-export interface SpecificationWithField {
-  value: string;
-  specField: {
+  variants?: Array<{
+    id: string;
     name: string;
-    slug: string;
-    type: string;
-    group: string;
-    order: number;
-  };
+    color: string[] | null;
+    switches: string[] | null;
+    keycaps: string[] | null;
+    price: number | { toNumber(): number };
+    stockStatus: string;
+    variantUrl: string | null;
+    sku: string | null;
+    isDefault: boolean;
+  }>;
 }
 
 export interface ProductCard {
@@ -53,41 +63,12 @@ export interface ProductCard {
   slug: string;
   image: string | null;
   brand: { name: string } | null;
-  category: { name: string; slug: string };
+  productType: string;
   lowestPrice: number | null;
   highestPrice: number | null;
   vendorCount: number;
   upvotes: number;
   downvotes: number;
-  specs: string[];
   approval: number | null;
   userVote: 'upvote' | 'downvote' | null;
-}
-
-export interface KeyboardFilters {
-  layouts: string[];
-  caseMaterials: string[];
-  mountTypes: string[];
-  connectivityOptions: string[];
-  pcbTypes: string[];
-  keyboardTypes: string[];
-  plateMaterials: string[];
-  switchCompatOptions: string[];
-  rgbOptions: string[];
-  vendorList: { name: string; slug: string }[];
-}
-
-export interface SpecFieldDef {
-  id: string;
-  name: string;
-  slug: string;
-  group: string;
-  type: string;
-  options: string | null;
-  order: number;
-}
-
-export interface SpecFieldValue {
-  specFieldId: string;
-  value: string;
 }

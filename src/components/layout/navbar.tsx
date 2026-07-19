@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { logout } from '@/lib/auth/actions';
 import { GlobalSearch } from './global-search';
-import { User } from 'lucide-react';
+import { User, GitCompareArrows } from 'lucide-react';
+import { getCompareCount, getCompareCategory, getCompareProducts, onCompareChange, loadCompareFromStorage } from '@/lib/compare-store';
 
 const NAV_ITEMS = [
   { href: '/keyboards', label: 'Keyboards' },
@@ -21,7 +22,6 @@ const MORE_ITEMS = [
   { href: 'https://keydir.in/builders/', label: 'Builders', external: true },
   { href: 'https://keydir.in/surfaces/', label: 'Surfaces', external: true },
   { href: 'https://keydir.in/contact/', label: 'Contact', external: true },
-  { href: 'https://github.com/SHADOW269/Keydir.in', label: 'GitHub ↗', external: true },
 ];
 
 export function Navbar() {
@@ -30,6 +30,21 @@ export function Navbar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<{ username: string; isAdmin: boolean } | null>(null);
+  const [compareCount, setCompareCount] = useState(0);
+  const [compareCategory, setCompareCategory] = useState<string | null>(null);
+  const [compareSlugs, setCompareSlugs] = useState<string[]>([]);
+
+  useEffect(() => {
+    const stored = loadCompareFromStorage();
+    setCompareCount(stored.products.length);
+    setCompareCategory(stored.category);
+    setCompareSlugs(stored.products.map((p) => p.slug));
+    return onCompareChange(() => {
+      setCompareCount(getCompareCount());
+      setCompareCategory(getCompareCategory());
+      setCompareSlugs(getCompareProducts().map((p) => p.slug));
+    });
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -110,6 +125,19 @@ export function Navbar() {
 
         <div className="nav-right">
           <GlobalSearch />
+
+          {compareCount > 0 && (
+            <Link
+              href={compareSlugs.length > 0
+                ? `/compare/${compareCategory || 'keyboard'}?products=${compareSlugs.join(',')}`
+                : `/compare/${compareCategory || 'keyboard'}`}
+              className="nav-compare-icon"
+              aria-label={`Compare ${compareCount} product${compareCount !== 1 ? 's' : ''}`}
+            >
+              <GitCompareArrows size={18} strokeWidth={1.5} />
+              <span className="nav-compare-badge">{Math.min(compareCount, 4)}</span>
+            </Link>
+          )}
 
           {user ? (
             <Link href={`/profile/${user.username}`} className="nav-profile-icon" aria-label="Profile">

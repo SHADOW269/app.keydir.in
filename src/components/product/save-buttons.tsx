@@ -21,15 +21,13 @@ export function SaveButtons({ productId, inCollection }: SaveButtonsProps) {
   }
 
   return (
-    <div className="save-buttons">
-      <button
-        className={`save-btn ${inCollection ? 'active' : ''}`}
-        onClick={handleCollection}
-        disabled={loading}
-      >
-        <span className="save-btn-icon">{inCollection ? '+' : '+'}</span>
-        {loading ? '...' : inCollection ? 'In Collection' : 'Collection'}
-      </button>
-    </div>
+    <button
+      className={`save-btn ${inCollection ? 'active' : ''}`}
+      onClick={handleCollection}
+      disabled={loading}
+    >
+      <span className="save-btn-icon">{inCollection ? '+' : '+'}</span>
+      {loading ? '...' : inCollection ? 'In Collection' : 'Collection'}
+    </button>
   );
 }

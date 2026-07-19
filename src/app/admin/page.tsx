@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { PRODUCT_CATEGORIES } from '@/lib/admin/product-categories';
+import { DashboardGrid, KpiCard, ChartCard, SectionHeader, ActivityFeed, StatusCard } from '@/components/admin/dashboard';
+import { ProductBarChart, VotePieChart } from '@/components/admin/dashboard/charts';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,31 +22,52 @@ function timeAgo(date: Date): string {
 export default async function AdminPage() {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
 
   const [
-    productCount, vendorCount, brandCount, categoryCount,
+    productCount, vendorCount, brandCount,
     userCount, voteCount, votesToday,
+    usersThisWeek, productsThisWeek,
     recentProducts, recentUsers, recentVotes, recentCollections,
+    productTypeCounts,
+    upvotes, downvotes,
+    enabledVendors, disabledVendors,
   ] = await Promise.all([
     prisma.product.count(),
     prisma.vendor.count(),
     prisma.brand.count(),
-    prisma.category.count(),
     prisma.profile.count(),
     prisma.vote.count(),
     prisma.vote.count({ where: { createdAt: { gte: todayStart } } }),
-    prisma.product.findMany({ orderBy: { createdAt: 'desc' }, take: 8, include: { brand: { select: { name: true } }, category: { select: { name: true } } } }),
+    prisma.profile.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.product.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.product.findMany({ orderBy: { createdAt: 'desc' }, take: 8, include: { brand: { select: { name: true } } } }),
     prisma.profile.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { username: true, displayName: true, createdAt: true } }),
     prisma.vote.findMany({ orderBy: { createdAt: 'desc' }, take: 8, include: { profile: { select: { username: true } }, product: { select: { name: true, slug: true } } } }),
     prisma.collection.findMany({ orderBy: { createdAt: 'desc' }, take: 5, include: { profile: { select: { username: true } }, product: { select: { name: true, slug: true } } } }),
+    prisma.product.groupBy({ by: ['productType'], _count: true }),
+    prisma.vote.count({ where: { type: 'upvote' } }),
+    prisma.vote.count({ where: { type: 'downvote' } }),
+    prisma.vendor.findMany({ where: { enabled: true }, select: { name: true } }),
+    prisma.vendor.findMany({ where: { enabled: false }, select: { name: true } }),
   ]);
 
-  const activity: { time: string; icon: string; action: string; detail: string }[] = [];
+  const categoryChartData = PRODUCT_CATEGORIES.map((cat) => {
+    const match = productTypeCounts.find((pt) => pt.productType === cat.slug);
+    return { name: cat.label, count: match?._count ?? 0 };
+  });
+
+  const voteChartData = [
+    { name: 'Upvotes', value: upvotes },
+    { name: 'Downvotes', value: downvotes },
+  ].filter((d) => d.value > 0);
+
+  const activity: { id: string; icon: string; text: string; time: string; color: string }[] = [];
   for (const p of recentProducts) {
-    activity.push({ time: timeAgo(p.createdAt), icon: '◆', action: 'New product added', detail: p.name });
+    activity.push({ id: `p-${p.id}`, icon: '◆', text: `New product: ${p.name}`, time: timeAgo(p.createdAt), color: 'var(--yellow)' });
   }
   for (const c of recentCollections) {
-    activity.push({ time: timeAgo(c.createdAt), icon: '◇', action: 'Added to collection', detail: c.product.name });
+    activity.push({ id: `c-${c.id}`, icon: '◇', text: `${c.profile.username} added ${c.product.name}`, time: timeAgo(c.createdAt), color: 'var(--purple)' });
   }
   activity.sort((a, b) => {
     const parse = (s: string) => { const n = parseInt(s); return s.includes('m') ? n * 60 : s.includes('h') ? n * 3600 : s.includes('d') ? n * 86400 : n; };
@@ -52,218 +76,118 @@ export default async function AdminPage() {
 
   return (
     <div className="page-body">
-      {/* ═══ SYSTEM OVERVIEW ═══ */}
-      <div className="sec-head">
-        <h2>SYSTEM <em className="text-[var(--red)]">OVERVIEW</em></h2>
-        <span className="badge b-green">LIVE</span>
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        {[
-          { label: 'Products', value: productCount, href: '/admin/products', color: 'var(--yellow)' },
-          { label: 'Vendors', value: vendorCount, href: '/admin/vendors', color: 'var(--green)' },
-          { label: 'Brands', value: brandCount, href: '/admin/brands', color: 'var(--blue)' },
-          { label: 'Categories', value: categoryCount, href: '/admin/categories', color: 'var(--pink)' },
-          { label: 'Users', value: userCount, href: '/admin/users', color: 'var(--purple)' },
-          { label: 'Pending Contributions', value: 0, href: '/admin/community', color: 'var(--orange)' },
-          { label: 'Pending Price Updates', value: 0, href: '/admin/products', color: 'var(--cyan)' },
-          { label: 'Votes Today', value: votesToday, href: '/admin/votes', color: 'var(--yellow)' },
-        ].map((s) => (
-          <Link key={s.label} href={s.href} className="neo-card p-6 block no-underline">
-            <span className="block font-[family-name:var(--f-m)] text-4xl font-extrabold leading-none" style={{ color: s.color }}>{s.value}</span>
-            <span className="block font-[family-name:var(--f-m)] text-xs font-bold uppercase tracking-widest text-[var(--text-dim)] mt-2">{s.label}</span>
-          </Link>
-        ))}
+      <div className="dash-page-header">
+        <div>
+          <div className="dash-page-title">OPERATIONS <em className="text-[var(--yellow)]">CENTER</em></div>
+          <div className="dash-page-desc">Real-time platform metrics and system health</div>
+        </div>
+        <div className="dash-page-meta">
+          <span className="dash-live-dot" />LIVE
+        </div>
       </div>
 
-      {/* ═══ QUICK ACTIONS ═══ */}
-      <div className="sec-head">
-        <h2>QUICK <em className="text-[var(--yellow)]">ACTIONS</em></h2>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+      <DashboardGrid>
+        <SectionHeader title="Key Metrics" span={12} />
+
+        <KpiCard label="Products" value={productCount} icon="◆" color="var(--yellow)" span={3}
+          trend={productsThisWeek > 0 ? { value: `${productsThisWeek} this week`, positive: true } : undefined} />
+        <KpiCard label="Vendors" value={vendorCount} icon="◇" color="var(--green)" span={3}
+          trend={{ value: `${enabledVendors.length} active`, positive: true }} />
+        <KpiCard label="Brands" value={brandCount} icon="◆" color="var(--blue)" span={3} />
+        <KpiCard label="Users" value={userCount} icon="◆" color="var(--purple)" span={3}
+          trend={usersThisWeek > 0 ? { value: `${usersThisWeek} this week`, positive: true } : undefined} />
+
+        <SectionHeader title="Analytics" span={12} />
+
+        <ChartCard title="Products by Category" subtitle="Distribution across product types" span={6} height={260}>
+          <ProductBarChart data={categoryChartData} />
+        </ChartCard>
+
+        <ChartCard title="Vote Distribution" subtitle="Community sentiment" span={6} height={260}>
+          {voteChartData.length > 0 ? (
+            <VotePieChart data={voteChartData} />
+          ) : (
+            <div className="dash-empty-sm">No votes yet</div>
+          )}
+        </ChartCard>
+
+        <SectionHeader title="Activity & Health" span={12} />
+
+        <ActivityFeed items={activity} title="Recent Activity" span={8} />
+
+        <div className="flex flex-col gap-4" style={{ gridColumn: 'span 4' }}>
+          <StatusCard title="Database" status="healthy" details="Supabase PostgreSQL" span={4} />
+          <StatusCard title="Scraper" status="healthy" details="Cron every 6h" span={4} />
+          <StatusCard title="Auth" status="healthy" details="Supabase Auth" span={4} />
+          <StatusCard title="Storage" status="healthy" details="Supabase Storage" span={4} />
+        </div>
+
+        <SectionHeader title="Quick Actions" span={12} />
+
         {[
-          { label: 'Add Product', href: '/admin/products/new' },
-          { label: 'Add Vendor', href: '/admin/vendors/new' },
-          { label: 'Add Brand', href: '/admin/brands/new' },
-          { label: 'Add Category', href: '/admin/categories/new' },
-          { label: 'Import Products', href: '/admin/products' },
-          { label: 'Import Vendors', href: '/admin/vendors' },
-          { label: 'Submit Group Buy', href: '/admin/products/new' },
-          { label: 'Create Announcement', href: '/admin/banners/new' },
+          { label: 'Add Keyboard', href: '/admin/products/new/keyboards', color: 'var(--yellow)' },
+          { label: 'Add Switch', href: '/admin/products/new/switches', color: 'var(--yellow)' },
+          { label: 'Add Keycap', href: '/admin/products/new/keycaps', color: 'var(--yellow)' },
+          { label: 'Add Mouse', href: '/admin/products/new/mouse', color: 'var(--yellow)' },
+          { label: 'Add Vendor', href: '/admin/vendors/new', color: 'var(--green)' },
+          { label: 'Add Brand', href: '/admin/brands/new', color: 'var(--blue)' },
+          { label: 'Manage Banners', href: '/admin/banners/new', color: 'var(--orange)' },
+          { label: 'View Reports', href: '/admin/community', color: 'var(--cyan)' },
         ].map((a) => (
-          <Link key={a.label} href={a.href} className="neo-card p-5 block no-underline text-center">
-            <span className="font-[family-name:var(--f-m)] text-sm font-bold uppercase tracking-wider text-[var(--text)]">+ {a.label}</span>
+          <Link key={a.label} href={a.href} className="dash-kpi" style={{ gridColumn: 'span 3' }}>
+            <div className="dash-kpi-label" style={{ color: a.color }}>{a.label}</div>
+            <div className="dash-kpi-value" style={{ color: a.color, fontSize: '1.2rem' }}>+ {a.label}</div>
           </Link>
         ))}
-      </div>
 
-      {/* ═══ TWO-COLUMN ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+        <SectionHeader title="Recent Users" span={6} />
 
-        {/* ── LEFT ── */}
-        <div className="flex flex-col gap-6">
-
-          {/* Recent Activity */}
-          <div className="neo-card">
-            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-0">
-              <h2>RECENT <em className="text-[var(--green)]">ACTIVITY</em></h2>
-            </div>
-            <table className="price-table">
-              <thead>
-                <tr>
-                  <th className="w-20">Time</th>
-                  <th className="w-8"></th>
-                  <th>Action</th>
-                  <th>Detail</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activity.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center text-[var(--text-dim)] py-8 font-[family-name:var(--f-m)] text-sm">No recent activity</td></tr>
-                ) : (
-                  activity.slice(0, 10).map((item, i) => (
-                    <tr key={i}>
-                      <td className="text-[var(--text-dim)] text-xs whitespace-nowrap">{item.time}</td>
-                      <td className="text-[var(--green)] text-center">{item.icon}</td>
-                      <td className="text-[var(--text-muted)]">{item.action}</td>
-                      <td className="font-bold text-[var(--text)]">{item.detail}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pending Moderation */}
-          <div className="neo-card">
-            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-0">
-              <h2>PENDING <em className="text-[var(--orange)]">MODERATION</em></h2>
-            </div>
-            <table className="price-table">
-              <tbody>
-                {[
-                  { label: 'Pending Products', count: 0, href: '/admin/products' },
-                  { label: 'Pending Vendors', count: 0, href: '/admin/vendors' },
-                  { label: 'Pending Price Changes', count: 0, href: '/admin/products' },
-                  { label: 'Pending Specs', count: 0, href: '/admin/products' },
-                  { label: 'Pending Community Edits', count: 0, href: '/admin/community' },
-                ].map((item) => (
-                  <tr key={item.label}>
-                    <td className="font-bold">{item.label}</td>
-                    <td className="text-right text-[var(--text-dim)]">{item.count}</td>
-                    <td className="text-right w-24">
-                      <Link href={item.href} className="font-[family-name:var(--f-m)] text-xs font-bold uppercase tracking-wider text-[var(--yellow)] hover:text-[var(--green)] transition-colors">Review</Link>
-                    </td>
-                  </tr>
+        <div className="dash-panel" style={{ gridColumn: 'span 6' }}>
+          <div className="dash-panel-header">Recent Signups</div>
+          <div className="dash-panel-body">
+            {recentUsers.length === 0 ? (
+              <div className="dash-empty-sm">No users yet</div>
+            ) : (
+              <div className="dash-activity-list">
+                {recentUsers.map((u) => (
+                  <div key={u.username} className="dash-activity-item">
+                    <span className="dash-activity-icon" style={{ color: 'var(--purple)' }}>◆</span>
+                    <div className="dash-activity-content">
+                      <span className="dash-activity-text">{u.displayName || u.username}</span>
+                      <span className="dash-activity-time">{timeAgo(u.createdAt)}</span>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Reports Queue */}
-          <div className="neo-card">
-            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-0">
-              <h2>REPORTS <em className="text-[var(--red)]">QUEUE</em></h2>
-            </div>
-            <table className="price-table">
-              <tbody>
-                {[
-                  { label: 'Report Product', count: 0 },
-                  { label: 'Broken Vendor Link', count: 0 },
-                  { label: 'Wrong Specs', count: 0 },
-                  { label: 'Duplicate Product', count: 0 },
-                ].map((item) => (
-                  <tr key={item.label}>
-                    <td className="font-bold">{item.label}</td>
-                    <td className="text-right text-[var(--text-dim)]">{item.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ── RIGHT SIDEBAR ── */}
-        <div className="flex flex-col gap-6">
+        <SectionHeader title="Recent Votes" span={6} />
 
-          {/* System Health */}
-          <div className="neo-card">
-            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-0">
-              <h2>SYSTEM <em className="text-[var(--cyan)]">HEALTH</em></h2>
-            </div>
-            <table className="price-table">
-              <tbody>
-                {[
-                  { label: 'Database', value: 'Operational', ok: true },
-                  { label: 'Storage', value: 'Operational', ok: true },
-                  { label: 'Image Count', value: `${productCount} products` },
-                  { label: 'Users Online', value: '—' },
-                  { label: 'Cron Jobs', value: 'Active', ok: true },
-                  { label: 'Scraper Status', value: 'Idle', ok: true },
-                ].map((item) => (
-                  <tr key={item.label}>
-                    <td className="text-[var(--text-muted)]">{item.label}</td>
-                    <td className={`text-right font-bold ${item.ok ? 'text-[var(--green)]' : 'text-[var(--text-dim)]'}`}>{item.value}</td>
-                  </tr>
+        <div className="dash-panel" style={{ gridColumn: 'span 6' }}>
+          <div className="dash-panel-header">Recent Votes</div>
+          <div className="dash-panel-body">
+            {recentVotes.length === 0 ? (
+              <div className="dash-empty-sm">No votes yet</div>
+            ) : (
+              <div className="dash-activity-list">
+                {recentVotes.slice(0, 6).map((v) => (
+                  <div key={v.id} className="dash-activity-item">
+                    <span className="dash-activity-icon" style={{ color: v.type === 'upvote' ? 'var(--green)' : 'var(--red)' }}>
+                      {v.type === 'upvote' ? '▲' : '▼'}
+                    </span>
+                    <div className="dash-activity-content">
+                      <span className="dash-activity-text">{v.profile.username} voted on {v.product.name}</span>
+                      <span className="dash-activity-time">{timeAgo(v.createdAt)}</span>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Recent Signups */}
-          <div className="neo-card">
-            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-0">
-              <h2>RECENT <em className="text-[var(--purple)]">SIGNUPS</em></h2>
-            </div>
-            <table className="price-table">
-              <tbody>
-                {recentUsers.length === 0 ? (
-                  <tr><td className="text-center text-[var(--text-dim)] py-6 font-[family-name:var(--f-m)] text-sm">No users yet</td></tr>
-                ) : (
-                  recentUsers.map((u) => (
-                    <tr key={u.username}>
-                      <td className="font-bold">{u.displayName || u.username}</td>
-                      <td className="text-right text-[var(--text-dim)] text-xs whitespace-nowrap">{timeAgo(u.createdAt)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Recent Votes */}
-          <div className="neo-card">
-            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-0">
-              <h2>RECENT <em className="text-[var(--yellow)]">VOTES</em></h2>
-            </div>
-            <table className="price-table">
-              <tbody>
-                {recentVotes.length === 0 ? (
-                  <tr><td className="text-center text-[var(--text-dim)] py-6 font-[family-name:var(--f-m)] text-sm">No votes yet</td></tr>
-                ) : (
-                  recentVotes.slice(0, 6).map((v) => (
-                    <tr key={v.id}>
-                      <td className={`w-8 text-center ${v.type === 'upvote' ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>{v.type === 'upvote' ? '▲' : '▼'}</td>
-                      <td className="font-bold">{v.profile.username}</td>
-                      <td className="text-[var(--text-dim)] text-right truncate max-w-[140px]">{v.product.name}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Announcements */}
-          <div className="neo-card">
-            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-0">
-              <h2>ANNOUNCEMENTS</h2>
-            </div>
-            <div className="p-6 flex flex-col gap-3">
-              <Link href="/admin/banners/new" className="btn-primary btn-sm text-center no-underline">+ Create Announcement</Link>
-              <Link href="/admin/banners" className="btn-secondary btn-sm text-center no-underline">Manage Banners</Link>
-            </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </DashboardGrid>
     </div>
   );
 }

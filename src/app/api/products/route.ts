@@ -10,53 +10,29 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get('sort') || 'lowest';
   const priceMin = searchParams.get('priceMin');
   const priceMax = searchParams.get('priceMax');
-  const layouts = searchParams.getAll('layout');
-  const caseMaterials = searchParams.getAll('caseMaterial');
-  const mountTypes = searchParams.getAll('mountType');
-  const connectivity = searchParams.getAll('connectivity');
-  const pcbTypes = searchParams.getAll('pcbType');
-  const keyboardTypes = searchParams.getAll('keyboardType');
-  const plateMaterials = searchParams.getAll('plateMaterial');
-  const rgb = searchParams.getAll('rgb');
   const availability = searchParams.getAll('availability');
-  const brands = searchParams.getAll('brand');
-  const vendors = searchParams.getAll('vendor');
-  const switchTypes = searchParams.getAll('switchType');
+  const special = searchParams.get('special') || undefined;
   const take = parseInt(searchParams.get('take') || '50', 10);
 
-  const keyboardCategory = await prisma.category.findUnique({
-    where: { slug: 'keyboards' },
-    select: { id: true },
-  });
+  const arraySpecKeys = [
+    'keyboardStyle', 'mountingStyle', 'plateMaterial',
+    'pcbType', 'connectivity', 'firmware',
+    'switchCompat', 'switchType', 'switchBrand', 'switchModel',
+    'keycapLegendType', 'keycapLegendPlacement',
+  ] as const;
 
-  if (!keyboardCategory) {
-    return NextResponse.json({ products: [], total: 0 });
-  }
+  const stringSpecKeys = [
+    'layout', 'caseMaterial', 'lighting', 'ledOrientation',
+    'keycapMaterial', 'keycapProfile', 'switchStemMaterial', 'switchSpringType',
+  ] as const;
 
-  const specFilters: Prisma.SpecificationWhereInput[] = [];
-  const specGroups: Record<string, string[]> = {
-    layout: layouts,
-    case_material: caseMaterials,
-    mount_type: mountTypes,
-    connectivity: connectivity,
-    pcb_type: pcbTypes,
-    keyboard_type: keyboardTypes,
-    plate_material: plateMaterials,
-    rgb: rgb,
-    switch_type: switchTypes,
-  };
-
-  for (const [fieldSlug, values] of Object.entries(specGroups)) {
-    if (values.length > 0) {
-      specFilters.push({
-        specField: { slug: fieldSlug },
-        value: { in: values },
-      });
-    }
-  }
+  const booleanSpecKeys = [
+    'flexCuts', 'detachableCable', 'perKeyRgb', 'switchesIncluded',
+    'factoryLubed', 'handLubed', 'switchLongPole', 'switchDustproofStem',
+  ] as const;
 
   const where: Prisma.ProductWhereInput = {
-    categoryId: keyboardCategory.id,
+    productType: 'keyboards',
   };
 
   if (q) {
@@ -66,12 +42,38 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  if (brands.length > 0) {
-    where.brand = { name: { in: brands } };
+  const specAnd: Prisma.KeyboardSpecWhereInput[] = [];
+
+  for (const key of arraySpecKeys) {
+    const values = searchParams.getAll(key);
+    if (values.length > 0) {
+      const orGroup: Prisma.KeyboardSpecWhereInput[] = values.map((v) => ({
+        [key]: { path: [], equals: v },
+      }));
+      specAnd.push({ OR: orGroup });
+    }
   }
 
-  if (specFilters.length > 0) {
-    where.specifications = { every: { AND: specFilters } };
+  for (const key of stringSpecKeys) {
+    const values = searchParams.getAll(key);
+    if (values.length > 0) {
+      specAnd.push({ [key]: { in: values } });
+    }
+  }
+
+  for (const key of booleanSpecKeys) {
+    const val = searchParams.get(key);
+    if (val === 'true' || val === 'false') {
+      specAnd.push({ [key]: val === 'true' });
+    }
+  }
+
+  if (special) {
+    specAnd.push({ specialFeatures: { contains: special, mode: 'insensitive' } });
+  }
+
+  if (specAnd.length > 0) {
+    where.keyboardSpec = { AND: specAnd };
   }
 
   const vpConditions: Prisma.VendorProductWhereInput[] = [];
@@ -82,9 +84,6 @@ export async function GET(request: NextRequest) {
         ...(priceMax ? { lte: parseFloat(priceMax) } : {}),
       },
     });
-  }
-  if (vendors.length > 0) {
-    vpConditions.push({ vendor: { name: { in: vendors } } });
   }
   if (availability.length > 0) {
     const stockValues = availability.map((s) => s.toLowerCase().replace(/\s+/g, '_'));
@@ -118,15 +117,10 @@ export async function GET(request: NextRequest) {
       take,
       include: {
         brand: { select: { name: true } },
-        category: { select: { name: true, slug: true } },
         vendorProducts: {
           select: { totalPrice: true },
           orderBy: { totalPrice: 'asc' },
           take: 1,
-        },
-        specifications: {
-          include: { specField: { select: { name: true } } },
-          take: 4,
         },
         votes: { select: { type: true } },
         _count: { select: { vendorProducts: true } },
@@ -135,7 +129,6 @@ export async function GET(request: NextRequest) {
     prisma.product.count({ where }),
   ]);
 
-  // Get current user's votes for these products
   let userVotes: Record<string, string> = {};
   try {
     const supabase = await createClient();
@@ -154,7 +147,7 @@ export async function GET(request: NextRequest) {
       }
     }
   } catch {
-    // Not authenticated — continue without user votes
+    // Not authenticated
   }
 
   const result = products.map((p) => {
@@ -169,13 +162,11 @@ export async function GET(request: NextRequest) {
       slug: p.slug,
       image: p.image,
       brand: p.brand,
-      category: p.category,
       lowestPrice: p.vendorProducts[0]?.totalPrice ?? null,
       highestPrice: p.vendorProducts[0]?.totalPrice ?? null,
       vendorCount: p._count.vendorProducts,
       upvotes,
       downvotes,
-      specs: p.specifications.map((s) => s.value).slice(0, 4),
       approval,
       userVote: (userVotes[p.id] as 'upvote' | 'downvote') || null,
     };

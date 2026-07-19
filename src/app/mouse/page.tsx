@@ -1,11 +1,15 @@
 import { Suspense } from 'react';
+import { prisma } from '@/lib/prisma';
 import MouseContent from './content';
 import { getBannersForLocation } from '@/lib/admin/banner-actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MousePage() {
-  const banners = await getBannersForLocation('mouse');
+  const [banners, totalCount] = await Promise.all([
+    getBannersForLocation('mouse'),
+    prisma.product.count({ where: { productType: 'mouse' } }),
+  ]);
 
   return (
     <Suspense
@@ -28,7 +32,7 @@ export default async function MousePage() {
         </div>
       }
     >
-      <MouseContent banners={banners} />
+      <MouseContent banners={banners} totalCount={totalCount} />
     </Suspense>
   );
 }

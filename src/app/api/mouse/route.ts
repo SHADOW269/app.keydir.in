@@ -10,55 +10,13 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get('sort') || 'popular';
   const priceMin = searchParams.get('priceMin');
   const priceMax = searchParams.get('priceMax');
-  const connections = searchParams.getAll('connection');
-  const sensors = searchParams.getAll('sensor');
-  const shapes = searchParams.getAll('shape');
-  const weights = searchParams.getAll('weight');
-  const pollingRates = searchParams.getAll('pollingRate');
-  const switchTypes = searchParams.getAll('switchType');
-  const rgbFilters = searchParams.getAll('rgb');
-  const batteries = searchParams.getAll('battery');
-  const gripStyles = searchParams.getAll('gripStyle');
-  const sizes = searchParams.getAll('size');
   const availability = searchParams.getAll('availability');
   const brands = searchParams.getAll('brand');
   const vendors = searchParams.getAll('vendor');
   const take = parseInt(searchParams.get('take') || '50', 10);
 
-  const mouseCategory = await prisma.category.findUnique({
-    where: { slug: 'mouse' },
-    select: { id: true },
-  });
-
-  if (!mouseCategory) {
-    return NextResponse.json({ products: [], total: 0 });
-  }
-
-  const specFilters: Prisma.SpecificationWhereInput[] = [];
-  const specGroups: Record<string, string[]> = {
-    connection: connections,
-    sensor: sensors,
-    shape: shapes,
-    weight: weights,
-    polling_rate: pollingRates,
-    switch_type: switchTypes,
-    rgb: rgbFilters,
-    battery: batteries,
-    grip_style: gripStyles,
-    size: sizes,
-  };
-
-  for (const [fieldSlug, values] of Object.entries(specGroups)) {
-    if (values.length > 0) {
-      specFilters.push({
-        specField: { slug: fieldSlug },
-        value: { in: values },
-      });
-    }
-  }
-
   const where: Prisma.ProductWhereInput = {
-    categoryId: mouseCategory.id,
+    productType: 'mouse',
   };
 
   if (q) {
@@ -70,10 +28,6 @@ export async function GET(request: NextRequest) {
 
   if (brands.length > 0) {
     where.brand = { name: { in: brands } };
-  }
-
-  if (specFilters.length > 0) {
-    where.specifications = { every: { AND: specFilters } };
   }
 
   const vpConditions: Prisma.VendorProductWhereInput[] = [];
@@ -125,14 +79,10 @@ export async function GET(request: NextRequest) {
       take,
       include: {
         brand: { select: { name: true } },
-        category: { select: { name: true, slug: true } },
         vendorProducts: {
           select: { totalPrice: true },
           orderBy: { totalPrice: 'asc' },
           take: 1,
-        },
-        specifications: {
-          include: { specField: { select: { name: true, slug: true } } },
         },
         votes: { select: { type: true } },
         _count: { select: { vendorProducts: true } },
@@ -166,21 +116,17 @@ export async function GET(request: NextRequest) {
     const totalVotes = upvotes + downvotes;
     const approval = totalVotes >= 10 ? Math.round((upvotes / totalVotes) * 100) : null;
 
-    const tags = p.specifications.map((s) => s.value.toUpperCase()).slice(0, 4);
-
     return {
       id: p.id,
       name: p.name,
       slug: p.slug,
       image: p.image,
       brand: p.brand,
-      category: p.category,
       lowestPrice: p.vendorProducts[0]?.totalPrice ?? null,
       highestPrice: p.vendorProducts[0]?.totalPrice ?? null,
       vendorCount: p._count.vendorProducts,
       upvotes,
       downvotes,
-      specs: tags,
       approval,
       userVote: (userVotes[p.id] as 'upvote' | 'downvote') || null,
     };

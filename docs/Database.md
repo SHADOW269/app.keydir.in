@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-KEYDIR uses a PostgreSQL database managed through Supabase. The schema is defined in `prisma/schema.prisma` and accessed via Prisma ORM. The database follows a relational model with an EAV (Entity-Attribute-Value) pattern for flexible product specifications.
+KEYDIR uses a PostgreSQL database managed through Supabase. The schema is defined in `prisma/schema.prisma` and accessed via Prisma ORM. The database follows a relational model with an EAV (Entity-Attribute-Value) pattern for flexible product specifications. The spec engine is fully dynamic — admin-defined `SpecField` definitions drive forms, filters, search, and comparison.
 
 ---
 
@@ -89,18 +89,25 @@ KEYDIR uses a PostgreSQL database managed through Supabase. The schema is define
 │ recordedAt                            │
 └───────────────────────────────────────┘
 
-┌──────────────┐     ┌──────────────────┐
-│  SpecField    │     │  Specification   │
-│──────────────│     │──────────────────│
-│ id (PK)      │────<│ specFieldId (FK) │
-│ name         │     │ productId (FK)   │>──── Product
-│ slug (UQ)    │     │ value            │
-│ categoryId   │     │ @@unique([       │
-│ group        │     │   productId,     │
-│ type         │     │   specFieldId])  │
-│ options      │     └──────────────────┘
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  SpecField    │     │   SpecOption     │     │  Specification   │
+│──────────────│     │──────────────────│     │──────────────────│
+│ id (PK)      │────<│ specFieldId (FK) │     │ specFieldId (FK) │>──── SpecField
+│ name         │     │ label            │     │ productId (FK)   │>──── Product
+│ slug (UQ)    │     │ value            │     │ value            │
+│ categoryId   │     │ order            │     │ @@unique([       │
+│ group        │     │ enabled          │     │   productId,     │
+│ groupOrder   │     │ createdAt        │     │   specFieldId])  │
+│ inputType    │     │ @@unique([       │     └──────────────────┘
+│ required     │     │   specFieldId,   │
+│ filterable   │     │   value])        │
+│ searchable   │     └──────────────────┘
+│ comparable   │
 │ order        │
+│ defaultValue │
+│ validationRules│
 │ createdAt    │
+│ updatedAt    │
 └──────────────┘
 
 ┌──────────────┐     ┌──────────────────┐
@@ -125,6 +132,7 @@ KEYDIR uses a PostgreSQL database managed through Supabase. The schema is define
 
 ┌──────────────┐     ┌──────────────────┐
 │  SwitchData   │     │   KeycapData     │
+│ (DEPRECATED)  │     │   (DEPRECATED)   │
 │──────────────│     │──────────────────│
 │ id (PK)      │     │ id (PK)          │
 │ productId(UQ)│>─── │ productId (UQ)   │>─── Product
@@ -259,7 +267,7 @@ Core entity — any keyboard, switch, keycap, or accessory.
 
 ### 3.6 SpecField
 
-Defines specification fields per category (EAV pattern).
+Defines specification fields per category (dynamic EAV pattern). Admin-managed via Specification Manager.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
@@ -268,17 +276,45 @@ Defines specification fields per category (EAV pattern).
 | `slug` | String | Unique | URL-friendly name (e.g., "layout") |
 | `categoryId` | String | | Which category this field belongs to |
 | `group` | String | Default: "General" | Display group (e.g., "General", "PCB") |
-| `type` | String | Default: "text" | Field type: text, number, boolean, select |
-| `options` | String? | | JSON array for select type fields |
+| `groupOrder` | Int | Default: 0 | Display order of the group itself |
+| `inputType` | String | Default: "text" | Input type: text, number, boolean, select, multi_select, rich_text, url, date |
+| `required` | Boolean | Default: false | Whether this field is required |
+| `filterable` | Boolean | Default: false | Auto-generates a filter on listing pages |
+| `searchable` | Boolean | Default: false | Included in search queries |
+| `comparable` | Boolean | Default: false | Available in product comparison |
 | `order` | Int | Default: 0 | Display order within group |
+| `defaultValue` | String? | | Pre-filled value for new products |
+| `validationRules` | String? | | JSON: { min, max, pattern, minLength, maxLength } |
 | `createdAt` | DateTime | Default: now() | Creation timestamp |
+| `updatedAt` | DateTime | Auto-updated | Last update timestamp |
 
-**Indexes:** `@@index([categoryId])`, `@@index([categoryId, group])`
-**Relations:** `specs`
+**Indexes:** `@@index([categoryId])`, `@@index([categoryId, group])`, `@@index([categoryId, filterable])`
+**Relations:** `specs`, `options`
 
 ---
 
-### 3.7 Specification
+### 3.7 SpecOption
+
+Selectable options for `select` and `multi_select` SpecField types.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | String | PK, cuid | Unique identifier |
+| `specFieldId` | String | FK → SpecField | Parent spec field |
+| `label` | String | | Display label (e.g., "USB-C") |
+| `value` | String | | Stored value (e.g., "usb_c") |
+| `order` | Int | Default: 0 | Display order within field |
+| `enabled` | Boolean | Default: true | Can be disabled without deleting |
+| `createdAt` | DateTime | Default: now() | Creation timestamp |
+
+**Constraints:** `@@unique([specFieldId, value])`
+**Indexes:** `@@index([specFieldId])`
+**Relations:** `specField`
+**Cascade:** onDelete: Cascade (deleting a SpecField removes its options)
+
+---
+
+### 3.8 Specification
 
 Actual specification values for products (EAV value table).
 
@@ -287,10 +323,10 @@ Actual specification values for products (EAV value table).
 | `id` | String | PK, cuid | Unique identifier |
 | `productId` | String | FK → Product | Product this spec belongs to |
 | `specFieldId` | String | FK → SpecField | Which spec field this is |
-| `value` | String | | The spec value |
+| `value` | String | | The spec value (comma-separated for multi_select) |
 
 **Constraints:** `@@unique([productId, specFieldId])`
-**Indexes:** `@@index([productId])`
+**Indexes:** `@@index([productId])`, `@@index([specFieldId])`
 **Relations:** `product`, `specField`
 **Cascade:** onDelete: Cascade (deleting a product removes its specs)
 
@@ -344,7 +380,9 @@ Historical price records for vendor products.
 
 ---
 
-### 3.10 SwitchData
+### 3.11 SwitchData
+
+> **DEPRECATED** — Data migrated to SpecField/Specification EAV. Model retained for migration reference only.
 
 Extended data specific to mechanical switches.
 
@@ -369,7 +407,9 @@ Extended data specific to mechanical switches.
 
 ---
 
-### 3.11 KeycapData
+### 3.12 KeycapData
+
+> **DEPRECATED** — Data migrated to SpecField/Specification EAV. Model retained for migration reference only.
 
 Extended data specific to keycap sets.
 
@@ -389,7 +429,7 @@ Extended data specific to keycap sets.
 
 ---
 
-### 3.12 Vote
+### 3.13 Vote
 
 Community voting on products.
 
@@ -409,7 +449,7 @@ Community voting on products.
 
 ---
 
-### 3.13 Banner
+### 3.14 Banner
 
 Promotional banners displayed on the site.
 
@@ -436,7 +476,7 @@ Promotional banners displayed on the site.
 
 ---
 
-### 3.14 BannerLocation
+### 3.15 BannerLocation
 
 Defines which pages a banner appears on.
 
@@ -455,7 +495,7 @@ Defines which pages a banner appears on.
 
 ---
 
-### 3.15 Wishlist
+### 3.16 Wishlist
 
 User's saved products for later.
 
@@ -472,7 +512,7 @@ User's saved products for later.
 
 ---
 
-### 3.16 Collection
+### 3.17 Collection
 
 User's owned products.
 
@@ -502,7 +542,10 @@ User's owned products.
 | Product | Custom | `brandId` |
 | SpecField | Custom | `categoryId` |
 | SpecField | Composite | `[categoryId, group]` |
+| SpecField | Custom | `[categoryId, filterable]` |
+| SpecOption | Custom | `specFieldId` |
 | Specification | Default | `productId` |
+| Specification | Custom | `specFieldId` |
 | VendorProduct | Default | `productId` |
 | VendorProduct | Custom | `vendorId` |
 | VendorProduct | Custom | `totalPrice` |
@@ -528,6 +571,7 @@ User's owned products.
 | Category | `slug` | Unique | `slug` |
 | Product | `slug` | Unique | `slug` |
 | SpecField | `slug` | Unique | `slug` |
+| SpecOption | `specFieldId_value` | Unique | `specFieldId`, `value` |
 | Specification | `productId_specFieldId` | Unique | `productId`, `specFieldId` |
 | VendorProduct | `vendorId_productId` | Unique | `vendorId`, `productId` |
 | SwitchData | `productId` | Unique | `productId` |
@@ -548,6 +592,7 @@ User's owned products.
 | Product | `categoryId` | Category.id | Restrict |
 | Specification | `productId` | Product.id | Cascade |
 | Specification | `specFieldId` | SpecField.id | Restrict |
+| SpecOption | `specFieldId` | SpecField.id | Cascade |
 | VendorProduct | `vendorId` | Vendor.id | Restrict |
 | VendorProduct | `productId` | Product.id | Cascade |
 | PriceHistory | `vendorProductId` | VendorProduct.id | Cascade |
@@ -592,8 +637,8 @@ User's owned products.
 | Add `Report` model | Medium | User reports for products/vendors |
 | Add `View` model | Medium | Track product page views |
 | Add `SearchLog` model | Medium | Track search queries |
+| Migrate SwitchData/KeycapData to EAV | High | Replace deprecated models with Specification rows |
 | Add `Announcement` model | Low | In-app announcements beyond banners |
 | Add `Notification` model | Low | User notifications |
 | Full-text search index | Medium | PostgreSQL GIN index for faster search |
 | Partition PriceHistory | Low | Partition by date for large datasets |
-| Add `meta` JSON field to Product | Low | Extensible metadata without schema changes |

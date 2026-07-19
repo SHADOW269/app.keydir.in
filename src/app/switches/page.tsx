@@ -1,11 +1,15 @@
 import { Suspense } from 'react';
+import { prisma } from '@/lib/prisma';
 import SwitchesContent from './content';
 import { getBannersForLocation } from '@/lib/admin/banner-actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SwitchesPage() {
-  const banners = await getBannersForLocation('switches');
+  const [banners, totalCount] = await Promise.all([
+    getBannersForLocation('switches'),
+    prisma.product.count({ where: { productType: 'switches' } }),
+  ]);
 
   return (
     <Suspense
@@ -28,7 +32,7 @@ export default async function SwitchesPage() {
         </div>
       }
     >
-      <SwitchesContent banners={banners} />
+      <SwitchesContent banners={banners} totalCount={totalCount} />
     </Suspense>
   );
 }

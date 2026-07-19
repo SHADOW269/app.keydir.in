@@ -7,6 +7,7 @@ import { ProfileEditForm } from '@/components/profile/profile-edit-form';
 import { getProfileByUsername, getCurrentUser, ensureProfile, isAuthenticated } from '@/lib/profile/actions';
 import { logout } from '@/lib/auth/actions';
 import { prisma } from '@/lib/prisma';
+import { getProfileStats } from '@/lib/reputation/actions';
 
 interface Props {
   params: Promise<{ username: string }>;
@@ -16,14 +17,6 @@ interface Props {
 export async function generateMetadata({ params }: Props) {
   const { username } = await params;
   return { title: `${username} — Profile | KeyDir` };
-}
-
-function getRank(reputation: number): string {
-  if (reputation >= 500) return 'Elite';
-  if (reputation >= 200) return 'Expert';
-  if (reputation >= 100) return 'Contributor';
-  if (reputation >= 50) return 'Member';
-  return 'Newbie';
 }
 
 function formatMemberDate(date: Date): string {
@@ -57,7 +50,6 @@ export default async function ProfilePage({ params, searchParams }: Props) {
       product: {
         include: {
           brand: { select: { name: true } },
-          category: { select: { name: true, slug: true } },
           vendorProducts: {
             select: { totalPrice: true },
             orderBy: { totalPrice: 'asc' },
@@ -69,12 +61,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     orderBy: { createdAt: 'desc' },
   });
 
-  const upvotes = votes.filter((v) => v.type === 'upvote').length;
-  const downvotes = votes.filter((v) => v.type === 'downvote').length;
-  const totalVotes = votes.length;
-  const collectionCount = profile._count.collection;
-  const reputation = upvotes * 10 + collectionCount * 5;
-  const rank = getRank(reputation);
+  const stats = await getProfileStats(profile.username);
+  const xp = stats?.xp || 0;
+  const rank = stats?.rank || 'Newbie';
 
   return (
     <>
@@ -112,12 +101,25 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               </div>
               <div className="profile-hero-handle">@{profile.username}</div>
               <div className="profile-hero-badges">
-                <span className="profile-hero-badge">Community Member</span>
-                <span className="profile-hero-badge">{rank}</span>
+                {stats?.badges?.map((ub) => (
+                  <span
+                    key={ub.badge.id}
+                    className="profile-hero-badge"
+                    style={{
+                      backgroundColor: ub.badge.bgColor,
+                      color: ub.badge.textColor,
+                      borderColor: ub.badge.borderColor,
+                    }}
+                    title={ub.badge.description || undefined}
+                  >
+                    {ub.badge.icon} {ub.badge.name}
+                  </span>
+                ))}
               </div>
               <div className="profile-hero-meta">
                 <span>Joined {formatMemberDate(profile.createdAt)}</span>
-                <span>{reputation} XP</span>
+                <span className="profile-hero-meta-sep">&bull;</span>
+                <span>{xp} XP</span>
               </div>
 
               {profile.bio && (
@@ -174,16 +176,20 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           {/* ═══ Stats Row ═══ */}
           <div className="profile-stats-row">
             <div className="profile-stat-box">
-              <span className="profile-stat-num">{totalVotes}</span>
-              <span className="profile-stat-label">VOTES SUBMITTED</span>
+              <span className="profile-stat-num">{stats?.voteCount || 0}</span>
+              <span className="profile-stat-label">VOTES</span>
             </div>
             <div className="profile-stat-box">
               <span className="profile-stat-num">{profile.voteCredits}</span>
-              <span className="profile-stat-label">AVAILABLE CREDITS</span>
+              <span className="profile-stat-label">CREDITS</span>
             </div>
             <div className="profile-stat-box">
-              <span className="profile-stat-num">{collectionCount}</span>
+              <span className="profile-stat-num">{stats?.collectionCount || 0}</span>
               <span className="profile-stat-label">COLLECTION</span>
+            </div>
+            <div className="profile-stat-box">
+              <span className="profile-stat-num">{stats?.contributionCount || 0}</span>
+              <span className="profile-stat-label">CONTRIBUTIONS</span>
             </div>
           </div>
 
@@ -197,7 +203,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             voteCredits={profile.voteCredits}
             memberSince={profile.createdAt.getFullYear()}
             rank={rank}
-            reputation={reputation}
+            reputation={xp}
             profile={JSON.parse(JSON.stringify(profile))}
           />
         </div>

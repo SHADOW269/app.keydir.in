@@ -218,6 +218,7 @@ All Moderator capabilities plus:
 | Keycap filters | ✅ Implemented | Profile, material, manufacture method, language |
 | Mouse filters | ✅ Implemented | Connectivity, DPI, weight, brand |
 | Filter modal | ✅ Implemented | Slide-out filter panel with checkbox groups |
+| Dynamic filters | 🔲 Pending | Auto-generated from SpecField `filterable` fields — replaces hardcoded filter components |
 | Sort options | ✅ Implemented | Lowest price, highest price, newest, most upvoted, most vendors |
 | URL-based filters | ✅ Implemented | Filters reflected in URL search params |
 
@@ -263,6 +264,21 @@ All Moderator capabilities plus:
 | Password reset | ✅ Implemented | Forgot password flow with email redirect |
 | Email verification | ✅ Implemented | Account created confirmation page |
 | Logout | ✅ Implemented | Server action |
+
+### 5.16 Specification Engine
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Dynamic spec fields | ✅ Schema ready | SpecField defines fields per category with inputType, filterable, searchable, comparable flags |
+| Spec options | ✅ Schema ready | SpecOption model for select/multi_select fields (replaces JSON options) |
+| Admin spec manager | 🔲 Pending | UI to create/edit/delete SpecField and SpecOption rows |
+| Dynamic product form | 🔲 Pending | Auto-renders from SpecField definitions (all input types) |
+| Dynamic filters | 🔲 Pending | Auto-generates filters from `filterable: true` fields |
+| Dynamic spec display | 🔲 Pending | Product pages render specs from SpecField definitions |
+| Searchable specs | 🔲 Pending | `searchable: true` fields included in global search |
+| Comparison | 🔲 Pending | `comparable: true` fields for side-by-side product comparison |
+| Category templates | 🔲 Pending | Pre-seeded SpecField definitions for keyboards, switches, keycaps, mouse |
+| Spec migration | 🔲 Pending | Migrate SwitchData/KeycapData to unified EAV |
 
 ---
 

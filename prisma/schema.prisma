@@ -29,6 +29,15 @@ model Profile {
   wishlist      Wishlist[]
   collection    Collection[]
 
+  userXp        UserXP?
+  contributions Contribution[]
+  approvedContributions Contribution[] @relation("ApprovedContributions")
+  userBadges    UserBadge[]
+  assignedBadges UserBadge[] @relation("AssignedBadges")
+  activityLog   ActivityLog[]
+  bans          BanHistory[]
+  bansIssued    BanHistory[] @relation("BannedBy")
+
   @@index([username])
 }
 
@@ -59,27 +68,32 @@ model Vendor {
   website         String
   affiliateLink   String?
   shippingPolicy  String?
+  chartColor      String?
   enabled         Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  // Scraper configuration
+  scraperEnabled          Boolean   @default(false)
+  scraperEngine           String    @default("cheerio") // cheerio | playwright
+  priceSelector           String?
+  availabilitySelector    String?
+  titleSelector           String?
+  imageSelector           String?
+  productExistsSelector   String?
+  priceAttribute          String    @default("text")  // text | content | html
+  availabilityAttribute   String    @default("text")
+  titleAttribute          String    @default("text")
+  imageAttribute          String    @default("src")
+  customHeaders           String?   // JSON string
+  cloudflareProtected     Boolean   @default(false)
+  useJavaScriptRendering  Boolean   @default(false)
+  customScraper           String?   // custom scraper name (e.g. "meckeys")
+  scraperVersion          Int       @default(1)
+  scraperNotes            String?
+
   vendorProducts  VendorProduct[]
-
-  @@index([slug])
-}
-
-// ═══════════════════════════════════
-// CATEGORIES
-// ═══════════════════════════════════
-
-model Category {
-  id        String    @id @default(cuid())
-  name      String
-  slug      String    @unique
-  icon      String?
-  createdAt DateTime  @default(now())
-
-  products  Product[]
+  scrapeLogs      ScrapeLog[]
 
   @@index([slug])
 }
@@ -89,143 +103,186 @@ model Category {
 // ═══════════════════════════════════
 
 model Product {
-  id          String    @id @default(cuid())
-  name        String
-  slug        String    @unique
-  brandId     String?
-  categoryId  String
-  image       String?
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  brandId         String?
+  productType     String    @default("keyboards")
+  image           String?
+  description     String?
 
-  brand         Brand?          @relation(fields: [brandId], references: [id])
-  category      Category        @relation(fields: [categoryId], references: [id])
-  specifications Specification[]
-  vendorProducts VendorProduct[]
-  votes         Vote[]
-  wishlist      Wishlist[]
-  collection    Collection[]
+  // Extended product fields
+  longDescription String?
+  sku             String?
+  tags            Json?     // string[]
+  releaseDate     DateTime?
+  status          String    @default("active") // active | draft | archived
+  featured        Boolean   @default(false)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  brand           Brand?          @relation(fields: [brandId], references: [id])
+  keyboardSpec    KeyboardSpec?
+  switchSpec      SwitchSpec?
+  keycapSpec      KeycapSpec?
+  mouseSpec       MouseSpec?
+  images          ProductImage[]
+  vendorProducts  VendorProduct[]
+  votes           Vote[]
+  wishlist        Wishlist[]
+  collection      Collection[]
 
   @@index([slug])
-  @@index([categoryId])
+  @@index([productType])
   @@index([brandId])
-}
-
-// ═══════════════════════════════════
-// FLEXIBLE SPECIFICATIONS (EAV pattern)
-// ═══════════════════════════════════
-
-model SpecField {
-  id         String    @id @default(cuid())
-  name       String
-  slug       String    @unique
-  categoryId String
-  group      String    @default("General") // e.g. General, Layout & Build, Mounting, PCB, etc.
-  type       String    @default("text") // text, number, boolean, select
-  options    String?   // JSON array for select type
-  order      Int       @default(0) // display order within group
-  createdAt  DateTime  @default(now())
-
-  specs      Specification[]
-
-  @@index([categoryId])
-  @@index([categoryId, group])
-}
-
-model Specification {
-  id          String    @id @default(cuid())
-  productId   String
-  specFieldId String
-  value       String
-
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  specField SpecField @relation(fields: [specFieldId], references: [id])
-
-  @@unique([productId, specFieldId])
-  @@index([productId])
 }
 
 // ═══════════════════════════════════
 // PRICING
 // ═══════════════════════════════════
 
+enum ScrapeStatus {
+  SUCCESS
+  FAILED
+  PENDING
+  MANUAL_OVERRIDE
+  NEEDS_REVIEW
+}
+
+enum Availability {
+  IN_STOCK
+  PREORDER
+  GROUP_BUY
+  COMING_SOON
+  OUT_OF_STOCK
+}
+
+enum PriceSource {
+  SCRAPER
+  MANUAL
+}
+
 model VendorProduct {
-  id              String    @id @default(cuid())
-  vendorId        String
-  productId       String
-  vendorUrl       String
-  price           Decimal   @db.Decimal(10,2)
-  shippingCost    Decimal   @default(0) @db.Decimal(10,2)
-  shippingIncluded Boolean  @default(false)
-  totalPrice      Decimal   @db.Decimal(10,2)
-  stockStatus     String    @default("in_stock") // in_stock, preorder, group_buy, coming_soon, out_of_stock
-  lastChecked     DateTime  @default(now())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  vendorId          String
+  productId         String
+  vendorUrl         String
+
+  // Price & availability (current display values)
+  price             Int       @default(0)
+  availability      Availability @default(IN_STOCK)
+  shippingCost      Int       @default(0)
+  shippingIncluded  Boolean   @default(false)
+  totalPrice        Int       @default(0)
+
+  // Legacy fields kept for backward compat during migration
+  stockStatus       String    @default("in_stock")
+  affiliateLink     String?
+
+  // Scraper tracking
+  scrapeStatus      ScrapeStatus @default(PENDING)
+  scrapeError       String?
+  lastCheckedAt     DateTime?
+  lastSuccessfulAt  DateTime?
+  lastScrapedPrice  Int?
+  lastScrapedAvailability Availability?
+  scraperVersion    String?
+  lastHttpStatus    Int?
+  responseTimeMs    Int?
+
+  // Manual override tracking
+  manualOverride    Boolean   @default(false)
+  manualUpdatedAt   DateTime?
+  manualUpdatedById String?
+  updatedBy         String?
+
+  // Legacy source field
+  source            String    @default("manual") // manual | scraper
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   vendor        Vendor        @relation(fields: [vendorId], references: [id])
   product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   priceHistory  PriceHistory[]
+  variants      VendorVariant[]
 
   @@unique([vendorId, productId])
   @@index([productId])
   @@index([vendorId])
   @@index([totalPrice])
+  @@index([lastCheckedAt])
+  @@index([scrapeStatus])
+}
+
+model VendorVariant {
+  id                String    @id @default(cuid())
+  vendorProductId   String
+  name              String
+  color             Json?     // string[]
+  switches          Json?     // string[]
+  keycaps           Json?     // string[]
+  price             Int       @default(0)
+  availability      Availability @default(IN_STOCK)
+  stockStatus       String    @default("in_stock")
+  variantUrl        String?
+  sku               String?
+  isDefault         Boolean   @default(false)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  vendorProduct VendorProduct @relation(fields: [vendorProductId], references: [id], onDelete: Cascade)
+
+  @@index([vendorProductId])
 }
 
 model PriceHistory {
   id              String    @id @default(cuid())
   vendorProductId String
-  price           Decimal   @db.Decimal(10,2)
-  shippingCost    Decimal   @default(0) @db.Decimal(10,2)
-  totalPrice      Decimal   @db.Decimal(10,2)
-  stockStatus     String    @default("in_stock")
+  price           Int       @default(0)
+  availability    Availability @default(IN_STOCK)
+  shippingCost    Int       @default(0)
+  totalPrice      Int       @default(0)
+  source          PriceSource @default(MANUAL)
   recordedAt      DateTime  @default(now())
+
+  // Legacy field kept for backward compat
+  stockStatus     String    @default("in_stock")
 
   vendorProduct VendorProduct @relation(fields: [vendorProductId], references: [id], onDelete: Cascade)
 
   @@index([vendorProductId])
   @@index([recordedAt])
+  @@index([source])
 }
 
-// ═══════════════════════════════════
-// SWITCHES (extended product data)
-// ═══════════════════════════════════
-
-model SwitchData {
+model ScrapeLog {
   id              String    @id @default(cuid())
-  productId       String    @unique
-  manufacturer    String?
-  type            String?   // linear, tactile, clicky, silent_linear, silent_tactile
-  operatingForce  Int?      // grams
-  bottomOutForce  Int?      // grams
-  travel          Decimal?  @db.Decimal(3,1) // mm
-  factoryLubed    Boolean   @default(false)
-  soundTags       String?   // JSON array: thock, clack, creamy, etc.
-  feelTags        String?   // JSON array: smooth, scratchy, snappy, etc.
-  useTags         String?   // JSON array: gaming, office, coding, etc.
+  vendorId        String
+  vendorProductId String?
+  status          ScrapeStatus
+  httpStatus      Int?
+  responseTimeMs  Int?
+  error           String?
+  price           Int?
+  availability    Availability?
+  selectorVersion String?
+  retryCount      Int       @default(0)
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
 
-  @@index([productId])
-}
+  vendor          Vendor?   @relation(fields: [vendorId], references: [id])
 
-// ═══════════════════════════════════
-// KEYCAPS (extended product data)
-// ═══════════════════════════════════
-
-model KeycapData {
-  id              String    @id @default(cuid())
-  productId       String    @unique
-  profile         String?   // cherry, oem, sa, mt3, xda, dsa, etc.
-  material        String?   // abs, pbtpom
-  manufactureMethod String? // doubleshot, dye-sub, etc.
-  language        String?   @default("English")
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@index([productId])
+  @@index([vendorId])
+  @@index([vendorProductId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ═══════════════════════════════════
@@ -311,4 +368,413 @@ model Collection {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, productId])
+}
+
+// ═══════════════════════════════════
+// KEYBOARD SPECS
+// ═══════════════════════════════════
+
+model KeyboardSpec {
+  id              String  @id @default(cuid())
+  productId       String  @unique
+
+  // Layout & Build
+  layout          String?
+  keyboardStyle   Json?   // string[]
+  caseMaterial    String?
+  surfaceFinish   Json?   // string[]
+  colors          Json?   // string[]
+  weight          Int?
+  lengthMm        Int?
+  widthMm         Int?
+  heightMm        Int?
+  typingAngle     Int?
+
+  // Mounting
+  mountingStyle   Json?   // string[]
+  plateMaterial   Json?   // string[]
+  stabilizerCompat Json?  // string[]
+  stabilizerLayout Json?  // string[]
+  foamMaterial    Json?   // string[]
+  foamPlacement   Json?   // string[]
+  flexCuts        Boolean @default(false)
+
+  // PCB
+  pcbType         Json?   // string[]
+  pcbThickness    Float?
+  pollingRate     Int?
+  nkro            Boolean @default(false)
+  batteryCapacity Int?
+
+  // Connectivity
+  connectivity    Json?   // string[]
+  detachableCable Boolean @default(false)
+  firmware        Json?   // string[]
+
+  // Lighting
+  lighting        String?
+  ledOrientation  String?
+  perKeyRgb       Boolean @default(false)
+
+  // Switch - Included
+  switchesIncluded  Boolean @default(false)
+  factoryLubed      Boolean @default(false)
+  handLubed         Boolean @default(false)
+  factoryFilmed     Boolean @default(false)
+  breakInProgress Boolean @default(false)
+
+  // Switch - Compatibility & Type
+  switchCompat      Json?   // string[]
+  switchType        Json?   // string[]
+
+  // Switch - Brand & Model
+  switchBrand       Json?   // string[]
+  switchModel       Json?   // string[]
+
+  // Switch - Specifications
+  switchOpForce      Float? // gf
+  switchBottomOut    Float? // gf
+  switchPreTravel    Float? // mm
+  switchTotalTravel  Float? // mm
+  switchSpringWeight Float? // gf
+  switchSpringLength Float? // mm
+  switchRatedLifetime Int?  // million
+
+  // Switch - Materials
+  switchStemMaterial    String?
+  switchTopHousing      String?
+  switchBottomHousing   String?
+
+  // Switch - Spring
+  switchSpringType  String?
+
+  // Switch - Additional Features
+  switchLongPole      Boolean @default(false)
+  switchLedDiffuser   Boolean @default(false)
+  switchDustproofStem Boolean @default(false)
+  switchLightPipe     Boolean @default(false)
+
+  // Keycaps
+  keycapsIncluded   Boolean @default(false)
+  keycapMaterial    Json?   // string[]
+  keycapProfile     String?
+  keycapLegendType  Json?   // string[]
+  keycapLegendPlacement Json? // string[]
+
+  // Features & Accessories
+  includedAccessories Json? // string[]
+  additionalAccessories String?
+  specialFeatures     String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════
+// PRODUCT IMAGES
+// ═══════════════════════════════════
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([sortOrder])
+}
+
+// ═══════════════════════════════════
+// SWITCH SPECS
+// ═══════════════════════════════════
+
+model SwitchSpec {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  // Included
+  factoryLubed      Boolean @default(false)
+  handLubed         Boolean @default(false)
+  factoryFilmed     Boolean @default(false)
+  breakInProgress Boolean @default(false)
+
+  // Compatibility & Type
+  switchCompat      Json?   // string[]
+  switchType        Json?   // string[]
+
+  // Brand & Model
+  switchBrand       Json?   // string[]
+  switchModel       Json?   // string[]
+
+  // Specifications
+  switchOpForce      Float? // gf
+  switchBottomOut    Float? // gf
+  switchPreTravel    Float? // mm
+  switchTotalTravel  Float? // mm
+  switchSpringWeight Float? // gf
+  switchSpringLength Float? // mm
+  switchRatedLifetime Int?  // million
+
+  // Materials
+  switchStemMaterial    String?
+  switchTopHousing      String?
+  switchBottomHousing   String?
+
+  // Spring
+  switchSpringType  String?
+
+  // Additional Features
+  switchLongPole      Boolean @default(false)
+  switchLedDiffuser   Boolean @default(false)
+  switchDustproofStem Boolean @default(false)
+  switchLightPipe     Boolean @default(false)
+
+  // Packaging
+  quantityPerPack    Int?
+  packagingType      String? // Tray | Bag | Box | Other
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════
+// KEYCAP SPECS
+// ═══════════════════════════════════
+
+model KeycapSpec {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  // Profile
+  keycapProfile       Json?   // string[]
+
+  // Layout Support
+  keycapLayoutSupport Json?   // string[]
+
+  // Material & Manufacturing
+  keycapMaterial         Json?   // string[]
+  keycapManufacturing    Json?   // string[]
+
+  // Legends
+  keycapLegends          Json?   // string[]
+  keycapLegendPlacement  Json?   // string[]
+
+  // Language & Layout
+  keycapLanguage    Json?   // string[]
+  keycapKeyCount    Json?   // string[]
+  keycapStemCompat  Json?   // string[]
+
+  // Physical
+  keycapThickness   String? // 1.3mm | 1.5mm | 1.7mm | Unknown
+
+  // Identity
+  keycapColorway    String?
+  keycapManufacturer Json?  // string[]
+  keycapDesigner    String?
+
+  // Inclusions
+  keycapNovelties   Boolean @default(false)
+  keycapSpacebars   Boolean @default(false)
+  keycapAccentKeys  Boolean @default(false)
+  keycapArtisan     Boolean @default(false)
+
+  // Notes
+  keycapNotes       String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════
+// MOUSE SPECS
+// ═══════════════════════════════════
+
+model MouseSpec {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  // Connection
+  mouseConnection    Json?   // string[]
+
+  // Sensor
+  mouseSensor        String?
+  mouseDpi           Int?
+
+  // Performance
+  mousePollingRate   Json?   // string[]
+  mouseMaxIps        Int?
+  mouseMaxAccel      Int?    // G
+  mouseLod           String? // lift-off distance
+
+  // Physical
+  mouseWeight        Float?  // grams
+  mouseShape         String?
+  mouseHandOrientation String?
+  mouseSize          String?
+  mouseDimensionsLength Float?  // mm
+  mouseDimensionsWidth  Float?  // mm
+  mouseDimensionsHeight Float?  // mm
+
+  // Switches & Input
+  mouseSwitches      String?
+  mouseEncoder       String?
+  mouseButtons       Int?
+  mouseSideButtons   Int?
+  mouseScrollWheel   String?
+
+  // Power
+  mouseBattery       Int?    // mAh
+  mouseBatteryLife   String?
+  mouseChargingPort  String?
+
+  // Build
+  mouseFeet          String?
+  mouseRgb           Boolean @default(false)
+  mouseSoftwareRequired Boolean @default(false)
+  mouseOnboardMemory Boolean @default(false)
+  mouseShellMaterial String?
+  mouseGripType      Json?   // string[]
+  mouseColor         String?
+
+  // Compatibility
+  mouseCompatibility Json?   // string[]
+
+  // Included
+  mouseAccessories   Json?   // string[]
+  mouseAccessoriesOther String?
+
+  // Other
+  mouseWarranty      String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════
+// COMMUNITY REPUTATION SYSTEM
+// ═══════════════════════════════════
+
+model UserXP {
+  id        String   @id @default(cuid())
+  profileId String   @unique
+  xp        Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([xp])
+}
+
+enum ContributionType {
+  ADD_PRODUCT
+  UPDATE_PRICE
+  EDIT_SPECS
+  REPORT_VENDOR
+  UPLOAD_IMAGES
+  FIX_PRODUCT_INFO
+}
+
+enum ContributionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Contribution {
+  id              String             @id @default(cuid())
+  profileId       String
+  type            ContributionType
+  title           String
+  description     String?
+  xpAwarded       Int                @default(0)
+  approvedById    String?
+  approvedAt      DateTime?
+  status          ContributionStatus @default(PENDING)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  approvedBy Profile? @relation("ApprovedContributions", fields: [approvedById], references: [id])
+
+  @@index([profileId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  type        String   @default("manual") // "rank" | "system" | "manual"
+  description String?
+  bgColor     String   @default("#FAFF00")
+  textColor   String   @default("#111111")
+  borderColor String   @default("#111111")
+  icon        String?
+  visible     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userBadges UserBadge[]
+
+  @@index([slug])
+  @@index([sortOrder])
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  profileId String
+  badgeId   String
+  assignedById String?
+  createdAt DateTime @default(now())
+
+  profile    Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  badge      Badge   @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  assignedBy Profile? @relation("AssignedBadges", fields: [assignedById], references: [id])
+
+  @@unique([profileId, badgeId])
+  @@index([profileId])
+  @@index([badgeId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  profileId String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([createdAt])
+}
+
+enum BanStatus {
+  ACTIVE
+  EXPIRED
+  LIFTED
+}
+
+model BanHistory {
+  id        String    @id @default(cuid())
+  profileId String
+  reason    String
+  type      String    // suspend | ban
+  status    BanStatus @default(ACTIVE)
+  adminId   String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  liftedAt  DateTime?
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  admin   Profile @relation("BannedBy", fields: [adminId], references: [id])
+
+  @@index([profileId])
+  @@index([status])
+  @@index([type])
 }

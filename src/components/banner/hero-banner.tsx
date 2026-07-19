@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface HeroBanner {
@@ -13,6 +14,32 @@ interface HeroBanner {
   linkType: string;
   openNewTab: boolean;
 }
+
+/*
+ * BANNER SAFE AREA GUIDE (for admins uploading images)
+ * ──────────────────────────────────────────────────
+ * The hero uses object-fit: cover, so edges get cropped on certain screens.
+ *
+ * ┌──────────────────────────────────┐
+ * │  TOP 20%    ← crop-safe zone     │
+ * │  ┌────────────────────────────┐  │
+ * │  │                            │  │
+ * │  │   MIDDLE 60%               │  │
+ * │  │   ★ PROTECTED ZONE ★       │  │
+ * │  │   Keep logos, text, and    │  │
+ * │  │   key visuals here.        │  │
+ * │  │                            │  │
+ * │  └────────────────────────────┘  │
+ * │  BOTTOM 20%  ← crop-safe zone    │
+ * └──────────────────────────────────┘
+ *   LEFT 10% | MIDDLE 80% | RIGHT 10%
+ *             ↑ protected     ↑ crop-safe
+ *
+ * On ultrawide (21:9), ~10% of each side may be hidden.
+ * On mobile (16:9), top/bottom ~10% may be hidden.
+ * Always keep essential content in the center 60% vertically
+ * and center 80% horizontally.
+ */
 
 export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
   const [current, setCurrent] = useState(0);
@@ -52,6 +79,8 @@ export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
     return <div className="hero-banner-link">{children}</div>;
   }
 
+  const hasImage = !!(banner.desktopImage || banner.mobileImage);
+
   return (
     <div
       className="hero-banner"
@@ -64,10 +93,20 @@ export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
       }}
     >
       <Wrapper>
-        <picture>
-          {banner.mobileImage && <source media="(max-width: 768px)" srcSet={banner.mobileImage} />}
-          <img src={banner.desktopImage || ''} alt={banner.title} className="hero-banner-img" />
-        </picture>
+        <div className="hero-banner-inner">
+          {hasImage ? (
+            <picture>
+              {banner.mobileImage && <source media="(max-width: 768px)" srcSet={banner.mobileImage} />}
+              <img src={banner.desktopImage || banner.mobileImage || ''} alt={banner.title} className="hero-banner-img" loading="eager" />
+            </picture>
+          ) : (
+            <div className="hero-placeholder">
+              <div className="hero-placeholder-logo">KEYDIR</div>
+              <div className="hero-placeholder-sub">// NO_BANNER_LOADED</div>
+            </div>
+          )}
+          <div className="hero-banner-overlay" />
+        </div>
       </Wrapper>
 
       {banners.length > 1 && (

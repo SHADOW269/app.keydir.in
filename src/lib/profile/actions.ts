@@ -43,7 +43,6 @@ export async function getProfileByUsername(username: string) {
           product: {
             include: {
               brand: { select: { name: true } },
-              category: { select: { name: true, slug: true } },
               vendorProducts: {
                 select: { totalPrice: true },
                 orderBy: { totalPrice: 'asc' },
@@ -59,7 +58,6 @@ export async function getProfileByUsername(username: string) {
           product: {
             include: {
               brand: { select: { name: true } },
-              category: { select: { name: true, slug: true } },
               vendorProducts: {
                 select: { totalPrice: true },
                 orderBy: { totalPrice: 'asc' },

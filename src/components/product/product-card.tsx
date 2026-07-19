@@ -5,9 +5,48 @@ import type { ProductCard as ProductCardType } from '@/types';
 
 interface ProductCardProps {
   product: ProductCardType;
+  variant?: 'listing' | 'profile';
+  brand?: string;
+  onRemove?: (id: string) => void;
+  removing?: boolean;
+  collectionItemId?: string;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, variant = 'listing', brand, onRemove, removing, collectionItemId }: ProductCardProps) {
+  if (variant === 'profile') {
+    return (
+      <div className="profile-product-card">
+        <Link href={`/products/${product.slug}`} className="profile-product-link">
+          {product.image ? (
+            <div
+              className="profile-product-img"
+              style={{ backgroundImage: `url(${product.image})` }}
+            />
+          ) : (
+            <div className="profile-product-img profile-product-placeholder">
+              {product.name.charAt(0)}
+            </div>
+          )}
+          <div className="profile-product-info">
+            <div className="profile-product-brand">
+              {brand ?? 'Unknown'}
+            </div>
+            <div className="profile-product-name">{product.name}</div>
+          </div>
+        </Link>
+        {onRemove && collectionItemId && (
+          <button
+            className="profile-product-remove"
+            onClick={() => onRemove(collectionItemId)}
+            disabled={removing}
+          >
+            {removing ? '...' : '\u00d7'}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   const hasPrice = product.lowestPrice !== null;
 
   return (
@@ -39,14 +78,6 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
           <span className="product-card-upvotes">▲{product.upvotes}</span>
         </div>
-
-        {product.specs.length > 0 && (
-          <div className="product-card-specs">
-            {product.specs.slice(0, 4).map((spec, i) => (
-              <span key={i} className="product-card-spec">{spec}</span>
-            ))}
-          </div>
-        )}
 
         <div className="product-card-cta">
           Compare {product.vendorCount} Vendor{product.vendorCount !== 1 ? 's' : ''} →

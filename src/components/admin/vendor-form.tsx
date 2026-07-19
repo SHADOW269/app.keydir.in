@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
-import { Footer } from '@/components/layout/footer';
-import { createVendor, updateVendor } from '@/lib/admin/actions';
+
+import type { ScrapeResult } from '@/lib/scraper/types';
+import { createVendor, updateVendor, deleteVendor, updateVendorScraperConfig, testVendorScraper } from '@/lib/admin/actions';
 
 interface Vendor {
   id: string;
@@ -13,13 +15,39 @@ interface Vendor {
   website: string;
   affiliateLink: string | null;
   shippingPolicy: string | null;
+  chartColor: string | null;
   enabled: boolean;
+  scraperEnabled?: boolean;
+  scraperEngine?: string;
+  priceSelector?: string | null;
+  availabilitySelector?: string | null;
+  titleSelector?: string | null;
+  imageSelector?: string | null;
+  productExistsSelector?: string | null;
+  priceAttribute?: string;
+  availabilityAttribute?: string;
+  customHeaders?: string | null;
+  cloudflareProtected?: boolean;
+  useJavaScriptRendering?: boolean;
+  customScraper?: string | null;
+  scraperNotes?: string | null;
+  scraperVersion?: number;
 }
 
 export function VendorForm({ vendor }: { vendor?: Vendor }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [testUrl, setTestUrl] = useState('');
+  const [testResult, setTestResult] = useState<ScrapeResult | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [chartColor, setChartColor] = useState(vendor?.chartColor ?? '#22C55E');
   const isEdit = !!vendor;
+  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,6 +61,43 @@ export function VendorForm({ vendor }: { vendor?: Vendor }) {
       setError(result.error);
       setPending(false);
     }
+  }
+
+  async function handleDelete() {
+    if (!vendor?.id) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await deleteVendor(vendor.id, deletePassword);
+    if (result?.error) {
+      setDeleteError(result.error);
+      setDeleting(false);
+      return;
+    }
+    router.push('/admin/vendors');
+  }
+
+  async function handleSaveScraperConfig(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+    setConfigSaved(false);
+    const form = new FormData(e.currentTarget);
+    const result = await updateVendorScraperConfig(vendor!.id, form);
+    if (result?.error) {
+      setError(result.error);
+    } else {
+      setConfigSaved(true);
+    }
+    setPending(false);
+  }
+
+  async function handleTestScraper() {
+    if (!vendor?.id || !testUrl) return;
+    setTesting(true);
+    setTestResult(null);
+    const result = await testVendorScraper(vendor.id, testUrl);
+    setTestResult(result);
+    setTesting(false);
   }
 
   return (
@@ -69,6 +134,31 @@ export function VendorForm({ vendor }: { vendor?: Vendor }) {
           </div>
 
           <div className="admin-field">
+            <label className="admin-label">Chart Color</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={chartColor}
+                className="w-10 h-10 cursor-pointer border-0 bg-transparent p-0"
+                onChange={(e) => setChartColor(e.target.value)}
+              />
+              <input
+                type="text"
+                name="chartColor"
+                value={chartColor}
+                className="admin-input font-mono text-sm"
+                placeholder="#22C55E"
+                pattern="^#[0-9a-fA-F]{6}$"
+                maxLength={7}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^#[0-9a-fA-F]{6}$/.test(v)) setChartColor(v);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="admin-field">
             <label className="filter-option">
               <input type="checkbox" name="enabled" defaultChecked={vendor?.enabled ?? true} />
               <span className="admin-label" style={{ margin: 0 }}>Enabled</span>
@@ -80,10 +170,241 @@ export function VendorForm({ vendor }: { vendor?: Vendor }) {
               {pending ? 'SAVING...' : isEdit ? 'UPDATE VENDOR →' : 'CREATE VENDOR →'}
             </button>
             <Link href="/admin/vendors" className="btn-secondary">Cancel</Link>
+            {isEdit && (
+              <button type="button" disabled={pending} onClick={() => setShowDeleteModal(true)} className="btn-secondary" style={{ color: 'var(--red)', marginLeft: 'auto' }}>
+                DELETE VENDOR
+              </button>
+            )}
           </div>
         </form>
+
+        {/* Scraper Configuration — edit only */}
+        {isEdit && (
+          <form onSubmit={handleSaveScraperConfig} className="neo-card p-8 max-w-2xl mt-6">
+            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-6">
+              <h2>SCRAPER <em className="text-[var(--cyan)]">CONFIGURATION</em></h2>
+              {vendor.scraperVersion && vendor.scraperVersion > 0 && (
+                <span className="badge b-green text-xs font-mono">v{vendor.scraperVersion}</span>
+              )}
+            </div>
+
+            <div className="admin-field">
+              <label className="filter-option">
+                <input type="checkbox" name="scraperEnabled" defaultChecked={vendor.scraperEnabled ?? false} />
+                <span className="admin-label" style={{ margin: 0 }}>Enable Scraper</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="admin-field">
+                <label className="admin-label">Engine</label>
+                <select name="scraperEngine" defaultValue={vendor.scraperEngine || 'cheerio'} className="admin-input">
+                  <option value="cheerio">Cheerio (fast, no JS)</option>
+                  <option value="playwright">Playwright (JS rendering)</option>
+                </select>
+              </div>
+
+              <div className="admin-field">
+                <label className="admin-label">Custom Scraper</label>
+                <input name="customScraper" defaultValue={vendor.customScraper ?? ''} className="admin-input" placeholder="e.g. meckeys (leave empty for generic)" />
+              </div>
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Price CSS Selector *</label>
+              <input name="priceSelector" defaultValue={vendor.priceSelector ?? ''} className="admin-input font-mono text-sm" placeholder='e.g. .price, [data-price], meta[property="product:price:amount"]' />
+              <p className="text-xs text-[var(--text-dim)] mt-1">Comma-separated. First match wins.</p>
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Availability CSS Selector</label>
+              <input name="availabilitySelector" defaultValue={vendor.availabilitySelector ?? ''} className="admin-input font-mono text-sm" placeholder='e.g. .stock-status, .availability' />
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Product Title Selector</label>
+              <input name="titleSelector" defaultValue={vendor.titleSelector ?? ''} className="admin-input font-mono text-sm" placeholder='e.g. h1.product-title' />
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Product Image Selector</label>
+              <input name="imageSelector" defaultValue={vendor.imageSelector ?? ''} className="admin-input font-mono text-sm" placeholder='e.g. .product-image img' />
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Product Exists Selector</label>
+              <input name="productExistsSelector" defaultValue={vendor.productExistsSelector ?? ''} className="admin-input font-mono text-sm" placeholder='e.g. .add-to-cart (if missing, product is 404)' />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="admin-field">
+                <label className="admin-label">Price Attribute</label>
+                <select name="priceAttribute" defaultValue={vendor.priceAttribute || 'text'} className="admin-input">
+                  <option value="text">Text Content</option>
+                  <option value="content">Content (meta)</option>
+                  <option value="data-price">data-price</option>
+                  <option value="href">href</option>
+                </select>
+              </div>
+
+              <div className="admin-field">
+                <label className="admin-label">Availability Attribute</label>
+                <select name="availabilityAttribute" defaultValue={vendor.availabilityAttribute || 'text'} className="admin-input">
+                  <option value="text">Text Content</option>
+                  <option value="class">Class</option>
+                  <option value="data-status">data-status</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Custom Headers (JSON)</label>
+              <textarea name="customHeaders" rows={3} defaultValue={vendor.customHeaders ?? ''} className="admin-input font-mono text-xs" placeholder='{"Accept-Language": "en-IN", "Cookie": "..."}' />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="admin-field">
+                <label className="filter-option">
+                  <input type="checkbox" name="cloudflareProtected" defaultChecked={vendor.cloudflareProtected ?? false} />
+                  <span className="admin-label" style={{ margin: 0 }}>Cloudflare Protected</span>
+                </label>
+              </div>
+
+              <div className="admin-field">
+                <label className="filter-option">
+                  <input type="checkbox" name="useJavaScriptRendering" defaultChecked={vendor.useJavaScriptRendering ?? false} />
+                  <span className="admin-label" style={{ margin: 0 }}>Use JavaScript Rendering</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Notes</label>
+              <textarea name="scraperNotes" rows={2} defaultValue={vendor.scraperNotes ?? ''} className="admin-input" placeholder="Internal notes about this vendor's scraper..." />
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button type="submit" disabled={pending} className="btn-primary">
+                {pending ? 'SAVING...' : 'SAVE SCRAPER CONFIG →'}
+              </button>
+              {configSaved && <span className="text-[var(--green)] text-sm self-center">Saved!</span>}
+            </div>
+          </form>
+        )}
+
+        {/* Test Scraper — edit only */}
+        {isEdit && (
+          <div className="neo-card p-8 max-w-2xl mt-6">
+            <div className="sec-head border-b-[3px] border-[var(--border)] pb-3 mb-6">
+              <h2>TEST <em className="text-[var(--purple)]">SCRAPER</em></h2>
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Test URL</label>
+              <input
+                type="url"
+                value={testUrl}
+                onChange={(e) => setTestUrl(e.target.value)}
+                className="admin-input"
+                placeholder="https://example.com/product/keyboard"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleTestScraper}
+              disabled={testing || !testUrl}
+              className="btn-secondary"
+            >
+              {testing ? 'TESTING...' : 'TEST SCRAPER'}
+            </button>
+
+            {testResult && (
+              <div className="mt-4 p-4 rounded-lg bg-black/20 font-mono text-sm space-y-1">
+                <div>
+                  <span className="text-[var(--text-dim)]">Success: </span>
+                  <span className={testResult.success ? 'text-[var(--green)]' : 'text-[var(--red)]'}>
+                    {String(testResult.success)}
+                  </span>
+                </div>
+                {testResult.price != null && (
+                  <div>
+                    <span className="text-[var(--text-dim)]">Price: </span>
+                    <span className="text-[var(--cyan)]">₹{Number(testResult.price).toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                {testResult.availability && (
+                  <div>
+                    <span className="text-[var(--text-dim)]">Availability: </span>
+                    <span>{String(testResult.availability)}</span>
+                  </div>
+                )}
+                {testResult.title && (
+                  <div>
+                    <span className="text-[var(--text-dim)]">Title: </span>
+                    <span>{String(testResult.title)}</span>
+                  </div>
+                )}
+                {testResult.image && (
+                  <div>
+                    <span className="text-[var(--text-dim)]">Image: </span>
+                    <span className="break-all">{String(testResult.image).substring(0, 80)}...</span>
+                  </div>
+                )}
+                {testResult.error && (
+                  <div>
+                    <span className="text-[var(--text-dim)]">Error: </span>
+                    <span className="text-[var(--red)]">{String(testResult.error)}</span>
+                  </div>
+                )}
+                {testResult.httpStatus && (
+                  <div>
+                    <span className="text-[var(--text-dim)]">HTTP: </span>
+                    <span>{String(testResult.httpStatus)}</span>
+                  </div>
+                )}
+                {testResult.responseTimeMs != null && (
+                  <div>
+                    <span className="text-[var(--text-dim)]">Response Time: </span>
+                    <span>{String(testResult.responseTimeMs)}ms</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      <Footer />
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="neo-card max-w-sm w-full p-6">
+            <h3 className="font-[family-name:var(--f-m)] text-sm font-bold uppercase tracking-[.12em] text-[var(--accent)] mb-4">
+              Confirm Deletion
+            </h3>
+            <p className="text-sm text-[var(--text-dim)] mb-4">
+              This will permanently delete <strong className="text-[var(--text)]">{vendor?.name}</strong> and all its product listings. Enter password to confirm.
+            </p>
+            <input
+              type="password"
+              placeholder="Enter password"
+              value={deletePassword}
+              onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(); }}
+              className="admin-input w-full mb-1"
+              autoFocus
+            />
+            {deleteError && <p className="text-xs text-red-400 mb-3">{deleteError}</p>}
+            <div className="flex gap-3 mt-4">
+              <button onClick={handleDelete} disabled={!deletePassword || deleting} className="btn-danger flex-1">
+                {deleting ? 'DELETING...' : 'DELETE'}
+              </button>
+              <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="btn-secondary flex-1">
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

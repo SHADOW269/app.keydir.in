@@ -81,7 +81,7 @@
 - `src/components/product/vendor-card.tsx`
 - `src/lib/admin/actions.ts`
 - `src/app/api/products/route.ts`
-- `prisma/schema.prisma` (Product, SpecField, Specification models)
+- `prisma/schema.prisma` (Product, SpecField, SpecOption, Specification models)
 
 ### Checklist
 - [x] Product listing with category filter
@@ -104,7 +104,7 @@
 
 ### Dependencies
 - Phase 1 (Authentication for admin access)
-- Database models: Product, Brand, Category, SpecField, Specification
+- Database models: Product, Brand, Category, SpecField, SpecOption, Specification
 
 ---
 
@@ -388,40 +388,56 @@
 
 ---
 
-## Phase 11: Community Contributions 🔲
+## Phase 11: Dynamic Specification Engine 🔲
 
 ### Goals
-- User-submitted products (pending admin review)
-- User-submitted price updates
-- Edit suggestions for existing products
-- Contribution history
+- Admin Specification Manager (CRUD for SpecField + SpecOption)
+- Dynamic product form (auto-renders from SpecField definitions)
+- Dynamic filter generation (auto-generates filters from `filterable` fields)
+- Dynamic spec display on product pages
+- Searchable specs integration
+- Comparison-ready spec fields
+- Category template seeding
+- Migration from SwitchData/KeycapData to EAV
 
 ### Files Involved
-- `src/app/admin/community/page.tsx`
-- `src/lib/admin/community-actions.ts`
-- TODO: New contribution server actions
-- TODO: New contribution forms
-- TODO: Community contribution models in schema
+- `src/app/admin/specs/page.tsx` (NEW — Specification Manager)
+- `src/app/admin/specs/[categoryId]/page.tsx` (NEW — per-category spec editor)
+- `src/components/admin/spec-field-form.tsx` (NEW)
+- `src/components/admin/spec-option-manager.tsx` (NEW)
+- `src/components/admin/product-form.tsx` (MODIFY — dynamic spec rendering)
+- `src/components/product/spec-table.tsx` (MODIFY — dynamic group rendering)
+- `src/components/product/filter-modal.tsx` (REPLACE — single dynamic filter)
+- `src/app/api/products/filters/route.ts` (MODIFY — dynamic filter generation)
+- `src/app/api/products/route.ts` (MODIFY — dynamic spec-based filtering)
+- `src/lib/admin/actions.ts` (MODIFY — add spec management actions)
+- `prisma/seed.ts` (MODIFY — template-based spec seeding)
+- `docs/Specs.md` (NEW — full spec engine documentation)
 
 ### Checklist
-- [ ] Contribution form for new products
-- [ ] Contribution form for price updates
-- [ ] Edit suggestion form for existing products
-- [ ] Admin review queue
-- [ ] Approve/reject with feedback
-- [ ] Contributor reputation tracking
-- [ ] Contribution history on profile
+- [ ] SpecField CRUD in admin panel
+- [ ] SpecOption management (add/edit/delete/reorder)
+- [ ] Dynamic product form rendering from SpecField definitions
+- [ ] Dynamic filter generation from `filterable` fields
+- [ ] Dynamic spec display on product pages
+- [ ] Searchable specs in global search
+- [ ] Category template seeding (keyboards, switches, keycaps, mouse)
+- [ ] Migration from SwitchData/KeycapData to EAV
+- [ ] Remove hardcoded filter components
+- [ ] Product comparison with `comparable` fields
 
 ### Acceptance Criteria
-- Users can submit new products for admin review
-- Users can submit price updates
-- Admin can review, approve, or reject submissions
-- Contributors gain reputation for approved submissions
+- Admin can create/edit/delete spec fields via Specification Manager
+- Admin can manage select/multi_select options per field
+- Product form renders dynamically based on category's spec fields
+- Filters on listing pages are auto-generated from spec definitions
+- Product pages display specs grouped by group with proper formatting
+- Search includes searchable spec fields
+- Adding a new category requires only creating SpecField definitions — no code changes
 
 ### Dependencies
-- Phase 1 (Authentication)
-- Phase 2 (Products)
-- Phase 3 (Vendors)
+- Phase 2 (Products with existing EAV)
+- Database: SpecField, SpecOption, Specification models
 
 ---
 

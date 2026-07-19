@@ -1,7 +1,7 @@
 # KEYDIR — Project Memory
 
 > **Last Updated:** 2026-07-14
-> **Current Phase:** Phase 10 Complete (Price History)
+> **Current Phase:** Phase 10 Complete (Price History) + Spec Engine v2 Redesign
 > **This file is the first thing AI assistants should read before continuing development.**
 
 ---
@@ -34,8 +34,11 @@ The project has completed the core feature phases (1-10). The next major work is
 
 ## Current Work
 
-- No active development in progress
-- Documentation system being created (this file and siblings in `/docs`)
+- Specification engine v2 redesign in progress (schema updated, documentation created)
+- Schema: `SpecField` now has `inputType`, `required`, `filterable`, `searchable`, `comparable`, `groupOrder`, `defaultValue`, `validationRules`
+- New model: `SpecOption` for select/multi_select options (replaces JSON `options` field)
+- `SwitchData` and `KeycapData` marked as deprecated
+- Next: Implement admin Specification Manager, dynamic product form, dynamic filter generation
 
 ---
 
@@ -72,7 +75,9 @@ The project has completed the core feature phases (1-10). The next major work is
 | PrismaPg adapter | Official Prisma adapter for PostgreSQL connection pooling |
 | CUID primary keys | Non-sequential, URL-safe, collision-resistant |
 | EAV pattern for specs | Flexible specification system — each category can define its own spec fields |
-| Separate SwitchData/KeycapData | Extended product data stored in dedicated 1:1 models rather than bloating Product |
+| SpecOption model | Proper rows for select/multi_select options (not JSON) — enables ordering, enable/disable, admin management |
+| Dynamic filter generation | Filters auto-generated from `filterable: true` SpecFields — no hardcoded filter components per category |
+| Deprecated SwitchData/KeycapData | Data migrated to EAV — single unified system for all categories |
 | Decimal for prices | Precise monetary values with `@db.Decimal(10,2)` |
 | Cascade deletes | Votes, specs, vendor products, wishlists, collections all cascade on product delete |
 | Unique constraints | `@@unique([profileId, productId])` on Vote, Wishlist, Collection prevents duplicates |
@@ -178,17 +183,19 @@ The project has completed the core feature phases (1-10). The next major work is
 
 | Date | Change |
 |------|--------|
+| 2026-07-14 | Specification engine v2 redesign (schema + documentation) |
 | 2026-07-14 | Created comprehensive documentation system (PRD, Architecture, Rules, Phases, Design, Memory, Database, TODO) |
 
 ---
 
 ## Next Tasks
 
-1. **Admin middleware** — Add Next.js middleware to protect `/admin/*` routes (check admin email)
-2. **Community contributions** (Phase 11) — User-submitted products and price updates
-3. **Performance** (Phase 15) — Implement caching, optimize queries, add loading states
-4. **SEO** (Phase 16) — Sitemap, robots.txt, structured data
-5. **Testing** (Phase 17) — Set up Vitest/Jest, write tests
+1. **Spec engine implementation** — Admin Specification Manager, dynamic product form, dynamic filter generation
+2. **Admin middleware** — Add Next.js middleware to protect `/admin/*` routes (check admin email)
+3. **Community contributions** (Phase 11) — User-submitted products and price updates
+4. **Performance** (Phase 15) — Implement caching, optimize queries, add loading states
+5. **SEO** (Phase 16) — Sitemap, robots.txt, structured data
+6. **Testing** (Phase 17) — Set up Vitest/Jest, write tests
 
 ---
 

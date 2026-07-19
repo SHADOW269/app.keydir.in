@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { removeFromCollection } from '@/lib/profile/actions';
-import { formatPrice } from '@/lib/utils';
+import { ProductCard } from '@/components/product/product-card';
 
 interface CollectionItem {
   id: string;
@@ -14,8 +14,7 @@ interface CollectionItem {
     slug: string;
     image: string | null;
     brand: { name: string } | null;
-    category: { name: string; slug: string };
-    vendorProducts: { totalPrice: number | { toNumber(): number } }[];
+    productType: string;
   };
   createdAt: Date;
 }
@@ -29,8 +28,7 @@ interface VoteItem {
     slug: string;
     image: string | null;
     brand: { name: string } | null;
-    category: { name: string; slug: string };
-    vendorProducts: { totalPrice: number | { toNumber(): number } }[];
+    productType: string;
   };
   createdAt: Date;
 }
@@ -46,6 +44,7 @@ interface ProfileTabsProps {
   rank: string;
   reputation: number;
   profile: {
+    id: string;
     displayName: string | null;
     bio: string | null;
     github: string | null;
@@ -54,13 +53,6 @@ interface ProfileTabsProps {
     monkeytype: string | null;
     website: string | null;
   };
-}
-
-function priceNum(v: unknown): number {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') return parseFloat(v);
-  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
-  return 0;
 }
 
 const TABS = [
@@ -162,9 +154,10 @@ export function ProfileTabs({
           <>
             {collection.length === 0 ? (
               <div className="profile-empty">
+                <div className="profile-empty-icon">{'\u25a3'}</div>
                 <p className="profile-empty-text">No products in your collection yet.</p>
                 <p className="profile-empty-sub">
-                  Browse our catalog and add keyboards, switches, keycaps, and mice to your collection.
+                  Browse our catalogue and add keyboards, switches, keycaps, and mice to your collection.
                 </p>
                 <div className="profile-empty-links">
                   <Link href="/keyboards">Keyboards</Link>
@@ -175,43 +168,26 @@ export function ProfileTabs({
               </div>
             ) : (
               <div className="profile-grid">
-                {collection.map((item) => {
-                  const price = item.product.vendorProducts[0]?.totalPrice;
-                  return (
-                    <div key={item.id} className="profile-product-card">
-                      <Link href={`/products/${item.product.slug}`} className="profile-product-link">
-                        {item.product.image ? (
-                          <div
-                            className="profile-product-img"
-                            style={{ backgroundImage: `url(${item.product.image})` }}
-                          />
-                        ) : (
-                          <div className="profile-product-img profile-product-placeholder">
-                            {item.product.name.charAt(0)}
-                          </div>
-                        )}
-                        <div className="profile-product-info">
-                          <div className="profile-product-brand">
-                            {item.product.brand?.name ?? 'Unknown'}
-                          </div>
-                          <div className="profile-product-name">{item.product.name}</div>
-                          {price != null && (
-                            <div className="profile-product-price">{formatPrice(priceNum(price))}</div>
-                          )}
-                        </div>
-                      </Link>
-                      {isOwner && (
-                        <button
-                          className="profile-product-remove"
-                          onClick={() => handleRemove(item.id)}
-                          disabled={removing === item.id}
-                        >
-                          {removing === item.id ? '...' : '\u00d7'}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                {collection.map((item) => (
+                  <ProductCard
+                    key={item.id}
+                    product={{
+                      ...item.product,
+                      lowestPrice: null,
+                      highestPrice: null,
+                      vendorCount: 0,
+                      upvotes: 0,
+                      downvotes: 0,
+                      approval: null,
+                      userVote: null,
+                    }}
+                    variant="profile"
+                    brand={item.product.brand?.name ?? undefined}
+                    onRemove={isOwner ? handleRemove : undefined}
+                    removing={removing === item.id}
+                    collectionItemId={item.id}
+                  />
+                ))}
               </div>
             )}
           </>
@@ -220,15 +196,15 @@ export function ProfileTabs({
         {/* ═══ CONTRIBUTIONS TAB ═══ */}
         {current === 'contributions' && (
           <div className="profile-empty">
+            <div className="profile-empty-icon">{'\u2b50'}</div>
             <p className="profile-empty-text">No contributions yet.</p>
             <p className="profile-empty-sub">
-              Help improve KeyDir by:
+              Help improve KeyDir by adding products, updating prices, or editing specs.
             </p>
             <div className="profile-empty-links">
-              <Link href="/keyboards">Adding Products</Link>
-              <Link href="/keyboards">Updating Prices</Link>
-              <Link href="/keyboards">Editing Specs</Link>
-              <Link href="/keyboards">Reporting Vendors</Link>
+              <Link href="/keyboards">Browse Keyboards</Link>
+              <Link href="/switches">Browse Switches</Link>
+              <Link href="/mouse">Browse Mice</Link>
             </div>
           </div>
         )}
@@ -238,6 +214,7 @@ export function ProfileTabs({
           <>
             {votes.length === 0 ? (
               <div className="profile-empty">
+                <div className="profile-empty-icon">{'\u25b2'}</div>
                 <p className="profile-empty-text">No activity yet.</p>
                 <p className="profile-empty-sub">
                   Upvote or downvote products to see your voting history here.

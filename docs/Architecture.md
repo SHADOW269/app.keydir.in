@@ -524,7 +524,7 @@ Allows any HTTPS image source.
 Profile ──┐
           ├── Vote ──────── Product ──── Brand
           ├── Wishlist ──── Product ──── Category
-          └── Collection ── Product ──── Specification ──── SpecField
+          └── Collection ── Product ──── Specification ──── SpecField ──── SpecOption
                                    │
                                    └── VendorProduct ──── Vendor
                                            │
@@ -532,8 +532,8 @@ Profile ──┐
 
 Banner ──── BannerLocation
 
-SwitchData ──── Product (1:1, extended data)
-KeycapData ──── Product (1:1, extended data)
+SwitchData ──── Product (1:1, DEPRECATED — migrated to EAV)
+KeycapData ──── Product (1:1, DEPRECATED — migrated to EAV)
 ```
 
 **Key relationships:**
@@ -547,10 +547,11 @@ KeycapData ──── Product (1:1, extended data)
 - `Product` 1:N `Vote` (cascade delete)
 - `Vendor` 1:N `VendorProduct`
 - `SpecField` 1:N `Specification`
+- `SpecField` 1:N `SpecOption` (cascade delete)
 - `VendorProduct` 1:N `PriceHistory` (cascade delete)
 - `Banner` 1:N `BannerLocation` (cascade delete)
-- `Product` 1:1 `SwitchData` (optional)
-- `Product` 1:1 `KeycapData` (optional)
+- `Product` 1:1 `SwitchData` (deprecated, migrated to EAV)
+- `Product` 1:1 `KeycapData` (deprecated, migrated to EAV)
 
 ---
 

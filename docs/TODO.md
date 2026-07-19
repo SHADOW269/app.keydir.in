@@ -6,12 +6,17 @@
 
 ## High Priority
 
+- [ ] **Spec Engine Implementation (Phase 11)** — Dynamic specification system
+  - [ ] Admin Specification Manager page (`/admin/specs`)
+  - [ ] SpecField CRUD server actions
+  - [ ] SpecOption management UI
+  - [ ] Dynamic product form rendering from SpecField definitions
+  - [ ] Dynamic filter generation from `filterable` SpecFields
+  - [ ] Replace hardcoded filter modals with single dynamic filter component
+  - [ ] Category template seeding for all 4 categories
+  - [ ] Migration from SwitchData/KeycapData to EAV
 - [ ] Add Next.js middleware to protect `/admin/*` routes (check ADMIN_EMAILS)
-- [ ] Community contributions system (Phase 11) — user-submitted products and prices
-- [ ] Add `Contribution` model to schema for tracking user submissions
-- [ ] Admin review queue for community submissions
-- [ ] Add `reputation` field to Profile model
-- [ ] Implement profile reputation scoring based on contributions
+- [ ] Community contributions system (Phase 11 — renamed to Phase 12) — user-submitted products and prices
 
 ---
 
@@ -39,6 +44,10 @@
 - [ ] Implement proper loading states (Suspense boundaries)
 - [ ] Add error boundaries for all routes
 - [ ] Add admin authorization check to all admin server actions (currently only community-actions checks)
+- [ ] Add `Contribution` model to schema for tracking user submissions
+- [ ] Admin review queue for community submissions
+- [ ] Add `reputation` field to Profile model
+- [ ] Implement profile reputation scoring based on contributions
 
 ---
 
@@ -76,6 +85,8 @@
 - [ ] No CSRF protection on server actions beyond Next.js built-in
 - [ ] No rate limiting on API routes
 - [ ] No image optimization for uploaded banners (no resizing/compression)
+- [ ] Hardcoded filter components per category — will be replaced by dynamic spec engine
+- [ ] SwitchData/KeycapData models deprecated — migrate data to EAV before removing
 
 ---
 
@@ -142,6 +153,7 @@
 
 | Date | Task |
 |------|------|
+| 2026-07-14 | Specification engine v2 redesign (schema + Specs.md documentation) |
 | 2026-07-14 | Documentation system created (PRD, Architecture, Rules, Phases, Design, Memory, Database, TODO) |
 | 2026-07 | Price History chart (SVG, range selector, tooltips) |
 | 2026-07 | Banner system (CRUD, scheduling, location targeting, image upload) |

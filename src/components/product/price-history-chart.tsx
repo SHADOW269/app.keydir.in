@@ -11,6 +11,7 @@ interface PricePoint {
 
 interface PriceHistoryChartProps {
   history: PricePoint[];
+  vendorColors?: Record<string, string>;
 }
 
 type TimeRange = '30D' | '3M' | '6M' | '1Y' | 'ALL';
@@ -22,6 +23,23 @@ const TIME_RANGES: { label: string; value: TimeRange; days: number | null }[] = 
   { label: '1Y', value: '1Y', days: 365 },
   { label: 'ALL', value: 'ALL', days: null },
 ];
+
+const FALLBACK_PALETTE = [
+  '#22C55E',
+  '#EAB308',
+  '#EF4444',
+  '#3B82F6',
+  '#A855F7',
+  '#14B8A6',
+  '#F97316',
+];
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 function toNum(v: unknown): number {
   if (typeof v === 'number') return v;
@@ -35,9 +53,131 @@ function formatDate(d: Date): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-export function PriceHistoryChart({ history }: PriceHistoryChartProps) {
+function toDateKey(d: Date): number {
+  const dt = new Date(d);
+  dt.setHours(0, 0, 0, 0);
+  return dt.getTime();
+}
+
+function buildUnifiedTimeline(history: PricePoint[]): number[] {
+  const dateSet = new Set<number>();
+  for (const p of history) {
+    dateSet.add(toDateKey(new Date(p.recordedAt)));
+  }
+  return Array.from(dateSet).sort((a, b) => a - b);
+}
+
+interface VendorGroup {
+  vendor: string;
+  points: PricePoint[];
+  color: { line: string; area: string };
+}
+
+function buildVendorGroups(
+  filteredHistory: PricePoint[],
+  vendorColors: Record<string, string>
+): VendorGroup[] {
+  const map = new Map<string, PricePoint[]>();
+  for (const p of filteredHistory) {
+    const name = p.vendor || 'Unknown';
+    if (!map.has(name)) map.set(name, []);
+    map.get(name)!.push(p);
+  }
+
+  let fallbackIndex = 0;
+  return Array.from(map.entries()).map(([vendor, points]) => {
+    const configured = vendorColors[vendor];
+    let hex: string;
+    if (configured && /^#[0-9a-fA-F]{6}$/.test(configured)) {
+      hex = configured;
+    } else {
+      hex = FALLBACK_PALETTE[fallbackIndex % FALLBACK_PALETTE.length];
+      fallbackIndex++;
+    }
+
+    return {
+      vendor,
+      points: points.sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()),
+      color: { line: hex, area: hexToRgba(hex, 0.08) },
+    };
+  });
+}
+
+interface DensePoint {
+  dateIndex: number;
+  price: number;
+}
+
+function buildDenseSeries(
+  group: VendorGroup,
+  dateKeyToIndex: Map<number, number>
+): (DensePoint | null)[] {
+  const dense: (DensePoint | null)[] = new Array(dateKeyToIndex.size).fill(null);
+  for (const p of group.points) {
+    const key = toDateKey(new Date(p.recordedAt));
+    const idx = dateKeyToIndex.get(key);
+    if (idx !== undefined) {
+      dense[idx] = { dateIndex: idx, price: toNum(p.price) };
+    }
+  }
+  return dense;
+}
+
+function segmentDense(dense: (DensePoint | null)[]): DensePoint[][] {
+  const segments: DensePoint[][] = [];
+  let current: DensePoint[] = [];
+  for (const pt of dense) {
+    if (pt) {
+      current.push(pt);
+    } else {
+      if (current.length > 0) {
+        segments.push(current);
+        current = [];
+      }
+    }
+  }
+  if (current.length > 0) segments.push(current);
+  return segments;
+}
+
+interface TooltipVendor {
+  vendor: string;
+  price: number;
+  color: string;
+  y: number;
+}
+
+interface TooltipState {
+  x: number;
+  date: Date;
+  vendors: TooltipVendor[];
+}
+
+function getTooltipData(
+  denseSeries: { vendor: string; dense: (DensePoint | null)[]; color: { line: string } }[],
+  dateIndex: number,
+  unifiedDates: number[],
+  toY: (p: number) => number
+): TooltipVendor[] {
+  const vendors: TooltipVendor[] = [];
+  for (const s of denseSeries) {
+    const pt = s.dense[dateIndex];
+    if (pt) {
+      vendors.push({
+        vendor: s.vendor,
+        price: pt.price,
+        color: s.color.line,
+        y: toY(pt.price),
+      });
+    }
+  }
+  vendors.sort((a, b) => a.price - b.price);
+  return vendors;
+}
+
+export function PriceHistoryChart({ history, vendorColors = {} }: PriceHistoryChartProps) {
   const [activeRange, setActiveRange] = useState<TimeRange>('6M');
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; point: PricePoint } | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [now] = useState(() => Date.now());
 
@@ -49,60 +189,33 @@ export function PriceHistoryChart({ history }: PriceHistoryChartProps) {
     return filtered.length > 0 ? filtered : history;
   }, [history, activeRange, now]);
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!svgRef.current || filteredHistory.length === 0) return;
-      const rect = svgRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const svgW = rect.width;
-
-      const padL = 60;
-      const padR = 20;
-      const chartW = svgW - padL - padR;
-
-      const relX = mouseX - padL;
-      const idx = Math.round((relX / chartW) * (filteredHistory.length - 1));
-      const clamped = Math.max(0, Math.min(filteredHistory.length - 1, idx));
-
-      const svgH = rect.height;
-      const padT = 20;
-      const padB = 40;
-      const chartH = svgH - padT - padB;
-
-      const point = filteredHistory[clamped];
-      const prices = filteredHistory.map((h) => toNum(h.price));
-      const minP = Math.min(...prices);
-      const maxP = Math.max(...prices);
-      const range = maxP - minP || 1;
-      const padding = range * 0.15;
-      const yMin = minP - padding;
-      const yMax = maxP + padding;
-      const yRange = yMax - yMin || 1;
-
-      const pointX = padL + (clamped / Math.max(filteredHistory.length - 1, 1)) * chartW;
-      const pointY = padT + chartH - ((toNum(point.price) - yMin) / yRange) * chartH;
-
-      setTooltip({ x: pointX, y: pointY, point });
-    },
-    [filteredHistory]
+  const vendorGroups = useMemo(
+    () => buildVendorGroups(filteredHistory, vendorColors),
+    [filteredHistory, vendorColors]
   );
 
-  const handleMouseLeave = useCallback(() => setTooltip(null), []);
+  const unifiedDates = useMemo(() => buildUnifiedTimeline(filteredHistory), [filteredHistory]);
 
-  if (history.length === 0) {
-    return (
-      <div className="spec-empty">
-        No price history available yet.
-      </div>
-    );
-  }
+  const dateKeyToIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    unifiedDates.forEach((d, i) => map.set(d, i));
+    return map;
+  }, [unifiedDates]);
 
-  const prices = filteredHistory.map((h) => toNum(h.price));
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
-  const rangePad = (maxPrice - minPrice) * 0.15 || 500;
-  const yMin = minPrice - rangePad;
-  const yMax = maxPrice + rangePad;
+  const denseSeries = useMemo(
+    () =>
+      vendorGroups.map((group) => ({
+        vendor: group.vendor,
+        color: group.color,
+        dense: buildDenseSeries(group, dateKeyToIndex),
+      })),
+    [vendorGroups, dateKeyToIndex]
+  );
+
+  const allPrices = filteredHistory.map((h) => toNum(h.price));
+  const maxPrice = Math.max(...allPrices);
+  const yMin = 0;
+  const yMax = maxPrice * 1.1 || 1000;
   const yRange = yMax - yMin || 1;
 
   const svgW = 700;
@@ -114,21 +227,64 @@ export function PriceHistoryChart({ history }: PriceHistoryChartProps) {
   const chartW = svgW - padL - padR;
   const chartH = svgH - padT - padB;
 
-  const toX = (i: number) => padL + (i / Math.max(filteredHistory.length - 1, 1)) * chartW;
-  const toY = (p: number) => padT + chartH - ((p - yMin) / yRange) * chartH;
+  const toXUnified = useCallback(
+    (dateIndex: number) => padL + (dateIndex / Math.max(unifiedDates.length - 1, 1)) * chartW,
+    [unifiedDates.length, chartW]
+  );
 
-  const linePoints = filteredHistory.map((h, i) => `${toX(i)},${toY(toNum(h.price))}`).join(' ');
-  const areaPoints = `${toX(0)},${padT + chartH} ${linePoints} ${toX(filteredHistory.length - 1)},${padT + chartH}`;
+  const toY = useCallback(
+    (p: number) => padT + chartH - ((p - yMin) / yRange) * chartH,
+    [yMin, yRange, chartH]
+  );
 
   const yTicks = 5;
   const yTickValues = Array.from({ length: yTicks + 1 }, (_, i) => yMin + (i / yTicks) * yRange);
 
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const xLabelCount = Math.min(filteredHistory.length, 6);
-  const xStep = Math.max(1, Math.floor(filteredHistory.length / xLabelCount));
-  const xLabels = filteredHistory
-    .map((h, i) => ({ i, label: months[new Date(h.recordedAt).getMonth()] }))
-    .filter((_, i) => i % xStep === 0 || i === filteredHistory.length - 1);
+  const xLabels = useMemo(() => {
+    const maxLabels = 6;
+    if (unifiedDates.length <= maxLabels) {
+      return unifiedDates.map((d, i) => ({ i, label: formatDate(new Date(d)) }));
+    }
+    const step = Math.max(1, Math.floor((unifiedDates.length - 1) / (maxLabels - 1)));
+    const labels: { i: number; label: string }[] = [];
+    for (let i = 0; i < unifiedDates.length; i += step) {
+      labels.push({ i, label: formatDate(new Date(unifiedDates[i])) });
+    }
+    const last = unifiedDates.length - 1;
+    if (labels[labels.length - 1].i !== last) {
+      labels.push({ i: last, label: formatDate(new Date(unifiedDates[last])) });
+    }
+    return labels;
+  }, [unifiedDates]);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!svgRef.current || unifiedDates.length === 0) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+
+      const relX = mouseX - padL;
+      const dateRatio = relX / chartW;
+      const nearestIndex = Math.round(dateRatio * (unifiedDates.length - 1));
+      const clampedIndex = Math.max(0, Math.min(unifiedDates.length - 1, nearestIndex));
+
+      const x = toXUnified(clampedIndex);
+      const vendors = getTooltipData(denseSeries, clampedIndex, unifiedDates, toY);
+
+      setTooltip({ x, date: new Date(unifiedDates[clampedIndex]), vendors });
+    },
+    [unifiedDates, denseSeries, chartW, toXUnified, toY]
+  );
+
+  const handleMouseLeave = useCallback(() => setTooltip(null), []);
+
+  if (history.length === 0) {
+    return (
+      <div className="spec-empty">
+        No price history available yet.
+      </div>
+    );
+  }
 
   return (
     <div className="price-chart-container">
@@ -162,15 +318,33 @@ export function PriceHistoryChart({ history }: PriceHistoryChartProps) {
             </g>
           ))}
 
-          <polygon points={areaPoints} className="price-chart-area" />
-          <polyline points={linePoints} className="price-chart-line" fill="none" />
-
-          {filteredHistory.map((h, i) => (
-            <circle key={i} cx={toX(i)} cy={toY(toNum(h.price))} r={3} className="price-chart-dot" />
-          ))}
+          {denseSeries.map(({ vendor, dense, color }) => {
+            const segments = segmentDense(dense);
+            return (
+              <g key={vendor}>
+                {segments.map((seg, si) => {
+                  const linePoints = seg.map((pt) => `${toXUnified(pt.dateIndex)},${toY(pt.price)}`).join(' ');
+                  const firstX = toXUnified(seg[0].dateIndex);
+                  const lastX = toXUnified(seg[seg.length - 1].dateIndex);
+                  const areaPoints = `${firstX},${padT + chartH} ${linePoints} ${lastX},${padT + chartH}`;
+                  return (
+                    <g key={si}>
+                      <polygon points={areaPoints} fill={color.area} />
+                      <polyline points={linePoints} fill="none" stroke={color.line} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                    </g>
+                  );
+                })}
+                {dense.map((pt, i) =>
+                  pt ? (
+                    <circle key={i} cx={toXUnified(pt.dateIndex)} cy={toY(pt.price)} r={3} fill={color.line} stroke="var(--surface)" strokeWidth={1.5} />
+                  ) : null
+                )}
+              </g>
+            );
+          })}
 
           {xLabels.map((l) => (
-            <text key={l.i} x={toX(l.i)} y={svgH - 8} className="price-chart-xlabel">
+            <text key={l.i} x={toXUnified(l.i)} y={svgH - 8} className="price-chart-xlabel">
               {l.label}
             </text>
           ))}
@@ -184,7 +358,9 @@ export function PriceHistoryChart({ history }: PriceHistoryChartProps) {
                 y2={padT + chartH}
                 className="price-chart-crosshair"
               />
-              <circle cx={tooltip.x} cy={tooltip.y} r={5} className="price-chart-tooltip-dot" />
+              {tooltip.vendors.map((v) => (
+                <circle key={v.vendor} cx={tooltip.x} cy={v.y} r={5} fill={v.color} stroke="var(--surface)" strokeWidth={2} />
+              ))}
             </>
           )}
         </svg>
@@ -194,17 +370,31 @@ export function PriceHistoryChart({ history }: PriceHistoryChartProps) {
             className="price-chart-tooltip"
             style={{
               left: `${(tooltip.x / svgW) * 100}%`,
-              top: `${(tooltip.y / svgH) * 100}%`,
+              top: '10%',
             }}
           >
-            <div className="price-chart-tooltip-price">{formatPrice(toNum(tooltip.point.price))}</div>
-            <div className="price-chart-tooltip-date">{formatDate(new Date(tooltip.point.recordedAt))}</div>
-            {tooltip.point.vendor && (
-              <div className="price-chart-tooltip-vendor">{tooltip.point.vendor}</div>
-            )}
+            <div className="price-chart-tooltip-date">{formatDate(tooltip.date)}</div>
+            {tooltip.vendors.map((v) => (
+              <div key={v.vendor} className="price-chart-tooltip-row">
+                <span className="price-chart-tooltip-swatch" style={{ background: v.color }} />
+                <span className="price-chart-tooltip-vendor">{v.vendor}</span>
+                <span className="price-chart-tooltip-price">{formatPrice(v.price)}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {vendorGroups.length > 1 && (
+        <div className="price-chart-legend">
+          {vendorGroups.map(({ vendor, color }) => (
+            <div key={vendor} className="price-chart-legend-item">
+              <span className="price-chart-legend-swatch" style={{ background: color.line }} />
+              <span className="price-chart-legend-label">{vendor}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

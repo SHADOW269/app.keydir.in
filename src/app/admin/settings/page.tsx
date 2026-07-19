@@ -1,105 +1,95 @@
 import { prisma } from '@/lib/prisma';
+import { PRODUCT_CATEGORIES } from '@/lib/admin/product-categories';
+import { DashboardGrid, KpiCard, SectionHeader } from '@/components/admin/dashboard';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Settings — Admin' };
 
 export default async function AdminSettingsPage() {
-  const [
-    totalProducts,
-    totalVendorProducts,
-    totalVotes,
-    enabledVendors,
-    categoriesWithCounts,
-  ] = await Promise.all([
+  const [totalProducts, totalVendorProducts, totalVotes, enabledVendors, productTypeCounts] = await Promise.all([
     prisma.product.count(),
     prisma.vendorProduct.count(),
     prisma.vote.count(),
     prisma.vendor.findMany({ where: { enabled: true }, select: { name: true } }),
-    prisma.category.findMany({
-      include: { _count: { select: { products: true } } },
-      orderBy: { name: 'asc' },
-    }),
+    prisma.product.groupBy({ by: ['productType'], _count: true }),
   ]);
 
   return (
     <div className="page-body">
-      <div className="sec-head">
-        <h2>ADMIN <em className="text-[var(--yellow)]">SETTINGS</em></h2>
+      <div className="dash-page-header">
+        <div>
+          <div className="dash-page-title">ADMIN <em className="text-[var(--yellow)]">SETTINGS</em></div>
+          <div className="dash-page-desc">Platform configuration and system info</div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Site Stats */}
-        <div className="neo-card p-6">
-          <h3 className="font-[family-name:var(--f-m)] text-sm font-bold uppercase tracking-widest text-[var(--text-dim)] mb-4 border-b-2 border-[var(--border)] pb-2">
-            SITE STATISTICS
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between font-[family-name:var(--f-m)] text-sm">
-              <span className="text-[var(--text-muted)]">Total Products</span>
-              <span className="font-bold">{totalProducts}</span>
-            </div>
-            <div className="flex justify-between font-[family-name:var(--f-m)] text-sm">
-              <span className="text-[var(--text-muted)]">Price Entries</span>
-              <span className="font-bold">{totalVendorProducts}</span>
-            </div>
-            <div className="flex justify-between font-[family-name:var(--f-m)] text-sm">
-              <span className="text-[var(--text-muted)]">Total Votes</span>
-              <span className="font-bold">{totalVotes}</span>
-            </div>
-          </div>
-        </div>
+      <DashboardGrid>
+        <SectionHeader title="Site Statistics" span={12} />
 
-        {/* Active Vendors */}
-        <div className="neo-card p-6">
-          <h3 className="font-[family-name:var(--f-m)] text-sm font-bold uppercase tracking-widest text-[var(--text-dim)] mb-4 border-b-2 border-[var(--border)] pb-2">
-            ACTIVE VENDORS
-          </h3>
-          {enabledVendors.length === 0 ? (
-            <div className="font-[family-name:var(--f-m)] text-sm text-[var(--text-dim)]">No active vendors</div>
-          ) : (
-            <div className="space-y-2">
-              {enabledVendors.map((v) => (
-                <div key={v.name} className="font-[family-name:var(--f-m)] text-sm flex items-center gap-2">
-                  <span className="w-2 h-2 bg-[var(--green)] rounded-full" />
-                  {v.name}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <KpiCard label="Total Products" value={totalProducts} icon="◆" color="var(--yellow)" span={3} />
+        <KpiCard label="Price Entries" value={totalVendorProducts} icon="◆" color="var(--green)" span={3} />
+        <KpiCard label="Total Votes" value={totalVotes} icon="▲" color="var(--orange)" span={3} />
+        <KpiCard label="Active Vendors" value={enabledVendors.length} icon="●" color="var(--cyan)" span={3} />
 
-        {/* Category Breakdown */}
-        <div className="neo-card p-6 lg:col-span-2">
-          <h3 className="font-[family-name:var(--f-m)] text-sm font-bold uppercase tracking-widest text-[var(--text-dim)] mb-4 border-b-2 border-[var(--border)] pb-2">
-            PRODUCTS BY CATEGORY
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {categoriesWithCounts.map((c) => (
-              <div key={c.id} className="stat-box">
-                <span className="stat-num">{c._count.products}</span>
-                <span className="stat-label">{c.name}</span>
+        <SectionHeader title="Products by Category" span={12} />
+
+        {PRODUCT_CATEGORIES.map((cat) => {
+          const match = productTypeCounts.find((pt) => pt.productType === cat.slug);
+          const count = match?._count ?? 0;
+          const pct = totalProducts > 0 ? Math.round((count / totalProducts) * 100) : 0;
+          return (
+            <div key={cat.slug} className="dash-kpi" style={{ gridColumn: 'span 3' }}>
+              <div className="dash-kpi-label">{cat.icon} {cat.label}</div>
+              <div className="dash-kpi-value" style={{ fontSize: '1.4rem' }}>{count}</div>
+              <div className="dash-kpi-trend positive">{pct}%</div>
+            </div>
+          );
+        })}
+
+        <SectionHeader title="Active Vendors" span={12} />
+
+        <div className="dash-panel" style={{ gridColumn: 'span 6' }}>
+          <div className="dash-panel-header">Enabled Vendors</div>
+          <div className="dash-panel-body">
+            {enabledVendors.length === 0 ? (
+              <div className="dash-empty-sm">No active vendors</div>
+            ) : (
+              <div className="dash-activity-list">
+                {enabledVendors.map((v) => (
+                  <div key={v.name} className="dash-activity-item">
+                    <span className="dash-activity-icon" style={{ color: 'var(--green)' }}>●</span>
+                    <div className="dash-activity-content">
+                      <span className="dash-activity-text">{v.name}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Environment Info */}
-      <div className="neo-card p-6 max-w-2xl">
-        <h3 className="font-[family-name:var(--f-m)] text-sm font-bold uppercase tracking-widest text-[var(--text-dim)] mb-4 border-b-2 border-[var(--border)] pb-2">
-          ENVIRONMENT
-        </h3>
-        <div className="space-y-3">
-          <div className="flex justify-between font-[family-name:var(--f-m)] text-sm">
-            <span className="text-[var(--text-muted)]">Node.js</span>
-            <span className="font-bold">{process.version}</span>
-          </div>
-          <div className="flex justify-between font-[family-name:var(--f-m)] text-sm">
-            <span className="text-[var(--text-muted)]">Database</span>
-            <span className="font-bold">Supabase PostgreSQL</span>
+        <div className="dash-panel" style={{ gridColumn: 'span 6' }}>
+          <div className="dash-panel-header">Environment</div>
+          <div className="dash-panel-body">
+            <div className="dash-activity-list">
+              <div className="dash-activity-item">
+                <span className="dash-activity-icon" style={{ color: 'var(--cyan)' }}>◆</span>
+                <div className="dash-activity-content">
+                  <span className="dash-activity-text">Node.js</span>
+                  <span className="dash-activity-time">{process.version}</span>
+                </div>
+              </div>
+              <div className="dash-activity-item">
+                <span className="dash-activity-icon" style={{ color: 'var(--green)' }}>●</span>
+                <div className="dash-activity-content">
+                  <span className="dash-activity-text">Database</span>
+                  <span className="dash-activity-time">Supabase PostgreSQL</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </DashboardGrid>
     </div>
   );
 }

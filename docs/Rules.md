@@ -73,9 +73,10 @@ These rules are mandatory for all contributions to KEYDIR. They are derived from
 | **Never modify schema without docs** | Update `docs/Database.md` when changing `schema.prisma`. |
 | **Use migrations** | Never manually alter the database. Use `prisma migrate`. |
 | **Always update Memory.md** | After completing a feature, update `docs/Memory.md`. |
-| **Cascade deletes** | Use `onDelete: Cascade` where appropriate (e.g., votes, specs). |
+| **Cascade deletes** | Use `onDelete: Cascade` where appropriate (e.g., votes, specs, spec options). |
 | **Index foreign keys** | Always add `@@index` for foreign key fields. |
 | **Use cuid()** | Primary keys use `@default(cuid())`. Never use auto-increment. |
+| **SpecField is the source of truth** | Never hardcode filter options, form fields, or spec display — always read from `SpecField` + `SpecOption`. |
 
 ---
 

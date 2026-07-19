@@ -15,7 +15,12 @@ interface PriceTableProps {
   vendorProducts: VendorProductWithVendor[];
 }
 
-const STOCK_LABELS: Record<string, { label: string; class: string }> = {
+const AVAILABILITY_LABELS: Record<string, { label: string; class: string }> = {
+  IN_STOCK: { label: 'In Stock', class: 'b-green' },
+  PREORDER: { label: 'Preorder', class: 'b-yellow' },
+  GROUP_BUY: { label: 'Group Buy', class: 'b-blue' },
+  COMING_SOON: { label: 'Coming Soon', class: 'b-orange' },
+  OUT_OF_STOCK: { label: 'Out of Stock', class: 'b-red' },
   in_stock: { label: 'In Stock', class: 'b-green' },
   preorder: { label: 'Preorder', class: 'b-yellow' },
   group_buy: { label: 'Group Buy', class: 'b-blue' },
@@ -47,7 +52,8 @@ export function PriceTable({ vendorProducts }: PriceTableProps) {
         <tbody>
           {sorted.map((vp) => {
             const isLowest = vp.id === lowestId;
-            const stock = STOCK_LABELS[vp.stockStatus] ?? STOCK_LABELS.in_stock;
+            const statusKey = vp.availability || vp.stockStatus;
+            const stock = AVAILABILITY_LABELS[statusKey] ?? AVAILABILITY_LABELS.IN_STOCK;
             const link = vp.vendor.affiliateLink || vp.vendorUrl;
 
             return (
@@ -73,7 +79,7 @@ export function PriceTable({ vendorProducts }: PriceTableProps) {
                   <span className={`badge ${stock.class}`}>{stock.label}</span>
                 </td>
                 <td className="text-[var(--text-dim)]">
-                  {timeAgo(new Date(vp.lastChecked))}
+                  {timeAgo(new Date(vp.lastCheckedAt || vp.lastChecked || Date.now()))}
                 </td>
                 <td>
                   <a

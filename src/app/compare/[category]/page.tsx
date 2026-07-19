@@ -1,0 +1,135 @@
+import { notFound } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/profile/actions';
+import { CompareClient } from '../compare-client';
+import { CompareLayout } from '@/components/compare/compare-layout';
+import { CATEGORIES } from '../compare-config';
+
+interface Props {
+  params: Promise<{ category: string }>;
+  searchParams: Promise<{ products?: string }>;
+}
+
+export const dynamic = 'force-dynamic';
+
+function priceNum(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return parseFloat(v);
+  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
+  return 0;
+}
+
+function serializeSpec(spec: Record<string, unknown>): Record<string, unknown> {
+  const exclude = new Set(['id', 'productId']);
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(spec)) {
+    if (exclude.has(key)) continue;
+    if (typeof value === 'object' && value !== null && 'toNumber' in value) {
+      result[key] = (value as { toNumber(): number }).toNumber();
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+export default async function CompareCategoryPage({ params, searchParams }: Props) {
+  const { category } = await params;
+  const config = CATEGORIES[category];
+  if (!config) notFound();
+
+  const { products: productsParam } = await searchParams;
+  const slugs = productsParam
+    ? productsParam.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 4)
+    : [];
+
+  const rawProducts = slugs.length >= 1
+    ? await prisma.product.findMany({
+        where: { slug: { in: slugs }, productType: config.productType },
+        include: {
+          brand: { select: { name: true, slug: true } },
+          keyboardSpec: true,
+          mouseSpec: true,
+          switchSpec: true,
+          keycapSpec: true,
+          vendorProducts: {
+            include: {
+              vendor: { select: { name: true, chartColor: true } },
+            },
+            where: { vendor: { enabled: true } },
+            orderBy: { totalPrice: 'asc' },
+          },
+          votes: { select: { type: true } },
+        },
+      })
+    : [];
+
+  const productMap = new Map(rawProducts.map((p) => [p.slug, p]));
+  const orderedProducts = slugs
+    .map((s) => productMap.get(s))
+    .filter((p): p is NonNullable<typeof p> => !!p);
+
+  const currentUser = await getCurrentUser();
+
+  let userCollections: Set<string> = new Set();
+  let userVotes: Record<string, 'upvote' | 'downvote'> = {};
+  if (currentUser && orderedProducts.length > 0) {
+    const ids = orderedProducts.map((p) => p.id);
+    const [collections, votes] = await Promise.all([
+      prisma.collection.findMany({
+        where: { profileId: currentUser.id, productId: { in: ids } },
+        select: { productId: true },
+      }),
+      prisma.vote.findMany({
+        where: { profileId: currentUser.id, productId: { in: ids } },
+        select: { productId: true, type: true },
+      }),
+    ]);
+    userCollections = new Set(collections.map((c) => c.productId));
+    userVotes = Object.fromEntries(
+      votes.map((v) => [v.productId, v.type as 'upvote' | 'downvote'])
+    );
+  }
+
+  const serialized = orderedProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    image: p.image,
+    productType: p.productType,
+    brand: p.brand,
+    spec: (p as Record<string, unknown>)[config.specKey]
+      ? serializeSpec((p as Record<string, unknown>)[config.specKey] as Record<string, unknown>)
+      : null,
+    vendorProducts: p.vendorProducts.map((vp) => ({
+      id: vp.id,
+      totalPrice: priceNum(vp.totalPrice),
+      shippingCost: priceNum(vp.shippingCost),
+      vendor: { name: vp.vendor.name, chartColor: vp.vendor.chartColor },
+    })),
+    upvotes: p.votes.filter((v) => v.type === 'upvote').length,
+    downvotes: p.votes.filter((v) => v.type === 'downvote').length,
+    userVote: userVotes[p.id] || null,
+    inCollection: userCollections.has(p.id),
+  }));
+
+  return (
+    <CompareLayout breadcrumb={config.breadcrumb}>
+      <CompareClient
+        initialSlugs={slugs}
+        initialProducts={serialized}
+        basePath={config.basePath}
+        title={config.title}
+        titleHighlight={config.titleHighlight}
+        categoryFilter={config.categoryFilter}
+        addLabel={config.addLabel}
+        searchPlaceholder={config.searchPlaceholder}
+        emptyMessage={config.emptyMessage}
+        maxMessage={config.maxMessage}
+        noResultsMessage={config.noResultsMessage}
+        specGroups={config.specGroups}
+        noSpecsMessage={config.noSpecsMessage}
+      />
+    </CompareLayout>
+  );
+}
