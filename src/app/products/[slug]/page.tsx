@@ -163,7 +163,8 @@ export default async function ProductPage({ params }: Props) {
                   alt={product.name}
                   width={600}
                   height={600}
-                  className="w-full aspect-square object-cover"
+                  className="w-full aspect-square object-contain"
+                  loading="eager"
                   priority
                 />
               ) : (

@@ -147,54 +147,54 @@ export async function updateVendor(id: string, formData: FormData) {
 }
 
 export async function updateVendorScraperConfig(id: string, formData: FormData) {
-  const scraperEnabled = formData.get('scraperEnabled') === 'on';
-  const scraperEngine = formData.get('scraperEngine') as string || 'cheerio';
-  const priceSelector = (formData.get('priceSelector') as string) || null;
-  const availabilitySelector = (formData.get('availabilitySelector') as string) || null;
-  const titleSelector = (formData.get('titleSelector') as string) || null;
-  const imageSelector = (formData.get('imageSelector') as string) || null;
-  const productExistsSelector = (formData.get('productExistsSelector') as string) || null;
-  const priceAttribute = (formData.get('priceAttribute') as string) || 'text';
-  const availabilityAttribute = (formData.get('availabilityAttribute') as string) || 'text';
-  const customHeaders = (formData.get('customHeaders') as string) || null;
-  const cloudflareProtected = formData.get('cloudflareProtected') === 'on';
-  const useJavaScriptRendering = formData.get('useJavaScriptRendering') === 'on';
-  const customScraper = (formData.get('customScraper') as string) || null;
-  const scraperNotes = (formData.get('scraperNotes') as string) || null;
+  // Build a partial update — only include fields actually present in FormData.
+  // This prevents one tab from clobbering values set by another tab.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: Record<string, any> = {};
+
+  // String fields: only update if key exists in FormData
+  const stringFields = [
+    'scraperEngine', 'priceSelector', 'availabilitySelector', 'titleSelector',
+    'imageSelector', 'productExistsSelector', 'priceAttribute', 'availabilityAttribute',
+    'titleAttribute', 'imageAttribute', 'customHeaders', 'customScraper', 'scraperNotes',
+  ] as const;
+
+  for (const field of stringFields) {
+    if (formData.has(field)) {
+      const raw = (formData.get(field) as string) || null;
+      data[field] = raw;
+    }
+  }
+
+  // Boolean fields: only update if key exists in FormData.
+  // A checkbox not present in FormData means "unchanged", not "false".
+  const booleanFields = ['scraperEnabled', 'cloudflareProtected', 'useJavaScriptRendering'] as const;
+
+  for (const field of booleanFields) {
+    if (formData.has(field)) {
+      data[field] = formData.get(field) === 'on';
+    }
+  }
 
   // Validate customHeaders is valid JSON if provided
-  if (customHeaders) {
+  if (data.customHeaders) {
     try {
-      JSON.parse(customHeaders);
+      JSON.parse(data.customHeaders);
     } catch {
       return { error: 'Custom Headers must be valid JSON' };
     }
   }
 
-  // Bump version when selectors change
-  const vendor = await prisma.vendor.findUnique({ where: { id }, select: { scraperVersion: true } });
-  const newVersion = (vendor?.scraperVersion || 0) + 1;
+  // Only proceed if there's something to update
+  if (Object.keys(data).length === 0) {
+    return { ok: true };
+  }
 
-  await prisma.vendor.update({
-    where: { id },
-    data: {
-      scraperEnabled,
-      scraperEngine,
-      priceSelector,
-      availabilitySelector,
-      titleSelector,
-      imageSelector,
-      productExistsSelector,
-      priceAttribute,
-      availabilityAttribute,
-      customHeaders,
-      cloudflareProtected,
-      useJavaScriptRendering,
-      customScraper,
-      scraperNotes,
-      scraperVersion: newVersion,
-    },
-  });
+  // Bump version when config changes
+  const vendor = await prisma.vendor.findUnique({ where: { id }, select: { scraperVersion: true } });
+  data.scraperVersion = (vendor?.scraperVersion || 0) + 1;
+
+  await prisma.vendor.update({ where: { id }, data });
 
   revalidatePath('/admin/vendors');
   revalidatePath('/admin/scraper');

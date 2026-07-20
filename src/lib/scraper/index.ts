@@ -117,7 +117,7 @@ export async function getScraperVersion(vendorSlug: string): Promise<string | nu
 export async function testScraper(vendorId: string, testUrl: string): Promise<ScrapeResult> {
   const entry = await getScraperForVendor(vendorId);
   if (!entry) {
-    return { success: false, error: 'No scraper configured for this vendor' };
+    return { success: false, error: 'Scraper not enabled. Go to the Scraper tab → enable scraper → save. Then configure at least a Price selector in the Selectors tab.' };
   }
   return entry.scraper(testUrl);
 }

@@ -111,6 +111,7 @@ export const KEYBOARD_SPEC_GROUPS: SpecGroup[] = [
   },
   {
     title: 'Keycaps',
+    collapsible: true,
     rows: [
       { label: 'Keycaps Included', key: 'keycapsIncluded', type: 'boolean' },
       { label: 'Keycap Material', key: 'keycapMaterial', type: 'string[]' },

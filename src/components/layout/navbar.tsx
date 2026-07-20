@@ -129,8 +129,8 @@ export function Navbar() {
           {compareCount > 0 && (
             <Link
               href={compareSlugs.length > 0
-                ? `/compare/${compareCategory || 'keyboard'}?products=${compareSlugs.join(',')}`
-                : `/compare/${compareCategory || 'keyboard'}`}
+                ? `/compare/${compareCategory || 'keyboards'}?products=${compareSlugs.join(',')}`
+                : `/compare/${compareCategory || 'keyboards'}`}
               className="nav-compare-icon"
               aria-label={`Compare ${compareCount} product${compareCount !== 1 ? 's' : ''}`}
             >

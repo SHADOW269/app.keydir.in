@@ -19,7 +19,7 @@ export interface CategoryConfig {
 }
 
 export const CATEGORIES: Record<string, CategoryConfig> = {
-  keyboard: {
+  keyboards: {
     productType: 'keyboards',
     specKey: 'keyboardSpec',
     breadcrumb: 'Compare Keyboards',
@@ -31,7 +31,7 @@ export const CATEGORIES: Record<string, CategoryConfig> = {
     maxMessage: 'Maximum of 4 keyboards. Remove one to add another.',
     noResultsMessage: 'No keyboards found.',
     noSpecsMessage: 'No specification data available for these keyboards.',
-    basePath: '/compare/keyboard',
+    basePath: '/compare/keyboards',
     categoryFilter: 'keyboards',
     specGroups: KEYBOARD_SPEC_GROUPS,
   },

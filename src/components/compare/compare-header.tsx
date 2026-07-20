@@ -17,6 +17,8 @@ interface Props {
   onAdd: (slug: string) => void;
   onRemove: (slug: string) => void;
   onClear: () => void;
+  onlyDiff: boolean;
+  onOnlyDiffChange: (v: boolean) => void;
   title: string;
   titleHighlight: string;
   categoryFilter: string;
@@ -32,6 +34,8 @@ export function CompareHeader({
   onAdd,
   onRemove,
   onClear,
+  onlyDiff,
+  onOnlyDiffChange,
   title,
   titleHighlight,
   categoryFilter,
@@ -134,6 +138,12 @@ export function CompareHeader({
           </h1>
         </div>
         <div className="compare-header-actions">
+          <button
+            className={`btn-secondary btn-sm${onlyDiff ? ' active' : ''}`}
+            onClick={() => onOnlyDiffChange(!onlyDiff)}
+          >
+            Differences
+          </button>
           {productSlugs.length > 0 && (
             <button onClick={onClear} className="btn-secondary btn-sm">
               <X size={14} /> Clear All

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
+import { syncRankBadge } from '@/lib/reputation/actions';
 
 export async function getMyProfileUsername(): Promise<string | null> {
   const supabase = await createClient();
@@ -220,14 +221,28 @@ export async function voteOnProduct(
     where: { profileId_productId: { profileId: profile.id, productId } },
   });
 
+  let xpDelta = 0;
+
   if (existing) {
     if (existing.type === type) {
       await prisma.vote.delete({ where: { id: existing.id } });
+      xpDelta = -5;
     } else {
       await prisma.vote.update({ where: { id: existing.id }, data: { type } });
+      xpDelta = 5;
     }
   } else {
     await prisma.vote.create({ data: { profileId: profile.id, productId, type } });
+    xpDelta = 5;
+  }
+
+  if (xpDelta !== 0) {
+    const xp = await prisma.userXP.findUnique({ where: { profileId: profile.id } });
+    if (xp) {
+      const newTotal = Math.max(0, xp.xp + xpDelta);
+      await prisma.userXP.update({ where: { profileId: profile.id }, data: { xp: newTotal } });
+      await syncRankBadge(profile.id);
+    }
   }
 
   revalidatePath('/keyboards');

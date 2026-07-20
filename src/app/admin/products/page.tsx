@@ -56,7 +56,7 @@ export default async function AdminProductsPage() {
                   </div>
                   <div className="text-right">
                     <div className="dash-kpi-trend positive">{pct}%</div>
-                    <Link href={`/admin/products/${cat.slug}`} className="dash-kpi-label" style={{ color: 'var(--yellow)' }}>Manage →</Link>
+                    <span className="dash-kpi-label" style={{ color: 'var(--yellow)' }}>Manage →</span>
                   </div>
                 </div>
               </Link>

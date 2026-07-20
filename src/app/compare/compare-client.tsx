@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CompareHeader } from '@/components/compare/compare-header';
 import { CompareContent } from '@/components/compare/compare-content';
 import type { CompareProduct, SpecGroup } from '@/components/compare/compare-types';
@@ -39,6 +39,7 @@ export function CompareClient({
   noSpecsMessage,
 }: Props) {
   const router = useRouter();
+  const [onlyDiff, setOnlyDiff] = useState(false);
 
   useEffect(() => {
     syncCompareFromUrl(categoryFilter, initialSlugs);
@@ -75,6 +76,8 @@ export function CompareClient({
         onAdd={handleAdd}
         onRemove={handleRemove}
         onClear={handleClear}
+        onlyDiff={onlyDiff}
+        onOnlyDiffChange={setOnlyDiff}
         title={title}
         titleHighlight={titleHighlight}
         categoryFilter={categoryFilter}
@@ -89,6 +92,7 @@ export function CompareClient({
         <CompareContent
           products={initialProducts}
           onRemove={handleRemove}
+          onlyDiff={onlyDiff}
           specGroups={specGroups}
           title={title}
           noSpecsMessage={noSpecsMessage}

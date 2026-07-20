@@ -9,14 +9,14 @@ import type { CompareProduct, SpecGroup } from './compare-types';
 interface Props {
   products: CompareProduct[];
   onRemove: (slug: string) => void;
+  onlyDiff: boolean;
   specGroups: SpecGroup[];
   title: string;
   noSpecsMessage: string;
 }
 
-export function CompareContent({ products, onRemove, specGroups, title, noSpecsMessage }: Props) {
-  const [onlyDiff, setOnlyDiff] = useState(false);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set(['Switches']));
+export function CompareContent({ products, onRemove, onlyDiff, specGroups, title, noSpecsMessage }: Props) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set(['Switches', 'Keycaps']));
 
   const specs: (Record<string, unknown> | null)[] = products.map((p) => p.spec);
   const hasSpecs = specs.some((s) => s !== null);
@@ -61,17 +61,6 @@ export function CompareContent({ products, onRemove, specGroups, title, noSpecsM
             <div className="cmp-matrix-row" style={{ gridTemplateColumns: gridCols }}>
               <div className="cmp-label-cell">
                 <span className="cmp-label-title">{title}</span>
-                <label className="cmp-toggle cmp-label-toggle">
-                  <input
-                    type="checkbox"
-                    checked={onlyDiff}
-                    onChange={(e) => setOnlyDiff(e.target.checked)}
-                  />
-                  <span className="cmp-toggle-track">
-                    <span className="cmp-toggle-knob" />
-                  </span>
-                  <span className="cmp-toggle-label">Show only differences</span>
-                </label>
               </div>
               <CompareProductCards products={products} onRemove={onRemove} />
             </div>
