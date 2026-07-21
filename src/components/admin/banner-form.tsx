@@ -48,23 +48,9 @@ interface BannerData {
 }
 interface Props { banner?: BannerData | null; stats?: { clicks: number; views: number; updatedAt: Date | string } }
 
-async function up(file: File): Promise<string> {
-  const fd = new FormData(); fd.append('file', file);
-  const r = await fetch('/api/upload', { method: 'POST', body: fd });
-  const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Upload failed'); return d.url;
-}
+import { uploadFile } from '@/lib/utils';
 
-/* ══════════════════════════════════════════
-   Card
-   ══════════════════════════════════════════ */
-function Card({ t, children }: { t: string; children: React.ReactNode }) {
-  return (
-    <div className="bc">
-      <div className="bc-h">{t}</div>
-      <div className="bc-b">{children}</div>
-    </div>
-  );
-}
+import { Card } from './admin-card';
 
 /* ══════════════════════════════════════════
    Seg
@@ -107,7 +93,7 @@ function ImgCard({ label, res, url, set, clr }: {
 
   const go = useCallback(async (f: File) => {
     setBusy(true); setErr(null);
-    try { set(await up(f)); } catch (e) { setErr(e instanceof Error ? e.message : 'Failed'); }
+    try { set(await uploadFile(f)); } catch (e) { setErr(e instanceof Error ? e.message : 'Failed'); }
     finally { setBusy(false); }
   }, [set]);
 

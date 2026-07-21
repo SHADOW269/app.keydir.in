@@ -1,6 +1,7 @@
 'use client';
 
 import type { CouponEntry } from './vendor-types';
+import { formatCouponDiscount } from '@/lib/utils';
 
 interface Props {
   coupon: CouponEntry;
@@ -17,7 +18,7 @@ export function CouponCard({ coupon, onToggle, onRemove, onUpdate }: Props) {
           <span className="pe-coupon-chevron">{coupon.collapsed ? '▸' : '▾'}</span>
           <span className="pe-coupon-card-code">{coupon.code || 'Untitled Coupon'}</span>
           <span className={`pe-coupon-type-badge ${coupon.discountType}`}>
-            {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : coupon.discountType === 'flat' ? `₹${coupon.discountValue} OFF` : 'FREE SHIPPING'}
+            {formatCouponDiscount(coupon)}
           </span>
           {!coupon.enabled && <span className="pe-coupon-disabled-badge">DISABLED</span>}
         </div>

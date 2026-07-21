@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getFilterData, unique } from '@/lib/repositories/product-repository';
+import { getFilterData } from '@/lib/repositories/product-repository';
+import { unique, extractJsonArray } from '@/lib/utils';
 
 export async function GET() {
-  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('keyboards', 'keyboards', {
+  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('keyboards', {
     layout: true, keyboardStyle: true, caseMaterial: true,
     mountingStyle: true, plateMaterial: true, stabilizerCompat: true,
     foamMaterial: true, foamPlacement: true, flexCuts: true,
@@ -17,9 +18,6 @@ export async function GET() {
     keycapMaterial: true, keycapProfile: true, keycapLegendType: true, keycapLegendPlacement: true,
     includedAccessories: true,
   });
-
-  const extractJsonArray = (val: unknown): string[] =>
-    Array.isArray(val) ? val.filter((v): v is string => typeof v === 'string') : [];
 
   const specFilters = {
     layout: unique(specs.map((s: any) => s.layout)).sort(),

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CollapsibleCard } from './collapsible-card';
 import { ChipSelect, Toggle, Field } from './form-primitives';
+import type { MouseSpecData } from '@/lib/admin/spec-types';
 
 const CONNECTION = ['Wired', 'Wireless 2.4GHz', 'Bluetooth', 'Tri-Mode'];
 const SENSORS = ['PixArt PAW3395', 'PAW3950', 'PAW3370', 'PAW3311', 'HERO 25K', 'HERO 2', 'Focus Pro 30K', 'Focus Pro 35K', 'Other'];
@@ -16,42 +17,6 @@ const FEET = ['PTFE', 'Glass', 'Hybrid'];
 const GRIP_TYPES = ['Palm', 'Claw', 'Fingertip'];
 const COMPATIBILITY = ['Windows', 'macOS', 'Linux', 'Android', 'PlayStation', 'Xbox'];
 const ACCESSORIES = ['USB Cable', '8K Dongle', '4K Dongle', 'Wireless Receiver', 'USB Adapter', 'Grip Tape', 'Extra Skates', 'Carry Pouch', 'Manual', 'Other'];
-
-interface MouseSpecData {
-  mouseConnection?: string[] | null;
-  mouseSensor?: string | null;
-  mouseDpi?: number | null;
-  mousePollingRate?: string[] | null;
-  mouseMaxIps?: number | null;
-  mouseMaxAccel?: number | null;
-  mouseLod?: string | null;
-  mouseWeight?: number | null;
-  mouseShape?: string | null;
-  mouseHandOrientation?: string | null;
-  mouseSize?: string | null;
-  mouseDimensionsLength?: number | null;
-  mouseDimensionsWidth?: number | null;
-  mouseDimensionsHeight?: number | null;
-  mouseSwitches?: string | null;
-  mouseEncoder?: string | null;
-  mouseButtons?: number | null;
-  mouseSideButtons?: number | null;
-  mouseScrollWheel?: string | null;
-  mouseBattery?: number | null;
-  mouseBatteryLife?: string | null;
-  mouseChargingPort?: string | null;
-  mouseFeet?: string | null;
-  mouseRgb?: boolean;
-  mouseSoftwareRequired?: boolean;
-  mouseOnboardMemory?: boolean;
-  mouseShellMaterial?: string | null;
-  mouseGripType?: string[] | null;
-  mouseColor?: string | null;
-  mouseCompatibility?: string[] | null;
-  mouseAccessories?: string[] | null;
-  mouseAccessoriesOther?: string | null;
-  mouseWarranty?: string | null;
-}
 
 interface Props {
   spec?: MouseSpecData | null;

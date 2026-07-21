@@ -83,3 +83,33 @@ export function legacyToAvailability(status: string): 'IN_STOCK' | 'PREORDER' | 
   };
   return map[status] || 'IN_STOCK';
 }
+
+export function formatDate(d: Date): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+export function formatCouponDiscount(coupon: { discountType: string; discountValue: number }): string {
+  if (coupon.discountType === 'percentage') return `${coupon.discountValue}% OFF`;
+  if (coupon.discountType === 'flat') return `${formatPrice(coupon.discountValue)} OFF`;
+  return 'FREE SHIPPING';
+}
+
+export function unique<T>(arr: (T | null | undefined)[]): T[] {
+  return [...new Set(arr.filter((v): v is T => v != null && v !== ''))];
+}
+
+export function extractJsonArray(val: unknown): string[] {
+  if (Array.isArray(val)) return val.filter((v): v is string => typeof v === 'string');
+  return [];
+}
+
+export async function uploadFile(file: File, dir?: string): Promise<string> {
+  const fd = new FormData();
+  fd.append('file', file);
+  if (dir) fd.append('dir', dir);
+  const r = await fetch('/api/upload', { method: 'POST', body: fd });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Upload failed');
+  return d.url;
+}

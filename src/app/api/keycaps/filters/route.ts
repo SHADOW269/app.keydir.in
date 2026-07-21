@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getFilterData, unique } from '@/lib/repositories/product-repository';
+import { getFilterData } from '@/lib/repositories/product-repository';
+import { unique, extractJsonArray } from '@/lib/utils';
 
 export async function GET() {
-  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('keycaps', 'keycaps', {
+  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('keycaps', {
     keycapProfile: true, keycapLayoutSupport: true,
     keycapMaterial: true, keycapManufacturing: true,
     keycapLegends: true, keycapLegendPlacement: true,
@@ -10,9 +11,6 @@ export async function GET() {
     keycapThickness: true, keycapColorway: true, keycapManufacturer: true, keycapDesigner: true,
     keycapNovelties: true, keycapSpacebars: true, keycapAccentKeys: true, keycapArtisan: true,
   });
-
-  const extractJsonArray = (val: unknown): string[] =>
-    Array.isArray(val) ? val.filter((v): v is string => typeof v === 'string') : [];
 
   const specFilters = {
     keycapProfile: unique(specs.flatMap((s: any) => extractJsonArray(s.keycapProfile))),

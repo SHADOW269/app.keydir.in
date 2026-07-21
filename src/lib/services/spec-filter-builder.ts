@@ -1,14 +1,5 @@
 import { Prisma } from '@prisma/client';
 
-function extractJsonArray(val: unknown): string[] {
-  if (Array.isArray(val)) return val.filter((v): v is string => typeof v === 'string');
-  return [];
-}
-
-export function unique<T>(arr: (T | null | undefined)[]): T[] {
-  return [...new Set(arr.filter((v): v is T => v != null && v !== ''))];
-}
-
 export interface SpecFilterConfig {
   arrayKeys: readonly string[];
   stringKeys: readonly string[];
@@ -61,7 +52,7 @@ export interface VendorProductFilterInput {
   vendors?: string[];
 }
 
-export function buildVendorProductWhere(filters: VendorProductFilterInput): Prisma.VendorProductWhereInput | {} {
+export function buildVendorProductWhere(filters: VendorProductFilterInput): Prisma.ProductWhereInput {
   const vpConditions: Prisma.VendorProductWhereInput[] = [];
 
   if (filters.priceMin || filters.priceMax) {

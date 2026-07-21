@@ -4,11 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/layout/navbar';
 
-import type { ScrapeResult } from '@/lib/scraper/types';
 import { createVendor, updateVendor, deleteVendor, updateVendorScraperConfig } from '@/lib/admin/vendor-actions';
-import { testVendorScraper } from '@/lib/admin/scraper-actions';
 import { DeletePasswordModal } from './delete-password-modal';
 import { useDeleteEntity } from './hooks/use-delete-entity';
+import { useScraperTest } from './hooks/use-scraper-test';
+import { useFormSubmit } from './hooks/use-form-submit';
 
 interface Vendor {
   id: string;
@@ -37,57 +37,30 @@ interface Vendor {
 }
 
 export function VendorForm({ vendor }: { vendor?: Vendor }) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, setError, run } = useFormSubmit();
   const {
     showDeleteModal, setShowDeleteModal,
     deletePassword, setDeletePassword,
     deleteError, setDeleteError,
     deleting, handleDelete,
   } = useDeleteEntity(deleteVendor, vendor?.id || '', '/admin/vendors');
-  const [testUrl, setTestUrl] = useState('');
-  const [testResult, setTestResult] = useState<ScrapeResult | null>(null);
-  const [testing, setTesting] = useState(false);
+  const { testUrl, setTestUrl, testResult, testing, handleTest } = useScraperTest(vendor?.id || '');
   const [configSaved, setConfigSaved] = useState(false);
   const [chartColor, setChartColor] = useState(vendor?.chartColor ?? '#22C55E');
   const isEdit = !!vendor;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPending(true);
-    setError(null);
     const form = new FormData(e.currentTarget);
-    const result = isEdit
-      ? await updateVendor(vendor!.id, form)
-      : await createVendor(form);
-    if (result?.error) {
-      setError(result.error);
-      setPending(false);
-    }
+    await run(() => isEdit ? updateVendor(vendor!.id, form) : createVendor(form));
   }
 
   async function handleSaveScraperConfig(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPending(true);
-    setError(null);
     setConfigSaved(false);
     const form = new FormData(e.currentTarget);
-    const result = await updateVendorScraperConfig(vendor!.id, form);
-    if (result?.error) {
-      setError(result.error);
-    } else {
-      setConfigSaved(true);
-    }
-    setPending(false);
-  }
-
-  async function handleTestScraper() {
-    if (!vendor?.id || !testUrl) return;
-    setTesting(true);
-    setTestResult(null);
-    const result = await testVendorScraper(vendor.id, testUrl);
-    setTestResult(result);
-    setTesting(false);
+    const ok = await run(() => updateVendorScraperConfig(vendor!.id, form));
+    if (ok) setConfigSaved(true);
   }
 
   return (
@@ -302,7 +275,7 @@ export function VendorForm({ vendor }: { vendor?: Vendor }) {
 
             <button
               type="button"
-              onClick={handleTestScraper}
+              onClick={handleTest}
               disabled={testing || !testUrl}
               className="btn-secondary"
             >

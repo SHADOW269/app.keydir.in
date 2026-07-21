@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { ProductEditor } from './product-editor';
 import { VendorCards } from './vendor-cards';
-import type { Brand, Product, ProductImage, VendorOption } from '@/lib/admin/spec-types';
+import { useProductImages } from './hooks/use-product-images';
+import type { Brand, Product, VendorOption } from '@/lib/admin/spec-types';
 import type { ExistingVendorProduct } from './vendor-types';
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function ProductForm({ product, brands, vendors = [], existingVendorProducts = [], fixedProductType }: Props) {
-  const [images, setImages] = useState<ProductImage[]>([]);
+  const { images, setImages } = useProductImages([]);
 
   const productLabel = fixedProductType
     ? fixedProductType.charAt(0).toUpperCase() + fixedProductType.slice(1).replace(/s$/, '')

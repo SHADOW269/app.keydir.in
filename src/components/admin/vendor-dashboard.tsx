@@ -3,11 +3,12 @@
 import { useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CollapsibleCard } from '@/components/admin/collapsible-card';
-import type { ScrapeResult } from '@/lib/scraper/types';
+import { TabbedPanel, TabPanel } from './tabbed-panel';
 import { updateVendor, updateVendorScraperConfig, deleteVendor } from '@/lib/admin/vendor-actions';
-import { testVendorScraper } from '@/lib/admin/scraper-actions';
 import { DeletePasswordModal } from './delete-password-modal';
 import { useDeleteEntity } from './hooks/use-delete-entity';
+import { useScraperTest } from './hooks/use-scraper-test';
+import { useFormSubmit } from './hooks/use-form-submit';
 import { timeAgo } from '@/lib/utils';
 
 interface Vendor {
@@ -78,8 +79,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') || 'vendor') as Tab;
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, setError, run } = useFormSubmit();
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const {
     showDeleteModal, setShowDeleteModal,
@@ -87,9 +87,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
     deleteError, setDeleteError,
     deleting, handleDelete,
   } = useDeleteEntity(deleteVendor, vendor.id, '/admin/vendors');
-  const [testUrl, setTestUrl] = useState('');
-  const [testResult, setTestResult] = useState<ScrapeResult | null>(null);
-  const [testing, setTesting] = useState(false);
+  const { testUrl, setTestUrl, testResult, testing, handleTest } = useScraperTest(vendor.id);
   // Scheduler state
   const [priceEnabled, setPriceEnabled] = useState(true);
   const [priceSchedule, setPriceSchedule] = useState('every-12h');
@@ -113,39 +111,16 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
 
   async function handleSaveGeneral(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPending(true);
-    setError(null);
     const form = new FormData(e.currentTarget);
-    const result = await updateVendor(vendor.id, form);
-    if (result?.error) {
-      setError(result.error);
-    } else {
-      flash('Vendor updated');
-    }
-    setPending(false);
+    const ok = await run(() => updateVendor(vendor.id, form));
+    if (ok) flash('Vendor updated');
   }
 
   async function handleSaveScraper(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPending(true);
-    setError(null);
     const form = new FormData(e.currentTarget);
-    const result = await updateVendorScraperConfig(vendor.id, form);
-    if (result?.error) {
-      setError(result.error);
-    } else {
-      flash('Scraper config saved');
-    }
-    setPending(false);
-  }
-
-  async function handleTestScraper() {
-    if (!testUrl) return;
-    setTesting(true);
-    setTestResult(null);
-    const result = await testVendorScraper(vendor.id, testUrl);
-    setTestResult(result);
-    setTesting(false);
+    const ok = await run(() => updateVendorScraperConfig(vendor.id, form));
+    if (ok) flash('Scraper config saved');
   }
 
   const healthStatus = stats.successRate === null ? 'unknown' : stats.successRate >= 80 ? 'healthy' : stats.successRate >= 50 ? 'warning' : 'error';
@@ -194,22 +169,8 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
           </div>
         </div>
 
-        {/* ═══ TAB BAR ═══ */}
-        <div className="vd-tab-bar">
-          <div className="vd-tab-bar-inner">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`vd-tab ${activeTab === tab.id ? 'vd-tab--active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <span className="vd-tab-icon">{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <TabbedPanel tabs={TABS} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as Tab)}>
+
 
         {/* ═══ MAIN CONTENT ═══ */}
         <div className="vd-body">
@@ -218,7 +179,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
             {successMsg && <div className="vd-flash vd-flash--ok">{successMsg}</div>}
 
             {/* ─── VENDOR TAB ─── */}
-            <div style={{ display: activeTab === 'vendor' ? undefined : 'none' }}>
+            <TabPanel tabId="vendor" activeTab={activeTab}>
               <form id="vendor-form" onSubmit={handleSaveGeneral}>
                 <CollapsibleCard title="General" icon="◆" id="vd-general">
                   <div className="vd-form-grid">
@@ -264,10 +225,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                   </div>
                 </CollapsibleCard>
               </form>
-            </div>
+            </TabPanel>
 
             {/* ─── SCRAPER TAB ─── */}
-            <div style={{ display: activeTab === 'scraper' ? undefined : 'none' }}>
+            <TabPanel tabId="scraper" activeTab={activeTab}>
               <form onSubmit={handleSaveScraper}>
                 <CollapsibleCard title="Engine" icon="▲" id="vd-engine">
                   <div className="admin-field">
@@ -382,10 +343,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                   </button>
                 </div>
               </form>
-            </div>
+            </TabPanel>
 
             {/* ─── SELECTORS TAB ─── */}
-            <div style={{ display: activeTab === 'selectors' ? undefined : 'none' }}>
+            <TabPanel tabId="selectors" activeTab={activeTab}>
               <form onSubmit={handleSaveScraper}>
                 <CollapsibleCard title="CSS Selectors" icon="◎" id="vd-selectors">
                   <div className="vd-selector-table">
@@ -440,10 +401,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                   </button>
                 </div>
               </form>
-            </div>
+            </TabPanel>
 
             {/* ─── SCHEDULER TAB ─── */}
-            <div style={{ display: activeTab === 'scheduler' ? undefined : 'none' }}>
+            <TabPanel tabId="scheduler" activeTab={activeTab}>
               <div className="sch">
 
                 {/* ── Alerts ── */}
@@ -701,10 +662,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                 </div>
 
               </div>
-            </div>
+            </TabPanel>
 
             {/* ─── TESTING TAB ─── */}
-            <div style={{ display: activeTab === 'testing' ? undefined : 'none' }}>
+            <TabPanel tabId="testing" activeTab={activeTab}>
               <CollapsibleCard title="Scraper Testing" icon="⚡" id="vd-testing">
                 {!vendor.scraperEnabled || !vendor.priceSelector ? (
                   <div className="sch-alert sch-alert--info" style={{ marginBottom: 16 }}>
@@ -722,7 +683,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                         className="admin-input" placeholder="https://example.com/product" />
                     </div>
                     <div className="vd-btn-row">
-                      <button type="button" onClick={handleTestScraper} disabled={testing || !testUrl} className="btn-primary btn-sm">
+                      <button type="button" onClick={handleTest} disabled={testing || !testUrl} className="btn-primary btn-sm">
                         {testing ? 'TESTING...' : 'RUN TEST'}
                       </button>
                       <button type="button" className="btn-secondary btn-sm">RUN FULL SCRAPE</button>
@@ -773,10 +734,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                   </div>
                 </div>
               </CollapsibleCard>
-            </div>
+            </TabPanel>
 
             {/* ─── CREDENTIALS TAB ─── */}
-            <div style={{ display: activeTab === 'credentials' ? undefined : 'none' }}>
+            <TabPanel tabId="credentials" activeTab={activeTab}>
               <form onSubmit={handleSaveScraper}>
                 <CollapsibleCard title="Credentials & Access" icon="█" id="vd-credentials">
                   <div className="vd-form-grid">
@@ -820,10 +781,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
               <div className="vd-security-note">
                 Secrets are masked. Replace without revealing existing values.
               </div>
-            </div>
+            </TabPanel>
 
             {/* ─── ADVANCED TAB ─── */}
-            <div style={{ display: activeTab === 'advanced' ? undefined : 'none' }}>
+            <TabPanel tabId="advanced" activeTab={activeTab}>
               <>
                 <CollapsibleCard title="Vendor Metadata" icon="⚙" id="vd-advanced-meta">
                   <div className="vd-form-grid">
@@ -868,9 +829,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                   </div>
                 </CollapsibleCard>
               </>
-            </div>
+            </TabPanel>
           </div>
         </div>
+        </TabbedPanel>
 
         {/* ═══ DELETE MODAL ═══ */}
         {showDeleteModal && (

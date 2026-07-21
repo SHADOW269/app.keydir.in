@@ -4,7 +4,6 @@ import {
   findProductCards,
   countProducts,
   getUserVotes,
-  findLowestPriceProducts,
   findBestDeals,
   findTrendingProducts,
   type ProductWithRelations,
@@ -140,7 +139,7 @@ export async function fetchProductListings(
 // ═══ HOME PAGE SECTION HELPERS ═══
 
 export async function fetchLowestPrices() {
-  const products = await findLowestPriceProducts();
+  const products = await findProductCards({}, { createdAt: 'desc' }, 10);
   return products.map((p) => mapToProductCard(p, null));
 }
 

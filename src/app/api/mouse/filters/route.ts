@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getFilterData, unique } from '@/lib/repositories/product-repository';
+import { getFilterData } from '@/lib/repositories/product-repository';
+import { unique, extractJsonArray } from '@/lib/utils';
 
 export async function GET() {
-  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('mouse', 'mouse', {
+  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('mouse', {
     mouseConnection: true, mouseSensor: true,
     mousePollingRate: true, mouseDpi: true, mouseMaxIps: true, mouseMaxAccel: true, mouseLod: true,
     mouseWeight: true, mouseShape: true, mouseHandOrientation: true, mouseSize: true,
@@ -12,9 +13,6 @@ export async function GET() {
     mouseShellMaterial: true, mouseGripType: true, mouseColor: true,
     mouseCompatibility: true, mouseAccessories: true, mouseWarranty: true,
   });
-
-  const extractJsonArray = (val: unknown): string[] =>
-    Array.isArray(val) ? val.filter((v): v is string => typeof v === 'string') : [];
 
   const specFilters = {
     mouseConnection: unique(specs.flatMap((s: any) => extractJsonArray(s.mouseConnection))),

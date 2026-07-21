@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useTransition, forwardRef, useImperativeHandle } from 'react';
-import { checkVendorProduct, updateVendorStatus } from '@/lib/admin/vendor-actions';
-import { scrapeVendorProduct, clearManualOverride } from '@/lib/admin/scraper-actions';
+import { forwardRef, useImperativeHandle } from 'react';
 import { useVendorEntries } from './hooks/use-vendor-entries';
+import { useVendorCardActions } from './hooks/use-vendor-card-actions';
 import { CouponCard } from './coupon-card';
 import { VariantCard } from './variant-card';
 import type { ExistingVendorProduct, VendorEntry } from './vendor-types';
@@ -28,86 +27,9 @@ export const VendorCards = forwardRef<VendorCardsHandle, Props>(({ productId, ve
     getEntries,
   } = useVendorEntries(existingVendorProducts, onChange);
 
-  const [checking, setChecking] = useState<Record<number, boolean>>({});
-  const [scraping, setScraping] = useState<Record<number, boolean>>({});
-  const [updating, setUpdating] = useState<Record<number, boolean>>({});
-  const [clearing, setClearing] = useState<Record<number, boolean>>({});
-  const [checkResult, setCheckResult] = useState<Record<number, { ok: boolean; message: string; scrapedPrice?: number; scrapedAvailability?: string; scraperVersion?: string } | null>>({});
+  const { checking, scraping, updating, clearing, checkResult, handleCheck, handleScrape, handleUpdate, handleClearOverride } = useVendorCardActions(entries);
 
   useImperativeHandle(ref, () => ({ getEntries }));
-
-  const handleCheck = async (idx: number) => {
-    const entry = entries[idx];
-    if (!entry.id) return;
-    setChecking((p) => ({ ...p, [idx]: true }));
-    setCheckResult((p) => ({ ...p, [idx]: null }));
-    try {
-      const result = await checkVendorProduct(entry.id);
-      if ('error' in result) {
-        setCheckResult((p) => ({ ...p, [idx]: { ok: false, message: String(result.error || 'Check failed') } }));
-      } else {
-        setCheckResult((p) => ({ ...p, [idx]: {
-          ok: true,
-          message: String(result.message || 'OK'),
-          scrapedPrice: result.scrapedPrice ?? undefined,
-          scrapedAvailability: result.scrapedAvailability,
-          scraperVersion: result.scraperVersion,
-        } }));
-      }
-    } catch {
-      setCheckResult((p) => ({ ...p, [idx]: { ok: false, message: 'Network error' } }));
-    }
-    setChecking((p) => ({ ...p, [idx]: false }));
-  };
-
-  const handleScrape = async (idx: number) => {
-    const entry = entries[idx];
-    if (!entry.id) return;
-    setScraping((p) => ({ ...p, [idx]: true }));
-    setCheckResult((p) => ({ ...p, [idx]: null }));
-    try {
-      const result = await scrapeVendorProduct(entry.id);
-      if (result?.error) {
-        setCheckResult((p) => ({ ...p, [idx]: { ok: false, message: String(result.error) } }));
-      } else {
-        setCheckResult((p) => ({ ...p, [idx]: {
-          ok: true,
-          message: `Scraped: ₹${result.price?.toLocaleString()} (${result.availability})`,
-          scrapedPrice: result.price,
-          scrapedAvailability: result.availability,
-        } }));
-        window.location.reload();
-      }
-    } catch {
-      setCheckResult((p) => ({ ...p, [idx]: { ok: false, message: 'Network error' } }));
-    }
-    setScraping((p) => ({ ...p, [idx]: false }));
-  };
-
-  const handleUpdate = async (idx: number) => {
-    const entry = entries[idx];
-    if (!entry.id) return;
-    setUpdating((p) => ({ ...p, [idx]: true }));
-    const fd = new FormData();
-    fd.set('vendorProductId', entry.id);
-    fd.set('price', String(entry.price || 0));
-    fd.set('stockStatus', entry.stockStatus || 'in_stock');
-    fd.set('shippingCost', String(entry.shippingCost || 0));
-    fd.set('shippingIncluded', entry.shippingIncluded ? 'on' : '');
-    fd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed, ...c }) => c)));
-    await updateVendorStatus(fd);
-    window.location.reload();
-    setUpdating((p) => ({ ...p, [idx]: false }));
-  };
-
-  const handleClearOverride = async (idx: number) => {
-    const entry = entries[idx];
-    if (!entry.id) return;
-    setClearing((p) => ({ ...p, [idx]: true }));
-    await clearManualOverride(entry.id);
-    window.location.reload();
-    setClearing((p) => ({ ...p, [idx]: false }));
-  };
 
   return (
     <div className="pe-vendor-card-wrap">

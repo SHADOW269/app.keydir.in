@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 
 import { createBrand, updateBrand, deleteBrand } from '@/lib/admin/actions';
 import { DeletePasswordModal } from './delete-password-modal';
+import { EditorHeader } from './admin-header';
+import { DangerZoneCard } from './danger-zone-card';
 import { useDeleteEntity } from './hooks/use-delete-entity';
+import { useFormSubmit } from './hooks/use-form-submit';
 
 interface Brand {
   id: string;
@@ -37,14 +40,10 @@ function Card({ t, children }: { t: string; children: React.ReactNode }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   BrandForm
-   ══════════════════════════════════════════ */
 export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
   const isEdit = !!brand;
   const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, setError, run } = useFormSubmit();
 
   const [name, setName] = useState(brand?.name || '');
   const [website, setWebsite] = useState(brand?.website || '');
@@ -69,7 +68,6 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { setError('Name required'); return; }
-    setPending(true); setError(null);
     const fd = new FormData();
     fd.set('name', name);
     fd.set('website', website);
@@ -78,38 +76,25 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
     fd.set('status', status);
     fd.set('color', color);
     fd.set('logo', logo);
-    const result = isEdit
-      ? await updateBrand(brand!.id, fd)
-      : await createBrand(fd);
-    if (result?.error) { setError(result.error); setPending(false); }
+    await run(() => isEdit ? updateBrand(brand!.id, fd) : createBrand(fd));
   }
 
   return (
     <form onSubmit={handleSubmit} className="ce">
-      {/* HEADER */}
-      <header className="ce-hd">
-        <div className="ce-hd-l">
-          <div className="ce-hd-title-row">
-            <span className="ce-name">{isEdit ? (name || brand!.name) : 'Add Brand'}</span>
-          </div>
-          {isEdit ? (
-            <div className="ce-hd-stats">
-              <span className="ce-hd-stat">Last updated <strong>{lastUpdated}</strong></span>
-              <span className="ce-hd-stat-sep">•</span>
-              <span className="ce-hd-stat">Products <strong>{stats?.productCount ?? 0}</strong></span>
-              <span className="ce-hd-stat-sep">•</span>
-              <span className="ce-hd-stat">Country <strong>{country}</strong></span>
-            </div>
-          ) : (
-            <div className="ce-hd-subtitle">Create a new keyboard brand.</div>
-          )}
-        </div>
-        <div className="ce-hd-r">
-          <button type="button" onClick={() => router.push('/admin/brands')} className="ce-toolbar-btn">Cancel</button>
-          <button type="submit" disabled={pending} className="ce-toolbar-btn ce-toolbar-btn-primary">{pending ? 'Saving…' : isEdit ? 'SAVE' : 'CREATE'}</button>
-          {isEdit && <button type="button" onClick={() => setShowDeleteModal(true)} className="ce-toolbar-btn ce-toolbar-btn-danger">DELETE</button>}
-        </div>
-      </header>
+      <EditorHeader
+        title={isEdit ? (name || brand!.name) : 'Add Brand'}
+        subtitle={!isEdit ? 'Create a new keyboard brand.' : undefined}
+        stats={isEdit ? [
+          { label: 'Last updated', value: lastUpdated },
+          { label: 'Products', value: stats?.productCount ?? 0 },
+          { label: 'Country', value: country },
+        ] : undefined}
+        pending={pending}
+        cancelHref="/admin/brands"
+        isEdit={isEdit}
+        onDelete={() => setShowDeleteModal(true)}
+        onSave={() => {}}
+      />
       {error && <div className="ce-err">{error}</div>}
 
       <div className="ce-body">
@@ -142,19 +127,14 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
         </Card>
 
         {isEdit && (
-          <div className="ce-danger">
-            <div className="ce-danger-inner">
-              <div className="ce-danger-text">
-                <span className="ce-danger-title">Danger Zone</span>
-                <span className="ce-danger-desc">This permanently deletes the brand. Products will need reassignment.</span>
-              </div>
-              <button type="button" onClick={() => setShowDeleteModal(true)} className="ce-toolbar-btn ce-toolbar-btn-danger">Delete Brand</button>
-            </div>
-          </div>
+          <DangerZoneCard
+            description="This permanently deletes the brand. Products will need reassignment."
+            buttonLabel="Delete Brand"
+            onAction={() => setShowDeleteModal(true)}
+          />
         )}
       </div>
 
-      {/* DELETE MODAL */}
       {showDeleteModal && (
         <DeletePasswordModal
           description={<>This will permanently delete <strong>{brand?.name}</strong>. Products using this brand will have it unlinked.</>}

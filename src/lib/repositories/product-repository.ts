@@ -1,14 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { extractJsonArray, unique } from '@/lib/utils';
 
-export function extractJsonArray(val: unknown): string[] {
-  if (Array.isArray(val)) return val.filter((v): v is string => typeof v === 'string');
-  return [];
-}
-
-export function unique<T>(arr: (T | null | undefined)[]): T[] {
-  return [...new Set(arr.filter((v): v is T => v != null && v !== ''))];
-}
+export { extractJsonArray, unique };
 
 const PRODUCT_CARD_INCLUDE = {
   brand: { select: { name: true } },
@@ -55,14 +49,6 @@ export async function getUserVotes(
   return Object.fromEntries(votes.map((v) => [v.productId, v.type]));
 }
 
-export async function findLowestPriceProducts(): Promise<ProductWithRelations[]> {
-  return prisma.product.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-    include: PRODUCT_CARD_INCLUDE,
-  });
-}
-
 export async function findBestDeals() {
   return prisma.vendorProduct.findMany({
     orderBy: { effectivePrice: 'asc' },
@@ -82,6 +68,8 @@ export async function findBestDeals() {
 
 export async function findTrendingProducts() {
   return prisma.product.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 500,
     include: {
       brand: { select: { name: true } },
       votes: { select: { type: true } },
@@ -89,18 +77,22 @@ export async function findTrendingProducts() {
   });
 }
 
-export async function getFilterData(productType: string, specModel: string, specSelect: Record<string, boolean>) {
-  const specModelMap: Record<string, any> = {
-    keyboards: prisma.keyboardSpec,
-    switches: prisma.switchSpec,
-    keycaps: prisma.keycapSpec,
-    mouse: prisma.mouseSpec,
-  };
+type SpecDelegate = {
+  findMany(args: { where: { product: { productType: string } }; select: Record<string, boolean> }): Promise<Record<string, unknown>[]>;
+};
 
-  const model = specModelMap[specModel] || prisma.keyboardSpec;
+const SPEC_MODEL_MAP: Record<string, SpecDelegate> = {
+  keyboards: prisma.keyboardSpec as unknown as SpecDelegate,
+  switches: prisma.switchSpec as unknown as SpecDelegate,
+  keycaps: prisma.keycapSpec as unknown as SpecDelegate,
+  mouse: prisma.mouseSpec as unknown as SpecDelegate,
+};
+
+export async function getFilterData(productType: string, specSelect: Record<string, boolean>) {
+  const model = SPEC_MODEL_MAP[productType] ?? SPEC_MODEL_MAP.keyboards;
 
   const [specs, brandRows, vendorRows, priceRow] = await Promise.all([
-    (model as any).findMany({
+    model.findMany({
       where: { product: { productType } },
       select: specSelect,
     }),

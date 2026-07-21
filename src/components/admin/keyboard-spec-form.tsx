@@ -2,6 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import { ChipSelect, Toggle, TagInput, Field } from './form-primitives';
+import { SWITCH_COMPAT, SWITCH_TYPE, STEM_MATERIALS, TOP_HOUSING, BOTTOM_HOUSING, SPRING_TYPES } from './switch-constants';
+import { uploadFile } from '@/lib/utils';
+import type { KeyboardSpecData } from '@/lib/admin/spec-types';
 
 const LAYOUTS = ['40%', '60%', '65%', '75%', 'TKL', 'FRL (F-rowless)', '96%', '1800 Compact', '102-Key', 'Full Size', 'Pad / Macropad'];
 const STYLES = ['Standard', 'Alice', 'Split', 'Ortholinear', 'Low Profile', 'HHKB', 'WKL (Winkeyless)', 'Ergonomic Contoured'];
@@ -18,43 +21,11 @@ const CONNECTIVITY = ['Wired', '2.4GHz Wireless', 'Bluetooth 5.0', 'Bluetooth 5.
 const FIRMWARE = ['No Firmware', 'Proprietary OEM Software', 'Custom Web-Based Driver', 'QMK', 'VIA', 'VIAL'];
 const LIGHTING_OPTS = ['No RGB', 'RGB', 'Customizable RGB'];
 const LED_ORIENTATION = ['South-Facing', 'North-Facing'];
-const SWITCH_COMPAT = ['3-Pin', '5-Pin', 'Hall Effect', 'Optical', 'Low Profile', 'Outemu Socket Compatible'];
-const SWITCH_TYPE = ['Linear', 'Tactile', 'Clicky', 'Silent Linear', 'Silent Tactile', 'Silent Clicky', 'Magnetic (Hall Effect)', 'Optical', 'Low Profile'];
-const STEM_MATERIALS = ['POM', 'Modified POM', 'UPE', 'UHMWPE', 'LY', 'POK', 'MMD', 'Blend / Proprietary', 'Other'];
-const TOP_HOUSING = ['Polycarbonate (PC)', 'Nylon', 'POM', 'UHMWPE', 'Blend / Proprietary', 'Other'];
-const BOTTOM_HOUSING = ['Nylon', 'Polycarbonate (PC)', 'POM', 'PA66', 'Blend / Proprietary', 'Other'];
-const SPRING_TYPES = ['Standard', 'Long', 'Progressive', 'Symmetric', 'Two-Stage (Dual Stage)', 'Three-Stage', 'Slow Curve'];
 const KEYCAP_MATERIALS = ['None', 'ABS', 'PBT', 'POM', 'PC'];
 const KEYCAP_PROFILES = ['OEM', 'Cherry', 'MDA', 'SA', 'MT3', 'KAT', 'ASA', 'XDA', 'DSA', 'KAM', 'G20', 'MBK'];
 const KEYCAP_LEGEND_TYPE = ['Double-Shot', 'Dye-Sublimation', 'Reverse Dye-Sub', 'Laser Etching / Engraving', 'Pad Printing'];
 const KEYCAP_LEGEND_PLACEMENT = ['Top-Printed', 'Side-Printed', 'Blank', 'Top Shine-Through', 'Side Shine-Through', 'Pudding'];
 const ACCESSORIES = ['USB Cable', 'Dust Cover', 'Carry Case', 'Keycap Puller', 'Switch Puller', 'Wrist Rest', 'Strap'];
-
-interface KeyboardSpecData {
-  layout?: string | null; keyboardStyle?: string[] | null; caseMaterial?: string | null;
-  surfaceFinish?: string[] | null; colors?: string[] | null; weight?: number | null; lengthMm?: number | null;
-  widthMm?: number | null; heightMm?: number | null; typingAngle?: number | null;
-  mountingStyle?: string[] | null; plateMaterial?: string[] | null; stabilizerCompat?: string[] | null;
-  stabilizerLayout?: string[] | null; foamMaterial?: string[] | null; foamPlacement?: string[] | null; flexCuts?: boolean;
-  pcbType?: string[] | null; pcbThickness?: number | null; pollingRate?: number | null;
-  nkro?: boolean; batteryCapacity?: number | null;
-  connectivity?: string[] | null; detachableCable?: boolean; firmware?: string[] | null;
-  lighting?: string | null; ledOrientation?: string | null; perKeyRgb?: boolean;
-  switchesIncluded?: boolean; switchCompat?: string[] | null; switchType?: string[] | null;
-  factoryLubed?: boolean; handLubed?: boolean; factoryFilmed?: boolean; breakInProgress?: boolean;
-  switchBrand?: string[] | null; switchModel?: string[] | null;
-  switchOpForce?: number | null; switchBottomOut?: number | null; switchPreTravel?: number | null;
-  switchTotalTravel?: number | null; switchSpringWeight?: number | null; switchSpringLength?: number | null;
-  switchRatedLifetime?: number | null;
-  switchStemMaterial?: string | null; switchTopHousing?: string | null; switchBottomHousing?: string | null;
-  switchSpringType?: string | null;
-  switchLongPole?: boolean; switchLedDiffuser?: boolean; switchDustproofStem?: boolean; switchLightPipe?: boolean;
-  keycapMaterial?: string[] | null; keycapProfile?: string | null;
-  keycapLegendType?: string[] | null; keycapLegendPlacement?: string[] | null;
-  keycapsIncluded?: boolean;
-  includedAccessories?: string[] | null; additionalAccessories?: string | null;
-  specialFeatures?: string | null;
-}
 
 interface Props {
   spec?: KeyboardSpecData | null;
@@ -138,10 +109,9 @@ export function KeyboardSpecForm({ spec, brands, onChange, onImageUpload }: Prop
     if (onImageUpload) { onImageUpload(file); return; }
     setUploading(true);
     try {
-      const fd = new FormData(); fd.append('file', file); fd.append('dir', 'products');
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (data.url) { setImageUrl(data.url); markChange(); }
+      const url = await uploadFile(file, 'products');
+      setImageUrl(url);
+      markChange();
     } catch {}
     setUploading(false);
   }

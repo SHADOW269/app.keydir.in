@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getFilterData, unique } from '@/lib/repositories/product-repository';
+import { getFilterData } from '@/lib/repositories/product-repository';
+import { unique, extractJsonArray } from '@/lib/utils';
 
 export async function GET() {
-  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('switches', 'switches', {
+  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('switches', {
     factoryLubed: true, handLubed: true, factoryFilmed: true, breakInProgress: true,
     switchCompat: true, switchType: true, switchBrand: true, switchModel: true,
     switchStemMaterial: true, switchTopHousing: true, switchBottomHousing: true,
     switchSpringType: true,
     switchLongPole: true, switchLedDiffuser: true, switchDustproofStem: true, switchLightPipe: true,
   });
-
-  const extractJsonArray = (val: unknown): string[] =>
-    Array.isArray(val) ? val.filter((v): v is string => typeof v === 'string') : [];
 
   const specFilters = {
     factoryLubed: [true, false],

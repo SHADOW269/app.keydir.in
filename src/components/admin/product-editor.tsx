@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Navbar } from '@/components/layout/navbar';
-import { useRouter } from 'next/navigation';
 import { CollapsibleCard } from './collapsible-card';
 import { DeletePasswordModal } from './delete-password-modal';
+import { AdminHeader } from './admin-header';
+import { StickySaveBar } from './sticky-save-bar';
 import { useScrollSpy } from './hooks/use-scroll-spy';
+import { useDeleteEntity } from './hooks/use-delete-entity';
 import { createProduct, updateProduct, deleteProduct } from '@/lib/admin/actions';
 import type { Brand, Product, ProductImage } from '@/lib/admin/spec-types';
 
@@ -38,15 +39,20 @@ export function ProductEditor({
   product, brands, productType, productLabel, productIcon,
   images, onImagesChange, specContent, vendorContent, extraActions, onFormSubmit, renderForm,
 }: Props) {
-  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const {
+    showDeleteModal, setShowDeleteModal,
+    deletePassword, setDeletePassword,
+    deleteError, setDeleteError,
+    deleting, handleDelete,
+  } = useDeleteEntity(
+    (id, password) => deleteProduct(id, password),
+    product?.id ?? '',
+    `/admin/products/${productType}`,
+  );
 
   const sectionIds = Object.keys(SECTION_META).filter((id) => {
     if (id === 'specs' && !specContent) return false;
@@ -58,7 +64,6 @@ export function ProductEditor({
   const isEdit = !!product;
   const catLabel = productLabel.toUpperCase();
 
-  // Before unload
   useEffect(() => {
     if (!hasChanges) return;
     const h = (e: BeforeUnloadEvent) => { e.preventDefault(); };
@@ -93,54 +98,27 @@ export function ProductEditor({
     window.location.reload();
   }
 
-  async function handleDelete() {
-    if (!product?.id) return;
-    setDeleting(true);
-    setDeleteError(null);
-    const result = await deleteProduct(product.id, deletePassword);
-    if (result?.error) { setDeleteError(result.error); setDeleting(false); return; }
-    router.push(`/admin/products/${productType}`);
-  }
-
-  function scrollToTop() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
   return (
     <>
       <Navbar />
       <div className="page-body pt-28">
-        {/* Header */}
-        <div className="pe-header">
-          <div className="pe-header-left">
-            <div className="pe-breadcrumb">
-              <span>KEYBOARD DATABASE</span>
-              <span className="pe-bc-sep">/</span>
-              <span>{isEdit ? 'EDITING' : 'ADDING'}</span>
-            </div>
-            <h1 className="pe-title">
-              {isEdit ? product!.name : `NEW ${catLabel}`}
-              {isEdit && <em> {catLabel}</em>}
-            </h1>
-            {isEdit && <div className="pe-subtitle">Editing {product!.name}</div>}
-          </div>
-          <div className="pe-header-actions">
-            <Link href={`/admin/products/${productType}`} className="btn-secondary">CANCEL</Link>
-            {isEdit && (
-              <button type="button" onClick={() => setShowDeleteModal(true)} className="btn-danger">DELETE</button>
-            )}
-            {extraActions}
-            <button type="submit" form="pe-editor-form" disabled={pending} className="btn-primary">
-              {pending ? 'SAVING...' : isEdit ? `SAVE ${catLabel}` : `CREATE ${catLabel}`}
-            </button>
-          </div>
-        </div>
+        <AdminHeader
+          breadcrumb={isEdit ? 'EDITING' : 'ADDING'}
+          title={isEdit ? product!.name : `NEW ${catLabel}`}
+          subtitle={isEdit ? `Editing ${product!.name}` : undefined}
+          cancelHref={`/admin/products/${productType}`}
+          isEdit={isEdit}
+          onDelete={() => setShowDeleteModal(true)}
+          pending={pending}
+          pendingLabel="SAVING..."
+          saveLabel={isEdit ? `SAVE ${catLabel}` : `CREATE ${catLabel}`}
+          extraActions={extraActions}
+          formId="pe-editor-form"
+        />
 
         {error && <div className="pe-error">{error}</div>}
 
-        {/* Two-column layout */}
         <div className="pe-layout">
-          {/* Sidebar */}
           <nav className="pe-sidebar">
             <div className="pe-sidebar-inner">
               {Object.entries(SECTION_META)
@@ -163,7 +141,6 @@ export function ProductEditor({
             </div>
           </nav>
 
-          {/* Main content */}
           <div className="pe-main">
             <form ref={formRef} id="pe-editor-form" onSubmit={handleSubmit} className="pe-form">
               <input type="hidden" name="image" value={images.find((i) => i.isPrimary)?.url ?? images[0]?.url ?? ''} />
@@ -217,7 +194,6 @@ export function ProductEditor({
                 </CollapsibleCard>
               </div>
 
-              {/* Images */}
               <div id="pe-section-images">
                 <CollapsibleCard title="Images" icon="🖼" id="pe-card-images">
                   <div className="pe-images-section">
@@ -260,21 +236,18 @@ export function ProductEditor({
                 </CollapsibleCard>
               </div>
 
-              {/* Specifications — product-type specific */}
               {specContent && (
                 <div id="pe-section-specs">
                   {specContent}
                 </div>
               )}
 
-              {/* Vendors — product-type specific */}
               {vendorContent && (
                 <div id="pe-section-vendors">
                   {vendorContent}
                 </div>
               )}
 
-              {/* SEO */}
               <div id="pe-section-seo">
                 <CollapsibleCard title="SEO" icon="🔍" id="pe-card-seo" defaultOpen={false}>
                   <div className="pe-field pe-field--full">
@@ -296,7 +269,6 @@ export function ProductEditor({
                 </CollapsibleCard>
               </div>
 
-              {/* Metadata */}
               <div id="pe-section-metadata">
                 <CollapsibleCard title="Metadata" icon="📋" id="pe-card-metadata" defaultOpen={false}>
                   <div className="pe-row-2">
@@ -327,21 +299,14 @@ export function ProductEditor({
           </div>
         </div>
 
-        {/* Sticky save bar */}
-        <div className={`pe-save-bar ${hasChanges ? 'visible' : ''}`}>
-          <div className="pe-save-bar-label">
-            <span className="pe-save-bar-dot" />
-            Unsaved Changes
-          </div>
-          <div className="pe-save-bar-actions">
-            <button type="button" onClick={() => { setHasChanges(false); window.location.reload(); }} className="btn-secondary">CANCEL</button>
-            <button type="submit" form="pe-editor-form" disabled={pending} className="btn-primary">
-              {pending ? 'SAVING...' : `SAVE ${catLabel}`}
-            </button>
-          </div>
-        </div>
+        <StickySaveBar
+          visible={hasChanges}
+          pending={pending}
+          saveLabel={`SAVE ${catLabel}`}
+          onDiscard={() => { setHasChanges(false); window.location.reload(); }}
+          formId="pe-editor-form"
+        />
 
-        {/* Delete modal */}
         {showDeleteModal && (
           <DeletePasswordModal
             description={<>This will permanently delete <strong>{product?.name}</strong>. Enter password to confirm.</>}

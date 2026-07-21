@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { formatPrice } from '@/lib/utils';
+import { ProductCardImage } from '@/components/shared/product-card-image';
+import { CouponBadge } from '@/components/shared/coupon-badge';
+import { PriceDisplay } from '@/components/shared/price-display';
 import type { ProductCard as ProductCardType } from '@/types';
 
 interface ProductCardProps {
@@ -52,22 +53,9 @@ export function ProductCard({ product, variant = 'listing', brand, onRemove, rem
   return (
     <Link href={`/products/${product.slug}`} className="product-card">
       <div className="product-card-img-wrap">
-        {product.image ? (
-          <Image
-            src={product.image}
-            alt={product.name}
-            width={400}
-            height={300}
-            className="product-card-img"
-            loading="lazy"
-          />
-        ) : (
-          <div className="product-card-img product-card-img-fallback">
-            {product.name.charAt(0)}
-          </div>
-        )}
+        <ProductCardImage src={product.image} alt={product.name} />
         {product.hasCoupons && (
-          <span className="product-card-coupon-badge">🏷️ COUPON</span>
+          <CouponBadge code="COUPON" />
         )}
       </div>
       <div className="product-card-body">
@@ -75,12 +63,7 @@ export function ProductCard({ product, variant = 'listing', brand, onRemove, rem
 
         <div className="product-card-meta">
           {hasPrice && (
-            <span className="product-card-price">
-              {product.originalPrice && product.originalPrice > product.lowestPrice! && (
-                <span className="product-card-price-original">{formatPrice(product.originalPrice)}</span>
-              )}
-              {formatPrice(product.lowestPrice!)}
-            </span>
+            <PriceDisplay price={product.lowestPrice!} originalPrice={product.originalPrice} />
           )}
           <span className="product-card-upvotes">▲{product.upvotes}</span>
         </div>

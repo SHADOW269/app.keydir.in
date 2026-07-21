@@ -3,28 +3,10 @@
 import { useState } from 'react';
 import { CollapsibleCard } from './collapsible-card';
 import { ChipSelect, Toggle, TagInput, Field } from './form-primitives';
+import { SWITCH_COMPAT, SWITCH_TYPE, STEM_MATERIALS, TOP_HOUSING, BOTTOM_HOUSING, SPRING_TYPES } from './switch-constants';
+import type { SwitchSpecData } from '@/lib/admin/spec-types';
 
-const SWITCH_COMPAT = ['3-Pin', '5-Pin', 'Hall Effect', 'Optical', 'Low Profile', 'Outemu Socket Compatible'];
-const SWITCH_TYPE = ['Linear', 'Tactile', 'Clicky', 'Silent Linear', 'Silent Tactile', 'Silent Clicky', 'Magnetic (Hall Effect)', 'Optical', 'Low Profile'];
-const STEM_MATERIALS = ['POM', 'Modified POM', 'UPE', 'UHMWPE', 'LY', 'POK', 'MMD', 'Blend / Proprietary', 'Other'];
-const TOP_HOUSING = ['Polycarbonate (PC)', 'Nylon', 'POM', 'UHMWPE', 'Blend / Proprietary', 'Other'];
-const BOTTOM_HOUSING = ['Nylon', 'Polycarbonate (PC)', 'POM', 'PA66', 'Blend / Proprietary', 'Other'];
-const SPRING_TYPES = ['Standard', 'Long', 'Progressive', 'Symmetric', 'Two-Stage (Dual Stage)', 'Three-Stage', 'Slow Curve'];
 const PACKAGING = ['Tray', 'Bag', 'Box', 'Blister Pack', 'Other'];
-
-interface SwitchSpecData {
-  factoryLubed?: boolean; handLubed?: boolean; factoryFilmed?: boolean; breakInProgress?: boolean;
-  switchCompat?: string[] | null; switchType?: string[] | null;
-  switchBrand?: string[] | null; switchModel?: string[] | null;
-  switchOpForce?: number | null; switchBottomOut?: number | null;
-  switchPreTravel?: number | null; switchTotalTravel?: number | null;
-  switchSpringWeight?: number | null; switchSpringLength?: number | null;
-  switchRatedLifetime?: number | null;
-  switchStemMaterial?: string | null; switchTopHousing?: string | null; switchBottomHousing?: string | null;
-  switchSpringType?: string | null;
-  switchLongPole?: boolean; switchLedDiffuser?: boolean; switchDustproofStem?: boolean; switchLightPipe?: boolean;
-  quantityPerPack?: number | null; packagingType?: string | null;
-}
 
 interface Props {
   spec?: SwitchSpecData | null;

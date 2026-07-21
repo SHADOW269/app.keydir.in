@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CollapsibleCard } from './collapsible-card';
 import { ChipSelect, Toggle, Field } from './form-primitives';
+import type { KeycapSpecData } from '@/lib/admin/spec-types';
 
 const PROFILES = ['Cherry', 'OEM', 'XDA', 'DSA', 'CSA', 'KAT', 'MT3', 'SA', 'MDA', 'MOA', 'MA', 'Other'];
 const LAYOUT_SUPPORT = ['60%', '65%', '75%', 'TKL', '96%', '1800', 'Full Size', 'Alice', 'ISO', 'HHKB', 'Split Space', 'Numpad'];
@@ -14,27 +15,6 @@ const KEY_COUNT = ['61', '68', '84', '87', '98', '104', '108', '129+', 'Custom']
 const STEM_COMPAT = ['MX', 'Low Profile MX', 'Topre', 'Choc V1', 'Choc V2'];
 const THICKNESS = ['1.3mm', '1.5mm', '1.7mm', 'Unknown'];
 const MANUFACTURERS = ['GMK', 'Key Kobo', 'JTK', 'Domikey', 'PBTFans', 'NicePBT', 'ePBT', 'WS', 'Other'];
-
-interface KeycapSpecData {
-  keycapProfile?: string[] | null;
-  keycapLayoutSupport?: string[] | null;
-  keycapMaterial?: string[] | null;
-  keycapManufacturing?: string[] | null;
-  keycapLegends?: string[] | null;
-  keycapLegendPlacement?: string[] | null;
-  keycapLanguage?: string[] | null;
-  keycapKeyCount?: string[] | null;
-  keycapStemCompat?: string[] | null;
-  keycapThickness?: string | null;
-  keycapColorway?: string | null;
-  keycapManufacturer?: string[] | null;
-  keycapDesigner?: string | null;
-  keycapNovelties?: boolean;
-  keycapSpacebars?: boolean;
-  keycapAccentKeys?: boolean;
-  keycapArtisan?: boolean;
-  keycapNotes?: string | null;
-}
 
 interface Props {
   spec?: KeycapSpecData | null;

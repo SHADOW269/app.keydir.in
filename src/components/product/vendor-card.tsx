@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { formatPrice, timeAgo, toNum } from '@/lib/utils';
+import { formatPrice, timeAgo, toNum, formatCouponDiscount } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
+import { AvailabilityBadge } from '@/components/shared/availability-badge';
 import type { VendorProductWithVendor } from '@/types';
-import { AVAILABILITY_MAP } from '@/lib/constants';
 
 interface VendorCardProps {
   vendorProduct: VendorProductWithVendor;
@@ -13,7 +13,7 @@ interface VendorCardProps {
 
 export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardProps) {
   const [showAllCoupons, setShowAllCoupons] = useState(false);
-  const stock = AVAILABILITY_MAP[vp.availability || vp.stockStatus] ?? AVAILABILITY_MAP.in_stock;
+  const availability = vp.availability || vp.stockStatus || 'in_stock';
   const link = vp.vendor.affiliateLink || vp.vendorUrl;
   const shipping = vp.shippingIncluded
     ? 'Shipping Included'
@@ -30,9 +30,7 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
 
   const discountLabel = (c: typeof bestCoupon) => {
     if (!c) return null;
-    if (c.discountType === 'percentage') return `${c.discountValue}% OFF`;
-    if (c.discountType === 'flat') return `${formatPrice(c.discountValue)} OFF`;
-    return 'FREE SHIPPING';
+    return formatCouponDiscount(c);
   };
 
   return (
@@ -50,9 +48,7 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
       </div>
       <div className="vendor-card-row">
         <span className="vendor-card-shipping">{shipping}</span>
-          <span className={`badge ${stock.class}`}>
-            {stock.icon} {stock.label}
-          </span>
+        <AvailabilityBadge availability={availability} />
       </div>
 
       {/* Coupons */}
@@ -100,7 +96,6 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
         <div className="vendor-card-variants">
           <div className="vendor-card-variants-header">Variants ({variants.length})</div>
           {variants.map((v) => {
-            const vStock = AVAILABILITY_MAP[v.stockStatus] ?? AVAILABILITY_MAP.in_stock;
             const vLink = v.variantUrl || link;
             return (
               <div key={v.id} className="vendor-card-variant">
@@ -113,7 +108,7 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
                 </div>
                 <div className="vendor-card-variant-right">
                   <span className="vendor-card-variant-price">{formatPrice(toNum(v.price))}</span>
-                  <span className={`badge badge-sm ${vStock.class}`}>{vStock.label}</span>
+                  <AvailabilityBadge availability={v.stockStatus} size="sm" />
                   <a href={vLink} target="_blank" rel="noopener noreferrer" className="btn-primary btn-xs">BUY</a>
                 </div>
               </div>

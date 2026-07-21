@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo } from 'react';
-import { formatPrice, toNum } from '@/lib/utils';
+import { formatPrice, toNum, formatDate } from '@/lib/utils';
 
 interface PricePoint {
   price: number;
@@ -39,11 +39,6 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
-}
-
-function formatDate(d: Date): string {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
 function toDateKey(d: Date): number {
