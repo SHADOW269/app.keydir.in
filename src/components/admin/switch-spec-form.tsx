@@ -95,8 +95,8 @@ export function SwitchSpecForm({ spec, onChange }: Props) {
       {/* 4 & 5. Brand & Model */}
       <CollapsibleCard title="Brand & Model" icon="🏷" id="sw-card-brand" defaultOpen={false}>
         <div className="pe-row-2">
-          <TagInput label="Switch Brands" value={switchBrand} onChange={(v) => { setSwitchBrand(v); markChange(); }} placeholder="+ Add Brand" />
-          <TagInput label="Switch Models" value={switchModel} onChange={(v) => { setSwitchModel(v); markChange(); }} placeholder="+ Add Model" />
+          <TagInput label="Switch Brands" value={switchBrand} onChange={(v) => { setSwitchBrand(v); markChange(); }} placeholder="+ Add Brand" name="switchBrand" />
+          <TagInput label="Switch Models" value={switchModel} onChange={(v) => { setSwitchModel(v); markChange(); }} placeholder="+ Add Model" name="switchModel" />
         </div>
       </CollapsibleCard>
 

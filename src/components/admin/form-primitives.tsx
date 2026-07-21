@@ -32,7 +32,7 @@ export function Toggle({ label, name, checked, onChange }: { label: string; name
   );
 }
 
-export function TagInput({ label, value, onChange, placeholder }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+export function TagInput({ label, value, onChange, placeholder, name }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string; name?: string }) {
   const [input, setInput] = useState('');
   const add = () => {
     const trimmed = input.trim();
@@ -40,6 +40,7 @@ export function TagInput({ label, value, onChange, placeholder }: { label: strin
   };
   return (
     <div className="kb-tag-input-wrap">
+      {name && <input type="hidden" name={name} value={JSON.stringify(value)} />}
       <label className="kb-field-label">{label}</label>
       <div className="kb-tag-chips">
         {value.map((tag) => (

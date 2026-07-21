@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getScraper, testScraper } from '@/lib/scraper';
-import { recomputeEffectivePrice } from '@/lib/recompute-price';
+import { applyScrapeResult, applyScrapeFailure } from '@/lib/services/pricing-service';
 import { availabilityToLegacy } from '@/lib/utils';
 
 async function scrapeOneProduct(vpId: string): Promise<{ ok: boolean; error?: string }> {
@@ -39,53 +39,11 @@ async function scrapeOneProduct(vpId: string): Promise<{ ok: boolean; error?: st
     });
 
     if (!result.success || result.price == null) {
-      await prisma.vendorProduct.update({
-        where: { id: vpId },
-        data: {
-          scrapeStatus: 'FAILED',
-          scrapeError: result.error || 'Unknown error',
-          lastCheckedAt: new Date(),
-          lastHttpStatus: result.httpStatus ?? null,
-          responseTimeMs: result.responseTimeMs ?? null,
-        },
-      });
+      await applyScrapeFailure(vpId, result.error || 'Unknown error', result.httpStatus, result.responseTimeMs, entry.version);
       return { ok: false, error: result.error || 'Scrape failed' };
     }
 
-    const newAvailability = result.availability || 'IN_STOCK';
-    const newTotalPrice = vp.shippingIncluded ? result.price : result.price + vp.shippingCost;
-
-    await prisma.vendorProduct.update({
-      where: { id: vpId },
-      data: {
-        price: result.price,
-        availability: newAvailability,
-        totalPrice: newTotalPrice,
-        scrapeStatus: 'SUCCESS',
-        scrapeError: null,
-        lastCheckedAt: new Date(),
-        lastSuccessfulAt: new Date(),
-        lastScrapedPrice: result.price,
-        lastScrapedAvailability: newAvailability,
-        scraperVersion: entry.version,
-        lastHttpStatus: result.httpStatus ?? null,
-        responseTimeMs: result.responseTimeMs ?? null,
-        source: 'scraper',
-      },
-    });
-
-    await recomputeEffectivePrice(vpId);
-
-    await prisma.priceHistory.create({
-      data: {
-        vendorProductId: vpId,
-        price: result.price,
-        availability: newAvailability,
-        shippingCost: vp.shippingCost,
-        totalPrice: newTotalPrice,
-        source: 'SCRAPER',
-      },
-    });
+    await applyScrapeResult(vpId, result.price, result.availability || 'IN_STOCK', vp.shippingCost, vp.shippingIncluded, entry.version, result.httpStatus, result.responseTimeMs);
 
     return { ok: true };
   } catch (e) {
@@ -428,57 +386,13 @@ export async function scrapeVendorProduct(vendorProductId: string) {
     });
 
     if (!result.success || result.price == null) {
-      await prisma.vendorProduct.update({
-        where: { id: vendorProductId },
-        data: {
-          scrapeStatus: 'FAILED',
-          scrapeError: result.error || 'Unknown error',
-          lastCheckedAt: new Date(),
-          lastHttpStatus: result.httpStatus ?? null,
-          responseTimeMs: result.responseTimeMs ?? null,
-        },
-      });
+      await applyScrapeFailure(vendorProductId, result.error || 'Unknown error', result.httpStatus, result.responseTimeMs, entry.version);
       return { ok: false, message: result.error || 'Scrape failed' };
     }
 
-    const newAvailability = result.availability || 'IN_STOCK';
-    const newTotalPrice = vp.shippingIncluded ? result.price : result.price + vp.shippingCost;
+    const priceResult = await applyScrapeResult(vendorProductId, result.price, result.availability || 'IN_STOCK', vp.shippingCost, vp.shippingIncluded, entry.version, result.httpStatus, result.responseTimeMs);
 
-    await prisma.vendorProduct.update({
-      where: { id: vendorProductId },
-      data: {
-        price: result.price,
-        availability: newAvailability,
-        totalPrice: newTotalPrice,
-        stockStatus: availabilityToLegacy(newAvailability),
-        scrapeStatus: 'SUCCESS',
-        scrapeError: null,
-        lastCheckedAt: new Date(),
-        lastSuccessfulAt: new Date(),
-        lastScrapedPrice: result.price,
-        lastScrapedAvailability: newAvailability,
-        scraperVersion: entry.version,
-        lastHttpStatus: result.httpStatus ?? null,
-        responseTimeMs: result.responseTimeMs ?? null,
-        source: 'scraper',
-      },
-    });
-
-    await recomputeEffectivePrice(vendorProductId);
-
-    await prisma.priceHistory.create({
-      data: {
-        vendorProductId,
-        price: result.price,
-        availability: newAvailability,
-        shippingCost: vp.shippingCost,
-        totalPrice: newTotalPrice,
-        source: 'SCRAPER',
-        stockStatus: availabilityToLegacy(newAvailability),
-      },
-    });
-
-    return { ok: true, price: result.price, availability: newAvailability };
+    return { ok: true, price: priceResult.price, availability: priceResult.availability };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : 'Unknown error' };
   }
@@ -492,36 +406,13 @@ export async function approveScrapeReview(vendorProductId: string) {
   if (!vp) return { error: 'Vendor product not found' };
   if (vp.lastScrapedPrice == null) return { error: 'No scraped price to approve' };
 
-  const newTotalPrice = vp.shippingIncluded ? vp.lastScrapedPrice : vp.lastScrapedPrice + vp.shippingCost;
-  const newAvailability = vp.lastScrapedAvailability || 'IN_STOCK';
-
-  await prisma.vendorProduct.update({
-    where: { id: vendorProductId },
-    data: {
-      price: vp.lastScrapedPrice,
-      availability: newAvailability,
-      totalPrice: newTotalPrice,
-      stockStatus: availabilityToLegacy(newAvailability),
-      scrapeStatus: 'SUCCESS',
-      scrapeError: null,
-      lastSuccessfulAt: new Date(),
-      source: 'scraper',
-    },
-  });
-
-  await recomputeEffectivePrice(vendorProductId);
-
-  await prisma.priceHistory.create({
-    data: {
-      vendorProductId,
-      price: vp.lastScrapedPrice,
-      availability: newAvailability,
-      shippingCost: vp.shippingCost,
-      totalPrice: newTotalPrice,
-      source: 'SCRAPER',
-      stockStatus: availabilityToLegacy(newAvailability),
-    },
-  });
+  await applyScrapeResult(
+    vendorProductId,
+    vp.lastScrapedPrice,
+    vp.lastScrapedAvailability || 'IN_STOCK',
+    vp.shippingCost,
+    vp.shippingIncluded,
+  );
 
   revalidatePath('/admin/products');
   revalidatePath('/admin/scraper');

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { slugify, legacyToAvailability } from '@/lib/utils';
-import { recomputeEffectivePrice } from '@/lib/recompute-price';
+import { calculateTotalPrice, recomputeEffectivePrice, applyPriceUpdate } from '@/lib/services/pricing-service';
 import { getScraper } from '@/lib/scraper';
 
 // ═══ VENDORS ═══
@@ -183,7 +183,7 @@ export async function createVendorProduct(formData: FormData) {
     return { error: 'Vendor, product, and URL are required' };
   }
 
-  const totalPrice = shippingIncluded ? price : price + shippingCost;
+  const totalPrice = calculateTotalPrice(price, shippingCost, shippingIncluded);
   const availability = legacyToAvailability(stockStatus);
 
   const vp = await prisma.vendorProduct.upsert({
@@ -227,7 +227,7 @@ export async function updateVendorStatus(formData: FormData) {
   const vp = await prisma.vendorProduct.findUnique({ where: { id: vendorProductId }, select: { productId: true } });
   if (!vp) return { error: 'Vendor product not found' };
 
-  const totalPrice = shippingIncluded ? price : price + shippingCost;
+  const totalPrice = calculateTotalPrice(price, shippingCost, shippingIncluded);
   const availability = legacyToAvailability(stockStatus);
 
   let username = 'admin';

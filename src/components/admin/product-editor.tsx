@@ -1,39 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/layout/navbar';
 import { useRouter } from 'next/navigation';
 import { CollapsibleCard } from './collapsible-card';
+import { DeletePasswordModal } from './delete-password-modal';
+import { useScrollSpy } from './hooks/use-scroll-spy';
 import { createProduct, updateProduct, deleteProduct } from '@/lib/admin/actions';
-
-interface Brand { id: string; name: string; }
-interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  brandId: string | null;
-  productType: string;
-  image: string | null;
-  description: string | null;
-  longDescription?: string | null;
-  sku?: string | null;
-  tags?: string[] | null;
-  releaseDate?: string | null;
-  status?: string;
-  featured?: boolean;
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  ogImage?: string | null;
-  createdAt?: string | Date;
-}
-interface ProductImage {
-  id?: string;
-  url: string;
-  alt?: string;
-  sortOrder: number;
-  isPrimary: boolean;
-}
+import type { Brand, Product, ProductImage } from '@/lib/admin/spec-types';
 
 interface Props {
   product?: Product;
@@ -46,7 +21,8 @@ interface Props {
   specContent?: React.ReactNode;
   vendorContent?: React.ReactNode;
   extraActions?: React.ReactNode;
-  onFormSubmit?: (formData: FormData) => Promise<void>;
+  onFormSubmit?: (formData: FormData, productId?: string) => Promise<void>;
+  renderForm?: () => React.ReactNode;
 }
 
 const SECTION_META: Record<string, { icon: string; label: string }> = {
@@ -60,7 +36,7 @@ const SECTION_META: Record<string, { icon: string; label: string }> = {
 
 export function ProductEditor({
   product, brands, productType, productLabel, productIcon,
-  images, onImagesChange, specContent, vendorContent, extraActions, onFormSubmit,
+  images, onImagesChange, specContent, vendorContent, extraActions, onFormSubmit, renderForm,
 }: Props) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -71,7 +47,13 @@ export function ProductEditor({
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [activeSection, setActiveSection] = useState('basic');
+
+  const sectionIds = Object.keys(SECTION_META).filter((id) => {
+    if (id === 'specs' && !specContent) return false;
+    if (id === 'vendors' && !vendorContent) return false;
+    return true;
+  });
+  const { activeSection, scrollToSection } = useScrollSpy(sectionIds);
 
   const isEdit = !!product;
   const catLabel = productLabel.toUpperCase();
@@ -84,27 +66,6 @@ export function ProductEditor({
     return () => window.removeEventListener('beforeunload', h);
   }, [hasChanges]);
 
-  // Scroll tracking
-  useEffect(() => {
-    const sectionEls = Object.keys(SECTION_META)
-      .map((id) => document.getElementById(`pe-section-${id}`))
-      .filter(Boolean) as HTMLElement[];
-    if (!sectionEls.length) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible.length > 0) setActiveSection(visible[0].target.id.replace('pe-section-', ''));
-      },
-      { rootMargin: '-20% 0px -60% 0px', threshold: 0 }
-    );
-    sectionEls.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-
-  const scrollToSection = useCallback((id: string) => {
-    document.getElementById(`pe-section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPending(true);
@@ -113,16 +74,18 @@ export function ProductEditor({
     const form = new FormData(e.currentTarget);
     form.set('productType', productType);
 
+    let productId = product?.id;
     if (isEdit) {
       const result = await updateProduct(product!.id, form);
       if (result?.error) { setError(result.error); setPending(false); return; }
     } else {
       const result = await createProduct(form);
       if (result?.error) { setError(result.error); setPending(false); return; }
+      productId = result.id;
     }
 
     if (onFormSubmit) {
-      await onFormSubmit(new FormData(formRef.current!));
+      await onFormSubmit(new FormData(formRef.current!), productId);
     }
 
     setHasChanges(false);
@@ -203,8 +166,11 @@ export function ProductEditor({
           {/* Main content */}
           <div className="pe-main">
             <form ref={formRef} id="pe-editor-form" onSubmit={handleSubmit} className="pe-form">
+              <input type="hidden" name="image" value={images.find((i) => i.isPrimary)?.url ?? images[0]?.url ?? ''} />
 
-              {/* Basic Info */}
+              {renderForm ? (
+                renderForm()
+              ) : (<>
               <div id="pe-section-basic">
                 <CollapsibleCard title="Basic Information" icon="📝" id="pe-card-basic">
                   <div className="pe-field pe-field--full">
@@ -355,7 +321,8 @@ export function ProductEditor({
                   </div>
                 </CollapsibleCard>
               </div>
-
+              </>
+              )}
             </form>
           </div>
         </div>
@@ -376,18 +343,15 @@ export function ProductEditor({
 
         {/* Delete modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
-            <div className="neo-card max-w-sm w-full p-6">
-              <h3 className="pe-modal-title">Confirm Deletion</h3>
-              <p className="pe-modal-text">This will permanently delete <strong>{product?.name}</strong>. Enter password to confirm.</p>
-              <input type="password" placeholder="Enter password" value={deletePassword} onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }} onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(); }} className="pe-input" autoFocus />
-              {deleteError && <p className="pe-modal-error">{deleteError}</p>}
-              <div className="pe-modal-actions">
-                <button onClick={handleDelete} disabled={!deletePassword || deleting} className="btn-danger flex-1">{deleting ? 'DELETING...' : 'DELETE'}</button>
-                <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="btn-secondary flex-1">CANCEL</button>
-              </div>
-            </div>
-          </div>
+          <DeletePasswordModal
+            description={<>This will permanently delete <strong>{product?.name}</strong>. Enter password to confirm.</>}
+            password={deletePassword}
+            error={deleteError}
+            pending={deleting}
+            onPasswordChange={(val) => { setDeletePassword(val); setDeleteError(null); }}
+            onConfirm={handleDelete}
+            onCancel={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }}
+          />
         )}
       </div>
     </>

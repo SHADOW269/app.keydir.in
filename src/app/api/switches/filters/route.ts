@@ -1,56 +1,30 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-
-function extractJsonArray(val: unknown): string[] {
-  if (Array.isArray(val)) return val.filter((v): v is string => typeof v === 'string');
-  return [];
-}
-
-function unique<T>(arr: (T | null | undefined)[]): T[] {
-  return [...new Set(arr.filter((v): v is T => v != null && v !== ''))];
-}
+import { getFilterData, unique } from '@/lib/repositories/product-repository';
 
 export async function GET() {
-  const [specs, brandRows, vendorRows, priceRow] = await Promise.all([
-    prisma.switchSpec.findMany({
-      where: { product: { productType: 'switches' } },
-      select: {
-        factoryLubed: true, handLubed: true, factoryFilmed: true, breakInProgress: true,
-        switchCompat: true, switchType: true, switchBrand: true, switchModel: true,
-        switchStemMaterial: true, switchTopHousing: true, switchBottomHousing: true,
-        switchSpringType: true,
-        switchLongPole: true, switchLedDiffuser: true, switchDustproofStem: true, switchLightPipe: true,
-      },
-    }),
-    prisma.product.findMany({
-      where: { productType: 'switches', brandId: { not: null } },
-      select: { brand: { select: { name: true } } },
-      distinct: ['brandId'],
-    }),
-    prisma.vendorProduct.findMany({
-      where: { product: { productType: 'switches' } },
-      select: { vendor: { select: { name: true } } },
-      distinct: ['vendorId'],
-    }),
-    prisma.vendorProduct.aggregate({
-      where: { product: { productType: 'switches' } },
-      _min: { totalPrice: true },
-      _max: { totalPrice: true },
-    }),
-  ]);
+  const { specs, brandRows, vendorRows, priceRow } = await getFilterData('switches', 'switches', {
+    factoryLubed: true, handLubed: true, factoryFilmed: true, breakInProgress: true,
+    switchCompat: true, switchType: true, switchBrand: true, switchModel: true,
+    switchStemMaterial: true, switchTopHousing: true, switchBottomHousing: true,
+    switchSpringType: true,
+    switchLongPole: true, switchLedDiffuser: true, switchDustproofStem: true, switchLightPipe: true,
+  });
+
+  const extractJsonArray = (val: unknown): string[] =>
+    Array.isArray(val) ? val.filter((v): v is string => typeof v === 'string') : [];
 
   const specFilters = {
     factoryLubed: [true, false],
     handLubed: [true, false],
     factoryFilmed: [true, false],
     breakInProgress: [true, false],
-    switchType: unique(specs.flatMap((s) => extractJsonArray(s.switchType))),
-    switchBrand: unique(specs.flatMap((s) => extractJsonArray(s.switchBrand))),
-    switchModel: unique(specs.flatMap((s) => extractJsonArray(s.switchModel))),
-    switchStemMaterial: unique(specs.map((s) => s.switchStemMaterial)).sort(),
-    switchTopHousing: unique(specs.map((s) => s.switchTopHousing)).sort(),
-    switchBottomHousing: unique(specs.map((s) => s.switchBottomHousing)).sort(),
-    switchSpringType: unique(specs.map((s) => s.switchSpringType)).sort(),
+    switchType: unique(specs.flatMap((s: any) => extractJsonArray(s.switchType))),
+    switchBrand: unique(specs.flatMap((s: any) => extractJsonArray(s.switchBrand))),
+    switchModel: unique(specs.flatMap((s: any) => extractJsonArray(s.switchModel))),
+    switchStemMaterial: unique(specs.map((s: any) => s.switchStemMaterial)).sort(),
+    switchTopHousing: unique(specs.map((s: any) => s.switchTopHousing)).sort(),
+    switchBottomHousing: unique(specs.map((s: any) => s.switchBottomHousing)).sort(),
+    switchSpringType: unique(specs.map((s: any) => s.switchSpringType)).sort(),
     switchLongPole: [true, false],
     switchLedDiffuser: [true, false],
     switchDustproofStem: [true, false],

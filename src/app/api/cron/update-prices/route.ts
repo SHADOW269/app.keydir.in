@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getScraper } from '@/lib/scraper';
-import { availabilityToLegacy } from '@/lib/utils';
+import { applyScrapeResult, applyScrapeFailure, calculateTotalPrice } from '@/lib/services/pricing-service';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 100;
@@ -63,16 +63,7 @@ export async function GET(request: Request) {
       });
 
       if (!scrapeResult.success || scrapeResult.price == null) {
-        await prisma.vendorProduct.update({
-          where: { id: vp.id },
-          data: {
-            scrapeStatus: 'FAILED',
-            scrapeError: scrapeResult.error || 'Unknown error',
-            lastCheckedAt: new Date(),
-            lastHttpStatus: scrapeResult.httpStatus ?? null,
-            responseTimeMs: scrapeResult.responseTimeMs ?? null,
-          },
-        });
+        await applyScrapeFailure(vp.id, scrapeResult.error || 'Unknown error', scrapeResult.httpStatus, scrapeResult.responseTimeMs, entry.version);
         results.failed++;
         results.errors.push(`${vp.vendor.name} / ${vp.product.name}: ${scrapeResult.error}`);
         continue;
@@ -82,9 +73,6 @@ export async function GET(request: Request) {
       const scrapedPrice = scrapeResult.price;
       const isSuspicious = currentPrice > 0 && Math.abs(scrapedPrice - currentPrice) / currentPrice > SUSPICIOUS_CHANGE_THRESHOLD;
 
-      const newAvailability = scrapeResult.availability || 'IN_STOCK';
-      const newTotalPrice = vp.shippingIncluded ? scrapedPrice : scrapedPrice + vp.shippingCost;
-
       if (isSuspicious) {
         await prisma.vendorProduct.update({
           where: { id: vp.id },
@@ -93,7 +81,7 @@ export async function GET(request: Request) {
             scrapeError: `Suspicious price change: ₹${currentPrice} → ₹${scrapedPrice} (${Math.round(Math.abs(scrapedPrice - currentPrice) / currentPrice * 100)}% change)`,
             lastCheckedAt: new Date(),
             lastScrapedPrice: scrapedPrice,
-            lastScrapedAvailability: newAvailability,
+            lastScrapedAvailability: scrapeResult.availability || 'IN_STOCK',
             lastHttpStatus: scrapeResult.httpStatus ?? null,
             responseTimeMs: scrapeResult.responseTimeMs ?? null,
             scraperVersion: entry.version,
@@ -103,37 +91,16 @@ export async function GET(request: Request) {
         continue;
       }
 
-      await prisma.vendorProduct.update({
-        where: { id: vp.id },
-        data: {
-          price: scrapedPrice,
-          availability: newAvailability,
-          totalPrice: newTotalPrice,
-          stockStatus: availabilityToLegacy(newAvailability),
-          scrapeStatus: 'SUCCESS',
-          scrapeError: null,
-          lastCheckedAt: new Date(),
-          lastSuccessfulAt: new Date(),
-          lastScrapedPrice: scrapedPrice,
-          lastScrapedAvailability: newAvailability,
-          scraperVersion: entry.version,
-          lastHttpStatus: scrapeResult.httpStatus ?? null,
-          responseTimeMs: scrapeResult.responseTimeMs ?? null,
-          source: 'scraper',
-        },
-      });
-
-      await prisma.priceHistory.create({
-        data: {
-          vendorProductId: vp.id,
-          price: scrapedPrice,
-          availability: newAvailability,
-          shippingCost: vp.shippingCost,
-          totalPrice: newTotalPrice,
-          source: 'SCRAPER',
-          stockStatus: availabilityToLegacy(newAvailability),
-        },
-      });
+      await applyScrapeResult(
+        vp.id,
+        scrapedPrice,
+        scrapeResult.availability || 'IN_STOCK',
+        vp.shippingCost,
+        vp.shippingIncluded,
+        entry.version,
+        scrapeResult.httpStatus,
+        scrapeResult.responseTimeMs,
+      );
 
       results.success++;
     } catch (e) {
@@ -147,14 +114,7 @@ export async function GET(request: Request) {
         },
       });
 
-      await prisma.vendorProduct.update({
-        where: { id: vp.id },
-        data: {
-          scrapeStatus: 'FAILED',
-          scrapeError: e instanceof Error ? e.message : 'Unknown error',
-          lastCheckedAt: new Date(),
-        },
-      });
+      await applyScrapeFailure(vp.id, e instanceof Error ? e.message : 'Unknown error', undefined, undefined, entry.version);
       results.failed++;
       results.errors.push(`${vp.vendor.name} / ${vp.product.name}: ${e instanceof Error ? e.message : 'Unknown'}`);
     }

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { createBrand, updateBrand, deleteBrand } from '@/lib/admin/actions';
+import { DeletePasswordModal } from './delete-password-modal';
+import { useDeleteEntity } from './hooks/use-delete-entity';
 
 interface Brand {
   id: string;
@@ -52,10 +54,12 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
   const color = brand?.color || '';
   const logo = brand?.logo || '';
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const {
+    showDeleteModal, setShowDeleteModal,
+    deletePassword, setDeletePassword,
+    deleteError, setDeleteError,
+    deleting, handleDelete,
+  } = useDeleteEntity(deleteBrand, brand?.id || '', '/admin/brands');
 
   const lastUpdated = brand?.updatedAt
     ? new Date(brand.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ', ' +
@@ -78,14 +82,6 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
       ? await updateBrand(brand!.id, fd)
       : await createBrand(fd);
     if (result?.error) { setError(result.error); setPending(false); }
-  }
-
-  async function handleDelete() {
-    if (!brand?.id) return;
-    setDeleting(true); setDeleteError(null);
-    const result = await deleteBrand(brand.id, deletePassword);
-    if (result?.error) { setDeleteError(result.error); setDeleting(false); return; }
-    router.push('/admin/brands');
   }
 
   return (
@@ -160,19 +156,15 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
 
       {/* DELETE MODAL */}
       {showDeleteModal && (
-        <div className="ce-modal-mask">
-          <div className="ce-modal">
-            <div className="ce-modal-title">Confirm Deletion</div>
-            <p className="ce-modal-text">This will permanently delete <strong>{brand?.name}</strong>. Products using this brand will have it unlinked.</p>
-            <input type="password" placeholder="Enter password" value={deletePassword} onChange={e => { setDeletePassword(e.target.value); setDeleteError(null); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleDelete(); }} className="admin-input" autoFocus />
-            {deleteError && <div className="ce-er">{deleteError}</div>}
-            <div className="ce-modal-btns">
-              <button onClick={handleDelete} disabled={!deletePassword || deleting} className="ce-toolbar-btn ce-toolbar-btn-danger">{deleting ? 'Deleting…' : 'DELETE'}</button>
-              <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="ce-toolbar-btn">CANCEL</button>
-            </div>
-          </div>
-        </div>
+        <DeletePasswordModal
+          description={<>This will permanently delete <strong>{brand?.name}</strong>. Products using this brand will have it unlinked.</>}
+          password={deletePassword}
+          error={deleteError}
+          pending={deleting}
+          onPasswordChange={(val) => { setDeletePassword(val); setDeleteError(null); }}
+          onConfirm={handleDelete}
+          onCancel={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }}
+        />
       )}
     </form>
   );

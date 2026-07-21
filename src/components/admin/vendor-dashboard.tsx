@@ -4,7 +4,10 @@ import { useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CollapsibleCard } from '@/components/admin/collapsible-card';
 import type { ScrapeResult } from '@/lib/scraper/types';
-import { updateVendor, updateVendorScraperConfig, deleteVendor, testVendorScraper } from '@/lib/admin/actions';
+import { updateVendor, updateVendorScraperConfig, deleteVendor } from '@/lib/admin/vendor-actions';
+import { testVendorScraper } from '@/lib/admin/scraper-actions';
+import { DeletePasswordModal } from './delete-password-modal';
+import { useDeleteEntity } from './hooks/use-delete-entity';
 import { timeAgo } from '@/lib/utils';
 
 interface Vendor {
@@ -78,10 +81,12 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const {
+    showDeleteModal, setShowDeleteModal,
+    deletePassword, setDeletePassword,
+    deleteError, setDeleteError,
+    deleting, handleDelete,
+  } = useDeleteEntity(deleteVendor, vendor.id, '/admin/vendors');
   const [testUrl, setTestUrl] = useState('');
   const [testResult, setTestResult] = useState<ScrapeResult | null>(null);
   const [testing, setTesting] = useState(false);
@@ -132,18 +137,6 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
       flash('Scraper config saved');
     }
     setPending(false);
-  }
-
-  async function handleDelete() {
-    setDeleting(true);
-    setDeleteError(null);
-    const result = await deleteVendor(vendor.id, deletePassword);
-    if (result?.error) {
-      setDeleteError(result.error);
-      setDeleting(false);
-      return;
-    }
-    router.push('/admin/vendors');
   }
 
   async function handleTestScraper() {
@@ -881,27 +874,15 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
 
         {/* ═══ DELETE MODAL ═══ */}
         {showDeleteModal && (
-          <div className="vd-modal-backdrop">
-            <div className="vd-modal">
-              <div className="vd-modal-title">CONFIRM DELETION</div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: 12 }}>
-                This will permanently delete <strong style={{ color: 'var(--text)' }}>{vendor.name}</strong> and all its product listings.
-              </p>
-              <input type="password" placeholder="Enter password" value={deletePassword}
-                onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(); }}
-                className="admin-input" autoFocus />
-              {deleteError && <p style={{ fontSize: '0.7rem', color: 'var(--red)', marginTop: 6 }}>{deleteError}</p>}
-              <div className="vd-btn-row" style={{ marginTop: 16 }}>
-                <button onClick={handleDelete} disabled={!deletePassword || deleting} className="btn-danger btn-sm" style={{ flex: 1 }}>
-                  {deleting ? 'DELETING...' : 'DELETE'}
-                </button>
-                <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="btn-secondary btn-sm" style={{ flex: 1 }}>
-                  CANCEL
-                </button>
-              </div>
-            </div>
-          </div>
+          <DeletePasswordModal
+            description={<>This will permanently delete <strong>{vendor.name}</strong> and all its product listings. Enter password to confirm.</>}
+            password={deletePassword}
+            error={deleteError}
+            pending={deleting}
+            onPasswordChange={(val) => { setDeletePassword(val); setDeleteError(null); }}
+            onConfirm={handleDelete}
+            onCancel={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }}
+          />
         )}
       </div>
   );

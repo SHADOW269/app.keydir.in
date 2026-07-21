@@ -143,9 +143,16 @@ export default async function ProductSlugPage({ params }: Props) {
       includedAccessories: keyboardSpec.includedAccessories as string[] | null,
     } : null;
 
+    const serializedProduct = {
+      ...product,
+      tags: product.tags as string[] | null,
+      releaseDate: product.releaseDate ? product.releaseDate.toISOString().split('T')[0] : null,
+      createdAt: product.createdAt,
+    };
+
     return (
       <KeyboardForm
-        product={product}
+        product={serializedProduct}
         keyboardSpec={serializedSpec}
         brands={brands}
         vendors={vendors}
@@ -161,6 +168,7 @@ export default async function ProductSlugPage({ params }: Props) {
     ]);
     const serializedProduct = {
       ...product,
+      tags: product.tags as string[] | null,
       releaseDate: product.releaseDate ? product.releaseDate.toISOString().split('T')[0] : null,
       createdAt: product.createdAt,
     };
@@ -196,6 +204,7 @@ export default async function ProductSlugPage({ params }: Props) {
     ]);
     const serializedProduct = {
       ...product,
+      tags: product.tags as string[] | null,
       releaseDate: product.releaseDate ? product.releaseDate.toISOString().split('T')[0] : null,
       createdAt: product.createdAt,
     };
@@ -237,6 +246,7 @@ export default async function ProductSlugPage({ params }: Props) {
     ]);
     const serializedProduct = {
       ...product,
+      tags: product.tags as string[] | null,
       releaseDate: product.releaseDate ? product.releaseDate.toISOString().split('T')[0] : null,
       createdAt: product.createdAt,
     };
@@ -268,6 +278,7 @@ export default async function ProductSlugPage({ params }: Props) {
 
   const serializedProduct = {
     ...product,
+    tags: product.tags as string[] | null,
     releaseDate: product.releaseDate ? product.releaseDate.toISOString().split('T')[0] : null,
     createdAt: product.createdAt,
   };

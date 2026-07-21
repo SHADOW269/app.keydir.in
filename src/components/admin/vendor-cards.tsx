@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useTransition, forwardRef, useImperativeHandle } from 'react';
-import { deleteVendorProduct, checkVendorProduct, scrapeVendorProduct, updateVendorStatus, clearManualOverride } from '@/lib/admin/actions';
-import type { ExistingVendorProduct, ExistingVariant, ExistingCoupon, VariantEntry, CouponEntry, VendorEntry } from './vendor-types';
-
-interface VendorOption { id: string; name: string; }
+import { checkVendorProduct, updateVendorStatus } from '@/lib/admin/vendor-actions';
+import { scrapeVendorProduct, clearManualOverride } from '@/lib/admin/scraper-actions';
+import { useVendorEntries } from './hooks/use-vendor-entries';
+import { CouponCard } from './coupon-card';
+import { VariantCard } from './variant-card';
+import type { ExistingVendorProduct, VendorEntry } from './vendor-types';
+import type { VendorOption } from '@/lib/admin/spec-types';
 
 export interface VendorCardsHandle {
   getEntries: () => VendorEntry[];
@@ -17,137 +20,21 @@ interface Props {
   onChange?: () => void;
 }
 
-function TagInput({ label, value, onChange, placeholder }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
-  const [input, setInput] = useState('');
-  const add = () => {
-    const trimmed = input.trim();
-    if (trimmed && !value.includes(trimmed)) { onChange([...value, trimmed]); setInput(''); }
-  };
-  return (
-    <div className="pe-tag-wrap">
-      <label className="pe-label">{label}</label>
-      <div className="pe-tag-chips">
-        {value.map((tag) => (
-          <span key={tag} className="pe-tag-chip">
-            {tag}
-            <button type="button" className="pe-tag-remove" onClick={() => onChange(value.filter((t) => t !== tag))}>×</button>
-          </span>
-        ))}
-        <input
-          type="text"
-          className="pe-tag-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } }}
-          onBlur={add}
-          placeholder={placeholder || `+ Add ${label}`}
-        />
-      </div>
-    </div>
-  );
-}
-
 export const VendorCards = forwardRef<VendorCardsHandle, Props>(({ productId, vendors, existingVendorProducts, onChange }, ref) => {
-  const [entries, setEntries] = useState<VendorEntry[]>(() =>
-    existingVendorProducts.map((vp) => ({
-      id: vp.id,
-      vendorId: vp.vendorId,
-      vendorUrl: vp.vendorUrl,
-      shippingCost: vp.shippingCost,
-      affiliateLink: vp.affiliateLink || '',
-      price: vp.price,
-      stockStatus: vp.stockStatus,
-      shippingIncluded: vp.shippingCost === 0,
-      coupons: (vp.coupons ?? []).map((c) => ({
-        id: c.id, code: c.code, discountType: c.discountType as CouponEntry['discountType'],
-        discountValue: c.discountValue ?? 0, minimumOrderAmount: c.minimumOrderAmount ?? 0,
-        expiryDate: c.expiryDate ? new Date(c.expiryDate).toISOString().slice(0, 10) : '',
-        couponUrl: c.couponUrl || '', description: c.description || '', enabled: c.enabled, collapsed: true,
-      })),
-      variants: (vp.variants ?? []).map((v) => ({
-        id: v.id, name: v.name, color: v.color ?? [], switches: v.switches ?? [], keycaps: v.keycaps ?? [],
-        price: v.price, stockStatus: v.stockStatus, variantUrl: v.variantUrl ?? '', sku: v.sku ?? '', isDefault: v.isDefault,
-      })),
-    }))
-  );
+  const {
+    entries, addEntry, removeEntry, updateEntry,
+    addVariant, removeVariant, updateVariant,
+    addCoupon, removeCoupon, updateCoupon, toggleCouponCollapsed,
+    getEntries,
+  } = useVendorEntries(existingVendorProducts, onChange);
+
   const [checking, setChecking] = useState<Record<number, boolean>>({});
   const [scraping, setScraping] = useState<Record<number, boolean>>({});
   const [updating, setUpdating] = useState<Record<number, boolean>>({});
   const [clearing, setClearing] = useState<Record<number, boolean>>({});
   const [checkResult, setCheckResult] = useState<Record<number, { ok: boolean; message: string; scrapedPrice?: number; scrapedAvailability?: string; scraperVersion?: string } | null>>({});
 
-  useImperativeHandle(ref, () => ({
-    getEntries: () => entries,
-  }));
-
-  const markChange = () => onChange?.();
-
-  const addEntry = () => {
-    setEntries((p) => [...p, { vendorId: '', vendorUrl: '', shippingCost: 0, affiliateLink: '', price: 0, stockStatus: 'in_stock', shippingIncluded: true, coupons: [], variants: [] }]);
-    markChange();
-  };
-
-  const removeEntry = (idx: number) => {
-    const entry = entries[idx];
-    if (entry.id) {
-      deleteVendorProduct(entry.id);
-    }
-    setEntries((p) => p.filter((_, i) => i !== idx));
-    markChange();
-  };
-
-  const updateEntry = (idx: number, field: keyof VendorEntry, value: string | number | boolean) => {
-    setEntries((p) => p.map((e, i) => i === idx ? { ...e, [field]: value } : e));
-    markChange();
-  };
-
-  const addVariant = (vendorIdx: number) => {
-    setEntries((p) => p.map((e, i) => i === vendorIdx ? {
-      ...e, variants: [...e.variants, { name: '', color: [], switches: [], keycaps: [], price: 0, stockStatus: 'in_stock', variantUrl: '', sku: '', isDefault: e.variants.length === 0 }],
-    } : e));
-    markChange();
-  };
-
-  const removeVariant = (vendorIdx: number, variantIdx: number) => {
-    setEntries((p) => p.map((e, i) => i === vendorIdx ? {
-      ...e, variants: e.variants.filter((_, vi) => vi !== variantIdx),
-    } : e));
-    markChange();
-  };
-
-  const updateVariant = (vendorIdx: number, variantIdx: number, field: keyof VariantEntry, value: unknown) => {
-    setEntries((p) => p.map((e, i) => i === vendorIdx ? {
-      ...e, variants: e.variants.map((v, vi) => vi === variantIdx ? { ...v, [field]: value } : v),
-    } : e));
-    markChange();
-  };
-
-  const addCoupon = (vendorIdx: number) => {
-    setEntries((p) => p.map((e, i) => i === vendorIdx ? {
-      ...e, coupons: [...e.coupons, { code: '', discountType: 'percentage', discountValue: 0, minimumOrderAmount: 0, expiryDate: '', couponUrl: '', description: '', enabled: true, collapsed: false }],
-    } : e));
-    markChange();
-  };
-
-  const removeCoupon = (vendorIdx: number, couponIdx: number) => {
-    setEntries((p) => p.map((e, i) => i === vendorIdx ? {
-      ...e, coupons: e.coupons.filter((_, ci) => ci !== couponIdx),
-    } : e));
-    markChange();
-  };
-
-  const updateCoupon = (vendorIdx: number, couponIdx: number, field: keyof CouponEntry, value: unknown) => {
-    setEntries((p) => p.map((e, i) => i === vendorIdx ? {
-      ...e, coupons: e.coupons.map((c, ci) => ci === couponIdx ? { ...c, [field]: value } : c),
-    } : e));
-    markChange();
-  };
-
-  const toggleCouponCollapsed = (vendorIdx: number, couponIdx: number) => {
-    setEntries((p) => p.map((e, i) => i === vendorIdx ? {
-      ...e, coupons: e.coupons.map((c, ci) => ci === couponIdx ? { ...c, collapsed: !c.collapsed } : c),
-    } : e));
-  };
+  useImperativeHandle(ref, () => ({ getEntries }));
 
   const handleCheck = async (idx: number) => {
     const entry = entries[idx];
@@ -310,73 +197,13 @@ export const VendorCards = forwardRef<VendorCardsHandle, Props>(({ productId, ve
                   <div className="pe-coupon-empty">No coupons — click "+ Add Coupon" to create one</div>
                 ) : (
                   entry.coupons.map((coupon, cIdx) => (
-                    <div key={cIdx} className={`pe-coupon-card ${coupon.collapsed ? 'collapsed' : ''}`}>
-                      <div className="pe-coupon-card-header" onClick={() => toggleCouponCollapsed(idx, cIdx)}>
-                        <div className="pe-coupon-card-title">
-                          <span className="pe-coupon-chevron">{coupon.collapsed ? '▸' : '▾'}</span>
-                          <span className="pe-coupon-card-code">{coupon.code || 'Untitled Coupon'}</span>
-                          <span className={`pe-coupon-type-badge ${coupon.discountType}`}>
-                            {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : coupon.discountType === 'flat' ? `₹${coupon.discountValue} OFF` : 'FREE SHIPPING'}
-                          </span>
-                          {!coupon.enabled && <span className="pe-coupon-disabled-badge">DISABLED</span>}
-                        </div>
-                        <button type="button" className="pe-coupon-remove-btn" onClick={(e) => { e.stopPropagation(); removeCoupon(idx, cIdx); }}>Remove</button>
-                      </div>
-                      <div className="pe-coupon-card-body">
-                        <div className="pe-row-2">
-                          <div className="pe-field">
-                            <label className="pe-label">Coupon Code *</label>
-                            <input type="text" className="pe-input" placeholder="e.g. SAVE10" value={coupon.code} onChange={(e) => updateCoupon(idx, cIdx, 'code', e.target.value)} />
-                          </div>
-                          <div className="pe-field">
-                            <label className="pe-label">Discount Type</label>
-                            <div className="pe-avail-group">
-                              {(['percentage', 'flat', 'free_shipping'] as const).map((opt) => (
-                                <button key={opt} type="button" className={`pe-avail-btn ${coupon.discountType === opt ? 'active' : ''}`} onClick={() => updateCoupon(idx, cIdx, 'discountType', opt)}>
-                                  {opt === 'percentage' ? '%' : opt === 'flat' ? '₹' : '🚚'} {opt === 'free_shipping' ? 'Free Ship.' : opt === 'percentage' ? 'Percentage' : 'Flat Amount'}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        {coupon.discountType !== 'free_shipping' && (
-                          <div className="pe-field pe-field--full">
-                            <label className="pe-label">Discount Value *</label>
-                            <div className="pe-input-wrap">
-                              <span className="pe-input-prefix">{coupon.discountType === 'flat' ? '₹' : '%'}</span>
-                              <input type="number" className="pe-input pe-input--prefixed" placeholder="0" step="1" min="0" value={coupon.discountValue || ''} onChange={(e) => updateCoupon(idx, cIdx, 'discountValue', parseFloat(e.target.value) || 0)} />
-                            </div>
-                          </div>
-                        )}
-                        <div className="pe-row-2">
-                          <div className="pe-field">
-                            <label className="pe-label">Minimum Order Amount (optional)</label>
-                            <div className="pe-input-wrap">
-                              <span className="pe-input-prefix">₹</span>
-                              <input type="number" className="pe-input pe-input--prefixed" placeholder="0" step="1" min="0" value={coupon.minimumOrderAmount || ''} onChange={(e) => updateCoupon(idx, cIdx, 'minimumOrderAmount', parseFloat(e.target.value) || 0)} />
-                            </div>
-                          </div>
-                          <div className="pe-field">
-                            <label className="pe-label">Expiry Date (optional)</label>
-                            <input type="date" className="pe-input" value={coupon.expiryDate} onChange={(e) => updateCoupon(idx, cIdx, 'expiryDate', e.target.value)} />
-                          </div>
-                        </div>
-                        <div className="pe-field pe-field--full">
-                          <label className="pe-label">Coupon URL (optional)</label>
-                          <input type="url" className="pe-input" placeholder="https://... (link to promotion)" value={coupon.couponUrl} onChange={(e) => updateCoupon(idx, cIdx, 'couponUrl', e.target.value)} />
-                        </div>
-                        <div className="pe-field pe-field--full">
-                          <label className="pe-label">Description / Notes (optional)</label>
-                          <input type="text" className="pe-input" placeholder="e.g. 10% off on orders above ₹999" value={coupon.description} onChange={(e) => updateCoupon(idx, cIdx, 'description', e.target.value)} />
-                        </div>
-                        <div className="pe-coupon-enabled-row">
-                          <span className="pe-coupon-enabled-label">Enabled</span>
-                          <button type="button" className={`pe-coupon-toggle ${coupon.enabled ? 'on' : ''}`} onClick={() => updateCoupon(idx, cIdx, 'enabled', !coupon.enabled)}>
-                            <span className="pe-coupon-toggle-thumb" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                    <CouponCard
+                      key={cIdx}
+                      coupon={coupon}
+                      onToggle={() => toggleCouponCollapsed(idx, cIdx)}
+                      onRemove={() => removeCoupon(idx, cIdx)}
+                      onUpdate={(field, value) => updateCoupon(idx, cIdx, field, value)}
+                    />
                   ))
                 )}
               </div>
@@ -418,51 +245,13 @@ export const VendorCards = forwardRef<VendorCardsHandle, Props>(({ productId, ve
                   <div className="pe-vendor-new-hint">No variants — click "+ Add Variant" to create one</div>
                 ) : (
                   entry.variants.map((variant, vIdx) => (
-                    <div key={vIdx} className="pe-variant-card">
-                      <div className="pe-variant-header">
-                        <span className="pe-variant-num">Variant #{vIdx + 1}{variant.isDefault ? ' (Default)' : ''}</span>
-                        <button type="button" className="pe-variant-remove" onClick={() => removeVariant(idx, vIdx)}>Remove</button>
-                      </div>
-                      <div className="pe-variant-grid">
-                        <div className="pe-field">
-                          <label className="pe-label">Variant Name</label>
-                          <input type="text" className="pe-input" placeholder="e.g. Black / Linear" value={variant.name} onChange={(e) => updateVariant(idx, vIdx, 'name', e.target.value)} />
-                        </div>
-                        <div className="pe-field">
-                          <label className="pe-label">SKU (optional)</label>
-                          <input type="text" className="pe-input" placeholder="SKU" value={variant.sku} onChange={(e) => updateVariant(idx, vIdx, 'sku', e.target.value)} />
-                        </div>
-                        <TagInput label="Color" value={variant.color} onChange={(v) => updateVariant(idx, vIdx, 'color', v)} placeholder="+ Add Color" />
-                        <TagInput label="Switches" value={variant.switches} onChange={(v) => updateVariant(idx, vIdx, 'switches', v)} placeholder="+ Add Switch" />
-                        <TagInput label="Keycaps" value={variant.keycaps} onChange={(v) => updateVariant(idx, vIdx, 'keycaps', v)} placeholder="+ Add Keycap" />
-                      </div>
-                      <div className="pe-variant-price-row">
-                        <div className="pe-field">
-                          <label className="pe-label">💰 Price (₹)</label>
-                          <input type="number" className="pe-input" placeholder="0" step="1" value={variant.price || ''} onChange={(e) => updateVariant(idx, vIdx, 'price', parseInt(e.target.value) || 0)} />
-                        </div>
-                        <div className="pe-field">
-                          <label className="pe-label">📦 Availability</label>
-                          <div className="pe-avail-group">
-                            {(['in_stock', 'preorder', 'out_of_stock'] as const).map((opt) => (
-                              <button key={opt} type="button" className={`pe-avail-btn ${variant.stockStatus === opt ? 'active' : ''}`} onClick={() => updateVariant(idx, vIdx, 'stockStatus', opt)}>
-                                {opt === 'in_stock' ? 'In Stock' : opt === 'preorder' ? 'Pre-Order' : 'Out of Stock'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="pe-field">
-                          <label className="pe-label">🌐 Variant URL</label>
-                          <input type="url" className="pe-input" placeholder="https://... (falls back to main URL)" value={variant.variantUrl} onChange={(e) => updateVariant(idx, vIdx, 'variantUrl', e.target.value)} />
-                        </div>
-                      </div>
-                      <div className="pe-variant-default-toggle">
-                        <label>
-                          <input type="checkbox" checked={variant.isDefault} onChange={(e) => updateVariant(idx, vIdx, 'isDefault', e.target.checked)} />
-                          Default variant
-                        </label>
-                      </div>
-                    </div>
+                    <VariantCard
+                      key={vIdx}
+                      variant={variant}
+                      variantIndex={vIdx}
+                      onRemove={() => removeVariant(idx, vIdx)}
+                      onUpdate={(field, value) => updateVariant(idx, vIdx, field, value)}
+                    />
                   ))
                 )}
               </div>

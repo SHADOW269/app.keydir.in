@@ -1,25 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { prisma } from '@/lib/prisma';
+import { fetchBestDeals } from '@/lib/services/product-service';
 
 export async function BestDeals() {
-  const deals = await prisma.vendorProduct.findMany({
-    orderBy: { effectivePrice: 'asc' },
-    take: 10,
-    where: { stockStatus: { in: ['in_stock', 'preorder'] } },
-    include: {
-      product: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          image: true,
-          brand: { select: { name: true } },
-        },
-      },
-      vendor: { select: { name: true } },
-    },
-  });
+  const deals = await fetchBestDeals();
 
   if (deals.length === 0) return null;
 

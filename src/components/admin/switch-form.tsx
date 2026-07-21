@@ -4,28 +4,11 @@ import { useState, useRef } from 'react';
 import { ProductEditor } from './product-editor';
 import { SwitchSpecForm } from './switch-spec-form';
 import { VendorCards, type VendorCardsHandle } from './vendor-cards';
-import { upsertSwitchSpec, deleteVendorProduct, createVendorProduct, upsertVendorVariants } from '@/lib/admin/actions';
+import { upsertSwitchSpec } from '@/lib/admin/spec-actions';
+import { saveVendorEntries } from '@/lib/admin/vendor-batch-save';
+import type { ExistingVendorProduct } from './vendor-types';
+import type { Brand, Product, ProductImage } from '@/lib/admin/spec-types';
 
-interface Brand { id: string; name: string; }
-interface VendorOption { id: string; name: string; }
-interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  brandId: string | null;
-  productType: string;
-  image: string | null;
-  description: string | null;
-  longDescription?: string | null;
-  sku?: string | null;
-  releaseDate?: string | null;
-  status?: string;
-  featured?: boolean;
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  ogImage?: string | null;
-  createdAt?: Date;
-}
 interface SwitchSpecData {
   factoryLubed?: boolean; handLubed?: boolean; factoryFilmed?: boolean; breakInProgress?: boolean;
   switchCompat?: string[] | null; switchType?: string[] | null;
@@ -39,29 +22,11 @@ interface SwitchSpecData {
   switchLongPole?: boolean; switchLedDiffuser?: boolean; switchDustproofStem?: boolean; switchLightPipe?: boolean;
   quantityPerPack?: number | null; packagingType?: string | null;
 }
-interface ProductImage {
-  id?: string;
-  url: string;
-  alt?: string;
-  sortOrder: number;
-  isPrimary: boolean;
-}
-
-interface ExistingVendorProduct {
-  id: string; vendorId: string; vendorUrl: string; shippingCost: number;
-  affiliateLink: string | null; price: number; stockStatus: string;
-  lastCheckedAt: Date | null; manualUpdatedAt: Date | null;
-  source: string; availability: string; scrapeStatus: string;
-  scrapeError: string | null; lastSuccessfulAt: Date | null;
-  scraperVersion: string | null; lastHttpStatus: number | null;
-  responseTimeMs: number | null; manualOverride: boolean;
-  updatedBy: string | null;
-}
 
 interface Props {
   product?: Product;
   brands: Brand[];
-  vendors: VendorOption[];
+  vendors: { id: string; name: string }[];
   existingVendorProducts: ExistingVendorProduct[];
   switchSpec?: SwitchSpecData | null;
   productImages?: ProductImage[];
@@ -99,35 +64,7 @@ export function SwitchForm({ product, brands, vendors, existingVendorProducts, s
     }
 
     await upsertSwitchSpec(product.id, specData);
-
-    // Batch-save vendor entries
-    const vendorEntries = vendorCardsRef.current?.getEntries() || [];
-    const validEntries = vendorEntries.filter((ve) => ve.vendorId && ve.vendorUrl);
-
-    // Delete removed vendors
-    for (const vp of existingVendorProducts) {
-      if (!validEntries.some((ve) => ve.id === vp.id)) {
-        await deleteVendorProduct(vp.id);
-      }
-    }
-
-    // Upsert remaining vendors
-    for (const entry of validEntries) {
-      const vfd = new FormData();
-      vfd.set('vendorId', entry.vendorId);
-      vfd.set('productId', product.id);
-      vfd.set('vendorUrl', entry.vendorUrl);
-      vfd.set('price', String(entry.price || 0));
-      vfd.set('shippingCost', String(entry.shippingCost || 0));
-      vfd.set('shippingIncluded', entry.shippingIncluded ? 'on' : '');
-      vfd.set('stockStatus', entry.stockStatus || 'in_stock');
-      vfd.set('affiliateLink', entry.affiliateLink);
-      vfd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed, ...c }) => c)));
-      const result = await createVendorProduct(vfd);
-      if (result && 'id' in result && entry.variants.length > 0) {
-        await upsertVendorVariants(result.id as string, entry.variants);
-      }
-    }
+    await saveVendorEntries(product.id, vendorCardsRef.current?.getEntries() || [], existingVendorProducts);
   }
 
   return (

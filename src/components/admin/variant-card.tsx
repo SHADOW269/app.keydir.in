@@ -1,0 +1,91 @@
+'use client';
+
+import { useState } from 'react';
+import type { VariantEntry } from './vendor-types';
+
+function TagInput({ label, value, onChange, placeholder }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+  const [input, setInput] = useState('');
+  const add = () => {
+    const trimmed = input.trim();
+    if (trimmed && !value.includes(trimmed)) { onChange([...value, trimmed]); setInput(''); }
+  };
+  return (
+    <div className="pe-tag-wrap">
+      <label className="pe-label">{label}</label>
+      <div className="pe-tag-chips">
+        {value.map((tag) => (
+          <span key={tag} className="pe-tag-chip">
+            {tag}
+            <button type="button" className="pe-tag-remove" onClick={() => onChange(value.filter((t) => t !== tag))}>×</button>
+          </span>
+        ))}
+        <input
+          type="text"
+          className="pe-tag-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } }}
+          onBlur={add}
+          placeholder={placeholder || `+ Add ${label}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface Props {
+  variant: VariantEntry;
+  variantIndex: number;
+  onRemove: () => void;
+  onUpdate: (field: keyof VariantEntry, value: unknown) => void;
+}
+
+export function VariantCard({ variant, variantIndex, onRemove, onUpdate }: Props) {
+  return (
+    <div className="pe-variant-card">
+      <div className="pe-variant-header">
+        <span className="pe-variant-num">Variant #{variantIndex + 1}{variant.isDefault ? ' (Default)' : ''}</span>
+        <button type="button" className="pe-variant-remove" onClick={onRemove}>Remove</button>
+      </div>
+      <div className="pe-variant-grid">
+        <div className="pe-field">
+          <label className="pe-label">Variant Name</label>
+          <input type="text" className="pe-input" placeholder="e.g. Black / Linear" value={variant.name} onChange={(e) => onUpdate('name', e.target.value)} />
+        </div>
+        <div className="pe-field">
+          <label className="pe-label">SKU (optional)</label>
+          <input type="text" className="pe-input" placeholder="SKU" value={variant.sku} onChange={(e) => onUpdate('sku', e.target.value)} />
+        </div>
+        <TagInput label="Color" value={variant.color} onChange={(v) => onUpdate('color', v)} placeholder="+ Add Color" />
+        <TagInput label="Switches" value={variant.switches} onChange={(v) => onUpdate('switches', v)} placeholder="+ Add Switch" />
+        <TagInput label="Keycaps" value={variant.keycaps} onChange={(v) => onUpdate('keycaps', v)} placeholder="+ Add Keycap" />
+      </div>
+      <div className="pe-variant-price-row">
+        <div className="pe-field">
+          <label className="pe-label">💰 Price (₹)</label>
+          <input type="number" className="pe-input" placeholder="0" step="1" value={variant.price || ''} onChange={(e) => onUpdate('price', parseInt(e.target.value) || 0)} />
+        </div>
+        <div className="pe-field">
+          <label className="pe-label">📦 Availability</label>
+          <div className="pe-avail-group">
+            {(['in_stock', 'preorder', 'out_of_stock'] as const).map((opt) => (
+              <button key={opt} type="button" className={`pe-avail-btn ${variant.stockStatus === opt ? 'active' : ''}`} onClick={() => onUpdate('stockStatus', opt)}>
+                {opt === 'in_stock' ? 'In Stock' : opt === 'preorder' ? 'Pre-Order' : 'Out of Stock'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="pe-field">
+          <label className="pe-label">🌐 Variant URL</label>
+          <input type="url" className="pe-input" placeholder="https://... (falls back to main URL)" value={variant.variantUrl} onChange={(e) => onUpdate('variantUrl', e.target.value)} />
+        </div>
+      </div>
+      <div className="pe-variant-default-toggle">
+        <label>
+          <input type="checkbox" checked={variant.isDefault} onChange={(e) => onUpdate('isDefault', e.target.checked)} />
+          Default variant
+        </label>
+      </div>
+    </div>
+  );
+}

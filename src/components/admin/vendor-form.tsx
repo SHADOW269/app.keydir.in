@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/navbar';
 
 import type { ScrapeResult } from '@/lib/scraper/types';
-import { createVendor, updateVendor, deleteVendor, updateVendorScraperConfig, testVendorScraper } from '@/lib/admin/actions';
+import { createVendor, updateVendor, deleteVendor, updateVendorScraperConfig } from '@/lib/admin/vendor-actions';
+import { testVendorScraper } from '@/lib/admin/scraper-actions';
+import { DeletePasswordModal } from './delete-password-modal';
+import { useDeleteEntity } from './hooks/use-delete-entity';
 
 interface Vendor {
   id: string;
@@ -37,17 +39,18 @@ interface Vendor {
 export function VendorForm({ vendor }: { vendor?: Vendor }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const {
+    showDeleteModal, setShowDeleteModal,
+    deletePassword, setDeletePassword,
+    deleteError, setDeleteError,
+    deleting, handleDelete,
+  } = useDeleteEntity(deleteVendor, vendor?.id || '', '/admin/vendors');
   const [testUrl, setTestUrl] = useState('');
   const [testResult, setTestResult] = useState<ScrapeResult | null>(null);
   const [testing, setTesting] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
   const [chartColor, setChartColor] = useState(vendor?.chartColor ?? '#22C55E');
   const isEdit = !!vendor;
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,19 +64,6 @@ export function VendorForm({ vendor }: { vendor?: Vendor }) {
       setError(result.error);
       setPending(false);
     }
-  }
-
-  async function handleDelete() {
-    if (!vendor?.id) return;
-    setDeleting(true);
-    setDeleteError(null);
-    const result = await deleteVendor(vendor.id, deletePassword);
-    if (result?.error) {
-      setDeleteError(result.error);
-      setDeleting(false);
-      return;
-    }
-    router.push('/admin/vendors');
   }
 
   async function handleSaveScraperConfig(e: React.FormEvent<HTMLFormElement>) {
@@ -376,34 +366,15 @@ export function VendorForm({ vendor }: { vendor?: Vendor }) {
       </div>
 
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
-          <div className="neo-card max-w-sm w-full p-6">
-            <h3 className="font-[family-name:var(--f-m)] text-sm font-bold uppercase tracking-[.12em] text-[var(--accent)] mb-4">
-              Confirm Deletion
-            </h3>
-            <p className="text-sm text-[var(--text-dim)] mb-4">
-              This will permanently delete <strong className="text-[var(--text)]">{vendor?.name}</strong> and all its product listings. Enter password to confirm.
-            </p>
-            <input
-              type="password"
-              placeholder="Enter password"
-              value={deletePassword}
-              onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(); }}
-              className="admin-input w-full mb-1"
-              autoFocus
-            />
-            {deleteError && <p className="text-xs text-red-400 mb-3">{deleteError}</p>}
-            <div className="flex gap-3 mt-4">
-              <button onClick={handleDelete} disabled={!deletePassword || deleting} className="btn-danger flex-1">
-                {deleting ? 'DELETING...' : 'DELETE'}
-              </button>
-              <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="btn-secondary flex-1">
-                CANCEL
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeletePasswordModal
+          description={<>This will permanently delete <strong>{vendor?.name}</strong> and all its product listings. Enter password to confirm.</>}
+          password={deletePassword}
+          error={deleteError}
+          pending={deleting}
+          onPasswordChange={(val) => { setDeletePassword(val); setDeleteError(null); }}
+          onConfirm={handleDelete}
+          onCancel={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }}
+        />
       )}
     </>
   );

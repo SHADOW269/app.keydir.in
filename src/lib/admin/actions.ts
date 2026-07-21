@@ -4,12 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
 
-// Re-export domain modules so existing imports from '@/lib/admin/actions' continue to work
-export { createVendor, updateVendor, updateVendorScraperConfig, toggleVendor, deleteVendor } from './vendor-actions';
-export { createVendorProduct, updateVendorStatus, checkVendorProduct, deleteVendorProduct, upsertVendorVariants, deleteVendorVariant } from './vendor-actions';
-export { upsertKeyboardSpec, deleteKeyboardSpec, upsertSwitchSpec, deleteSwitchSpec, upsertKeycapSpec, deleteKeycapSpec, upsertMouseSpec, deleteMouseSpec } from './spec-actions';
-export { scrapeVendorProduct, approveScrapeReview, clearManualOverride, testVendorScraper } from './scraper-actions';
-
 // ═══ PRODUCTS ═══
 
 export async function createProduct(formData: FormData) {

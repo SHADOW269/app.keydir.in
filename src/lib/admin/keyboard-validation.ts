@@ -70,8 +70,6 @@ export interface KeyboardProgressData {
   includedAccessories: string[];
   additionalAccessories: string;
   specialFeatures: string;
-
-  vendorEntries: Array<{ vendorId: string; vendorUrl: string }>;
 }
 
 export interface SectionProgress {
@@ -161,12 +159,6 @@ export function getKeyboardSectionProgress(d: KeyboardProgressData): SectionProg
       id: 'features',
       current: [d.includedAccessories, d.additionalAccessories, d.specialFeatures].filter(has).length,
       total: 3,
-      completed: false,
-    },
-    {
-      id: 'vendors',
-      current: d.vendorEntries.filter((e) => e.vendorId && e.vendorUrl).length,
-      total: d.vendorEntries.length,
       completed: false,
     },
   ].map((s) => ({ ...s, completed: s.total > 0 && s.current === s.total }));
