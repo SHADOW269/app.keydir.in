@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { CollapsibleCard } from './collapsible-card';
+import { ChipSelect, Toggle, Field } from './form-primitives';
 
 const PROFILES = ['Cherry', 'OEM', 'XDA', 'DSA', 'CSA', 'KAT', 'MT3', 'SA', 'MDA', 'MOA', 'MA', 'Other'];
 const LAYOUT_SUPPORT = ['60%', '65%', '75%', 'TKL', '96%', '1800', 'Full Size', 'Alice', 'ISO', 'HHKB', 'Split Space', 'Numpad'];
@@ -38,45 +39,6 @@ interface KeycapSpecData {
 interface Props {
   spec?: KeycapSpecData | null;
   onChange?: () => void;
-}
-
-function ChipSelect({ options, value, onChange, name }: { options: string[]; value: string[]; onChange: (v: string[]) => void; name: string }) {
-  const toggle = (opt: string) => onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
-  return (
-    <div className="kb-chip-grid">
-      <input type="hidden" name={name} value={JSON.stringify(value)} />
-      {options.map((opt) => (
-        <button key={opt} type="button" className={`kb-chip ${value.includes(opt) ? 'active' : ''}`} onClick={() => toggle(opt)}>
-          <span className="kb-chip-check">{value.includes(opt) ? '☑' : '☐'}</span>
-          {opt}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ label, name, checked, onChange }: { label: string; name: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="kb-toggle-row">
-      <span className="kb-toggle-label">{label}</span>
-      <input type="hidden" name={name} value={checked ? 'true' : 'false'} />
-      <div className="kb-toggle-right">
-        <span className={`kb-toggle-status ${checked ? 'on' : ''}`}>{checked ? 'Yes' : 'No'}</span>
-        <button type="button" className={`kb-switch ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)} aria-label={label}>
-          <span className="kb-switch-thumb" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="kb-field">
-      <label className="kb-field-label">{label}</label>
-      {children}
-    </div>
-  );
 }
 
 export function KeycapSpecForm({ spec, onChange }: Props) {

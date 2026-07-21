@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { LowestPricesClient } from './lowest-prices-client';
+import { computeVoteStats } from '@/lib/vote-utils';
 
 export async function LowestPrices() {
   const recent = await prisma.product.findMany({
@@ -20,10 +21,7 @@ export async function LowestPrices() {
   if (recent.length === 0) return null;
 
   const items = recent.map((p) => {
-    const upvotes = p.votes.filter((v) => v.type === 'upvote').length;
-    const downvotes = p.votes.filter((v) => v.type === 'downvote').length;
-    const totalVotes = upvotes + downvotes;
-    const approval = totalVotes >= 10 ? Math.round((upvotes / totalVotes) * 100) : null;
+    const stats = computeVoteStats(p.votes);
 
     return {
       id: p.id,
@@ -36,9 +34,9 @@ export async function LowestPrices() {
       originalPrice: p.vendorProducts[0]?.totalPrice ?? null,
       hasCoupons: (p.vendorProducts[0]?._count?.coupons ?? 0) > 0,
       vendorCount: p._count.vendorProducts,
-      upvotes,
-      downvotes,
-      approval,
+      upvotes: stats.upvotes,
+      downvotes: stats.downvotes,
+      approval: stats.approval,
       userVote: null,
     };
   });

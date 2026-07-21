@@ -4,16 +4,9 @@ import { useOptimistic, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { X } from 'lucide-react';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, toNum } from '@/lib/utils';
 import { voteOnProduct } from '@/lib/profile/actions';
 import type { CompareProduct } from './compare-types';
-
-function priceNum(v: unknown): number {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') return parseFloat(v);
-  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
-  return 0;
-}
 
 interface Props {
   products: CompareProduct[];
@@ -58,7 +51,7 @@ function ProductCard({ product, onRemove }: { product: CompareProduct; onRemove:
     }
   );
 
-  const prices = product.vendorProducts.map((vp) => priceNum(vp.totalPrice)).filter((p) => p > 0);
+  const prices = product.vendorProducts.map((vp) => toNum(vp.totalPrice)).filter((p) => p > 0);
   const lowest = prices.length ? Math.min(...prices) : null;
   const highest = prices.length > 1 ? Math.max(...prices) : lowest;
 

@@ -41,31 +41,31 @@ function Card({ t, children }: { t: string; children: React.ReactNode }) {
 export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
   const isEdit = !!brand;
   const router = useRouter();
-  const [pend, setPend] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState(brand?.name || '');
   const [website, setWebsite] = useState(brand?.website || '');
   const [country, setCountry] = useState(brand?.country || 'IN');
-  const [desc] = useState(brand?.description || '');
+  const desc = brand?.description || '';
   const [status, setStatus] = useState(brand?.status || 'active');
-  const [color] = useState(brand?.color || '');
-  const [logo] = useState(brand?.logo || '');
+  const color = brand?.color || '';
+  const logo = brand?.logo || '';
 
-  const [showDel, setShowDel] = useState(false);
-  const [delPw, setDelPw] = useState('');
-  const [delErr, setDelErr] = useState<string | null>(null);
-  const [delting, setDelting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const lastUpdated = brand?.updatedAt
     ? new Date(brand.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ', ' +
       new Date(brand.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
     : '—';
 
-  async function sub(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { setErr('Name required'); return; }
-    setPend(true); setErr(null);
+    if (!name.trim()) { setError('Name required'); return; }
+    setPending(true); setError(null);
     const fd = new FormData();
     fd.set('name', name);
     fd.set('website', website);
@@ -77,19 +77,19 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
     const result = isEdit
       ? await updateBrand(brand!.id, fd)
       : await createBrand(fd);
-    if (result?.error) { setErr(result.error); setPend(false); }
+    if (result?.error) { setError(result.error); setPending(false); }
   }
 
-  async function del() {
+  async function handleDelete() {
     if (!brand?.id) return;
-    setDelting(true); setDelErr(null);
-    const result = await deleteBrand(brand.id, delPw);
-    if (result?.error) { setDelErr(result.error); setDelting(false); return; }
+    setDeleting(true); setDeleteError(null);
+    const result = await deleteBrand(brand.id, deletePassword);
+    if (result?.error) { setDeleteError(result.error); setDeleting(false); return; }
     router.push('/admin/brands');
   }
 
   return (
-    <form onSubmit={sub} className="ce">
+    <form onSubmit={handleSubmit} className="ce">
       {/* HEADER */}
       <header className="ce-hd">
         <div className="ce-hd-l">
@@ -110,11 +110,11 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
         </div>
         <div className="ce-hd-r">
           <button type="button" onClick={() => router.push('/admin/brands')} className="ce-toolbar-btn">Cancel</button>
-          <button type="submit" disabled={pend} className="ce-toolbar-btn ce-toolbar-btn-primary">{pend ? 'Saving…' : isEdit ? 'SAVE' : 'CREATE'}</button>
-          {isEdit && <button type="button" onClick={() => setShowDel(true)} className="ce-toolbar-btn ce-toolbar-btn-danger">DELETE</button>}
+          <button type="submit" disabled={pending} className="ce-toolbar-btn ce-toolbar-btn-primary">{pending ? 'Saving…' : isEdit ? 'SAVE' : 'CREATE'}</button>
+          {isEdit && <button type="button" onClick={() => setShowDeleteModal(true)} className="ce-toolbar-btn ce-toolbar-btn-danger">DELETE</button>}
         </div>
       </header>
-      {err && <div className="ce-err">{err}</div>}
+      {error && <div className="ce-err">{error}</div>}
 
       <div className="ce-body">
         <Card t="Brand Information">
@@ -152,24 +152,24 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
                 <span className="ce-danger-title">Danger Zone</span>
                 <span className="ce-danger-desc">This permanently deletes the brand. Products will need reassignment.</span>
               </div>
-              <button type="button" onClick={() => setShowDel(true)} className="ce-toolbar-btn ce-toolbar-btn-danger">Delete Brand</button>
+              <button type="button" onClick={() => setShowDeleteModal(true)} className="ce-toolbar-btn ce-toolbar-btn-danger">Delete Brand</button>
             </div>
           </div>
         )}
       </div>
 
       {/* DELETE MODAL */}
-      {showDel && (
+      {showDeleteModal && (
         <div className="ce-modal-mask">
           <div className="ce-modal">
             <div className="ce-modal-title">Confirm Deletion</div>
             <p className="ce-modal-text">This will permanently delete <strong>{brand?.name}</strong>. Products using this brand will have it unlinked.</p>
-            <input type="password" placeholder="Enter password" value={delPw} onChange={e => { setDelPw(e.target.value); setDelErr(null); }}
-              onKeyDown={e => { if (e.key === 'Enter') del(); }} className="admin-input" autoFocus />
-            {delErr && <div className="ce-er">{delErr}</div>}
+            <input type="password" placeholder="Enter password" value={deletePassword} onChange={e => { setDeletePassword(e.target.value); setDeleteError(null); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleDelete(); }} className="admin-input" autoFocus />
+            {deleteError && <div className="ce-er">{deleteError}</div>}
             <div className="ce-modal-btns">
-              <button onClick={del} disabled={!delPw || delting} className="ce-toolbar-btn ce-toolbar-btn-danger">{delting ? 'Deleting…' : 'DELETE'}</button>
-              <button onClick={() => { setShowDel(false); setDelPw(''); setDelErr(null); }} className="ce-toolbar-btn">CANCEL</button>
+              <button onClick={handleDelete} disabled={!deletePassword || deleting} className="ce-toolbar-btn ce-toolbar-btn-danger">{deleting ? 'Deleting…' : 'DELETE'}</button>
+              <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="ce-toolbar-btn">CANCEL</button>
             </div>
           </div>
         </div>

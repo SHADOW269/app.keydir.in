@@ -1,0 +1,40 @@
+import type { SortOption } from '@/types';
+
+export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'lowest', label: 'Lowest Price' },
+  { value: 'highest', label: 'Highest Price' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'popular', label: 'Most Upvoted' },
+  { value: 'vendors', label: 'Most Vendors' },
+];
+
+export interface Banner {
+  id: string;
+  title: string;
+  desktopImage: string | null;
+  mobileImage: string | null;
+  linkUrl: string | null;
+  linkType: string;
+  openNewTab: boolean;
+}
+
+export interface FilterOptions {
+  specs: Record<string, string[] | boolean[]>;
+  brands: string[];
+  vendors: string[];
+  priceMin: number;
+  priceMax: number;
+}
+
+export const AVAILABILITY_MAP: Record<string, { label: string; class: string; icon?: string }> = {
+  IN_STOCK: { label: 'In Stock', class: 'b-green', icon: '✓' },
+  PREORDER: { label: 'Preorder', class: 'b-yellow', icon: '◷' },
+  GROUP_BUY: { label: 'Group Buy', class: 'b-blue', icon: '◎' },
+  COMING_SOON: { label: 'Coming Soon', class: 'b-orange', icon: '⏳' },
+  OUT_OF_STOCK: { label: 'Out of Stock', class: 'b-red', icon: '✕' },
+  in_stock: { label: 'In Stock', class: 'b-green', icon: '✓' },
+  preorder: { label: 'Preorder', class: 'b-yellow', icon: '◷' },
+  group_buy: { label: 'Group Buy', class: 'b-blue', icon: '◎' },
+  coming_soon: { label: 'Coming Soon', class: 'b-orange', icon: '⏳' },
+  out_of_stock: { label: 'Out of Stock', class: 'b-red', icon: '✕' },
+};

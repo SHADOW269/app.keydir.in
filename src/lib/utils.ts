@@ -13,6 +13,17 @@ export function formatPrice(amount: number): string {
   }).format(amount);
 }
 
+export function toNum(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return parseFloat(v);
+  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
+  return 0;
+}
+
+export function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
 export function computeEffectivePrice(totalPrice: number, coupons: { discountType: string; discountValue: number; enabled: boolean }[]): number {
   let best = totalPrice;
   for (const c of coupons) {
@@ -23,7 +34,7 @@ export function computeEffectivePrice(totalPrice: number, coupons: { discountTyp
     } else if (c.discountType === 'flat') {
       after = totalPrice - c.discountValue;
     } else {
-      continue; // free_shipping doesn't reduce price
+      continue;
     }
     if (after < best) best = after;
   }
@@ -49,4 +60,26 @@ export function timeAgo(date: Date): string {
   const months = Math.floor(days / 30);
   if (months < 12) return `${months}mo ago`;
   return `${Math.floor(months / 12)}y ago`;
+}
+
+export function availabilityToLegacy(a: string): string {
+  const map: Record<string, string> = {
+    IN_STOCK: 'in_stock',
+    PREORDER: 'preorder',
+    GROUP_BUY: 'group_buy',
+    COMING_SOON: 'coming_soon',
+    OUT_OF_STOCK: 'out_of_stock',
+  };
+  return map[a] || 'in_stock';
+}
+
+export function legacyToAvailability(status: string): 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK' {
+  const map: Record<string, 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK'> = {
+    in_stock: 'IN_STOCK',
+    preorder: 'PREORDER',
+    group_buy: 'GROUP_BUY',
+    coming_soon: 'COMING_SOON',
+    out_of_stock: 'OUT_OF_STOCK',
+  };
+  return map[status] || 'IN_STOCK';
 }

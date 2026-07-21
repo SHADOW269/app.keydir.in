@@ -1,16 +1,9 @@
 import { Suspense } from 'react';
-import { prisma } from '@/lib/prisma';
 import KeycapsContent from './content';
-import { getBannersForLocation } from '@/lib/admin/banner-actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function KeycapsPage() {
-  const [banners, totalCount] = await Promise.all([
-    getBannersForLocation('keycaps'),
-    prisma.product.count({ where: { productType: 'keycaps' } }),
-  ]);
-
+export default function KeycapsPage() {
   return (
     <Suspense
       fallback={
@@ -32,7 +25,7 @@ export default async function KeycapsPage() {
         </div>
       }
     >
-      <KeycapsContent banners={banners} totalCount={totalCount} />
+      <KeycapsContent />
     </Suspense>
   );
 }

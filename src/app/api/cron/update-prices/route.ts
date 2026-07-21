@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getScraper } from '@/lib/scraper';
+import { availabilityToLegacy } from '@/lib/utils';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 100;
@@ -164,15 +165,4 @@ export async function GET(request: Request) {
     processed: vendorProducts.length,
     ...results,
   });
-}
-
-function availabilityToLegacy(a: string): string {
-  const map: Record<string, string> = {
-    IN_STOCK: 'in_stock',
-    PREORDER: 'preorder',
-    GROUP_BUY: 'group_buy',
-    COMING_SOON: 'coming_soon',
-    OUT_OF_STOCK: 'out_of_stock',
-  };
-  return map[a] || 'in_stock';
 }

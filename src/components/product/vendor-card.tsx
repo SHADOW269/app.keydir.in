@@ -1,29 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { formatPrice, timeAgo } from '@/lib/utils';
+import { formatPrice, timeAgo, toNum } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
 import type { VendorProductWithVendor } from '@/types';
-
-function toNum(v: unknown): number {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') return parseFloat(v);
-  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
-  return 0;
-}
-
-const STOCK_MAP: Record<string, { label: string; cls: string; icon: string }> = {
-  in_stock: { label: 'In Stock', cls: 'b-green', icon: '✓' },
-  IN_STOCK: { label: 'In Stock', cls: 'b-green', icon: '✓' },
-  preorder: { label: 'Pre-order', cls: 'b-yellow', icon: '◷' },
-  PREORDER: { label: 'Pre-order', cls: 'b-yellow', icon: '◷' },
-  group_buy: { label: 'Group Buy', cls: 'b-blue', icon: '◎' },
-  GROUP_BUY: { label: 'Group Buy', cls: 'b-blue', icon: '◎' },
-  coming_soon: { label: 'Coming Soon', cls: 'b-orange', icon: '⏳' },
-  COMING_SOON: { label: 'Coming Soon', cls: 'b-orange', icon: '⏳' },
-  out_of_stock: { label: 'Out of Stock', cls: 'b-red', icon: '✕' },
-  OUT_OF_STOCK: { label: 'Out of Stock', cls: 'b-red', icon: '✕' },
-};
+import { AVAILABILITY_MAP } from '@/lib/constants';
 
 interface VendorCardProps {
   vendorProduct: VendorProductWithVendor;
@@ -32,7 +13,7 @@ interface VendorCardProps {
 
 export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardProps) {
   const [showAllCoupons, setShowAllCoupons] = useState(false);
-  const stock = STOCK_MAP[vp.availability || vp.stockStatus] ?? STOCK_MAP.in_stock;
+  const stock = AVAILABILITY_MAP[vp.availability || vp.stockStatus] ?? AVAILABILITY_MAP.in_stock;
   const link = vp.vendor.affiliateLink || vp.vendorUrl;
   const shipping = vp.shippingIncluded
     ? 'Shipping Included'
@@ -69,9 +50,9 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
       </div>
       <div className="vendor-card-row">
         <span className="vendor-card-shipping">{shipping}</span>
-        <span className={`badge ${stock.cls}`}>
-          {stock.icon} {stock.label}
-        </span>
+          <span className={`badge ${stock.class}`}>
+            {stock.icon} {stock.label}
+          </span>
       </div>
 
       {/* Coupons */}
@@ -119,7 +100,7 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
         <div className="vendor-card-variants">
           <div className="vendor-card-variants-header">Variants ({variants.length})</div>
           {variants.map((v) => {
-            const vStock = STOCK_MAP[v.stockStatus] ?? STOCK_MAP.in_stock;
+            const vStock = AVAILABILITY_MAP[v.stockStatus] ?? AVAILABILITY_MAP.in_stock;
             const vLink = v.variantUrl || link;
             return (
               <div key={v.id} className="vendor-card-variant">
@@ -132,7 +113,7 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
                 </div>
                 <div className="vendor-card-variant-right">
                   <span className="vendor-card-variant-price">{formatPrice(toNum(v.price))}</span>
-                  <span className={`badge badge-sm ${vStock.cls}`}>{vStock.label}</span>
+                  <span className={`badge badge-sm ${vStock.class}`}>{vStock.label}</span>
                   <a href={vLink} target="_blank" rel="noopener noreferrer" className="btn-primary btn-xs">BUY</a>
                 </div>
               </div>

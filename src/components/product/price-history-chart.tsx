@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo } from 'react';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, toNum } from '@/lib/utils';
 
 interface PricePoint {
   price: number;
@@ -39,13 +39,6 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
-}
-
-function toNum(v: unknown): number {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') return parseFloat(v);
-  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
-  return 0;
 }
 
 function formatDate(d: Date): string {

@@ -1,13 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
-
-function getBadge(upvotes: number, approval: number | null) {
-  if (approval === null || upvotes < 10) return null;
-  if (approval > 90 && upvotes >= 100) return { label: 'HIGHLY RECOMMENDED', cls: 'b-green' };
-  if (approval > 80) return { label: 'COMMUNITY FAVORITE', cls: 'b-blue' };
-  return null;
-}
+import { computeVoteStats, getCommunityBadge } from '@/lib/vote-utils';
 
 export async function HomeProductSection() {
   const allProducts = await prisma.product.findMany({
@@ -18,11 +12,8 @@ export async function HomeProductSection() {
   });
 
   const ranked = allProducts.map((p) => {
-    const upvotes = p.votes.filter((v) => v.type === 'upvote').length;
-    const downvotes = p.votes.filter((v) => v.type === 'downvote').length;
-    const total = upvotes + downvotes;
-    const approval = total >= 10 ? Math.round((upvotes / total) * 100) : null;
-    return { ...p, upvotes, downvotes, total, approval };
+    const stats = computeVoteStats(p.votes);
+    return { ...p, ...stats };
   }).filter((p) => p.total >= 5);
 
   const trending = [...ranked]
@@ -69,7 +60,7 @@ export async function HomeProductSection() {
                     )}
                   </div>
                   {(() => {
-                    const badge = getBadge(p.upvotes, p.approval);
+                    const badge = getCommunityBadge(p.upvotes, p.approval);
                     if (!badge) return null;
                     return (
                       <span className={`badge ${badge.cls}`} style={{ marginTop: '10px', display: 'inline-block' }}>

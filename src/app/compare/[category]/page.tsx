@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/profile/actions';
 import { CompareClient } from '../compare-client';
 import { CompareLayout } from '@/components/compare/compare-layout';
 import { CATEGORIES } from '../compare-config';
+import { toNum } from '@/lib/utils';
+import { computeVoteStats } from '@/lib/vote-utils';
 
 interface Props {
   params: Promise<{ category: string }>;
@@ -11,13 +13,6 @@ interface Props {
 }
 
 export const dynamic = 'force-dynamic';
-
-function priceNum(v: unknown): number {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') return parseFloat(v);
-  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
-  return 0;
-}
 
 function serializeSpec(spec: Record<string, unknown>): Record<string, unknown> {
   const exclude = new Set(['id', 'productId']);
@@ -103,12 +98,12 @@ export default async function CompareCategoryPage({ params, searchParams }: Prop
       : null,
     vendorProducts: p.vendorProducts.map((vp) => ({
       id: vp.id,
-      totalPrice: priceNum(vp.totalPrice),
-      shippingCost: priceNum(vp.shippingCost),
+      totalPrice: toNum(vp.totalPrice),
+      shippingCost: toNum(vp.shippingCost),
       vendor: { name: vp.vendor.name, chartColor: vp.vendor.chartColor },
     })),
-    upvotes: p.votes.filter((v) => v.type === 'upvote').length,
-    downvotes: p.votes.filter((v) => v.type === 'downvote').length,
+    upvotes: computeVoteStats(p.votes).upvotes,
+    downvotes: computeVoteStats(p.votes).downvotes,
     userVote: userVotes[p.id] || null,
     inCollection: userCollections.has(p.id),
   }));

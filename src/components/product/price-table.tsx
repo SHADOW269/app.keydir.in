@@ -1,32 +1,13 @@
 'use client';
 
-import { formatPrice, timeAgo } from '@/lib/utils';
+import { formatPrice, timeAgo, toNum } from '@/lib/utils';
 import type { VendorProductWithVendor } from '@/types';
 import { ExternalLink } from 'lucide-react';
-
-function toNum(v: unknown): number {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') return parseFloat(v);
-  if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
-  return 0;
-}
+import { AVAILABILITY_MAP } from '@/lib/constants';
 
 interface PriceTableProps {
   vendorProducts: VendorProductWithVendor[];
 }
-
-const AVAILABILITY_LABELS: Record<string, { label: string; class: string }> = {
-  IN_STOCK: { label: 'In Stock', class: 'b-green' },
-  PREORDER: { label: 'Preorder', class: 'b-yellow' },
-  GROUP_BUY: { label: 'Group Buy', class: 'b-blue' },
-  COMING_SOON: { label: 'Coming Soon', class: 'b-orange' },
-  OUT_OF_STOCK: { label: 'Out of Stock', class: 'b-red' },
-  in_stock: { label: 'In Stock', class: 'b-green' },
-  preorder: { label: 'Preorder', class: 'b-yellow' },
-  group_buy: { label: 'Group Buy', class: 'b-blue' },
-  coming_soon: { label: 'Coming Soon', class: 'b-orange' },
-  out_of_stock: { label: 'Out of Stock', class: 'b-red' },
-};
 
 export function PriceTable({ vendorProducts }: PriceTableProps) {
   const sorted = [...vendorProducts].sort(
@@ -53,7 +34,7 @@ export function PriceTable({ vendorProducts }: PriceTableProps) {
           {sorted.map((vp) => {
             const isLowest = vp.id === lowestId;
             const statusKey = vp.availability || vp.stockStatus;
-            const stock = AVAILABILITY_LABELS[statusKey] ?? AVAILABILITY_LABELS.IN_STOCK;
+            const stock = AVAILABILITY_MAP[statusKey] ?? AVAILABILITY_MAP.IN_STOCK;
             const link = vp.vendor.affiliateLink || vp.vendorUrl;
 
             return (

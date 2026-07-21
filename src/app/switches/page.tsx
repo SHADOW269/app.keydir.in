@@ -1,16 +1,9 @@
 import { Suspense } from 'react';
-import { prisma } from '@/lib/prisma';
 import SwitchesContent from './content';
-import { getBannersForLocation } from '@/lib/admin/banner-actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SwitchesPage() {
-  const [banners, totalCount] = await Promise.all([
-    getBannersForLocation('switches'),
-    prisma.product.count({ where: { productType: 'switches' } }),
-  ]);
-
+export default function SwitchesPage() {
   return (
     <Suspense
       fallback={
@@ -32,7 +25,7 @@ export default async function SwitchesPage() {
         </div>
       }
     >
-      <SwitchesContent banners={banners} totalCount={totalCount} />
+      <SwitchesContent />
     </Suspense>
   );
 }

@@ -10,6 +10,7 @@ import {
   suspendUser,
   banUser,
 } from '@/lib/reputation/actions';
+import type { ContributionType } from '@prisma/client';
 
 interface ContributionItem {
   id: string;
@@ -145,7 +146,7 @@ export function AdminUserActions({
       const description = [contribDesc, contribRef ? `Ref: ${contribRef}` : ''].filter(Boolean).join('\n');
       const res = await adminDirectContribution({
         profileId,
-        type: contribType as any,
+        type: contribType as ContributionType,
         title: contribTitle,
         description: description || undefined,
         xpAwarded: parseInt(contribXp) || 0,
@@ -203,7 +204,7 @@ export function AdminUserActions({
       if (hasContribution) {
         const description = [contribDesc, contribRef ? `Ref: ${contribRef}` : ''].filter(Boolean).join('\n');
         const r = await adminDirectContribution({
-          profileId, type: contribType as any, title: contribTitle,
+          profileId, type: contribType as ContributionType, title: contribTitle,
           description: description || undefined, xpAwarded: parseInt(contribXp) || 0,
         });
         if ('error' in r) errors.push(r.error!);

@@ -1,28 +1,8 @@
-export type VoteType = 'upvote' | 'downvote';
-
-export type StockStatus = 'in_stock' | 'preorder' | 'group_buy' | 'coming_soon' | 'out_of_stock';
-
 export type Availability = 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK';
 
 export type ScrapeStatus = 'SUCCESS' | 'FAILED' | 'PENDING' | 'MANUAL_OVERRIDE' | 'NEEDS_REVIEW';
 
-export type PriceSource = 'SCRAPER' | 'MANUAL';
-
-export type SwitchType = 'linear' | 'tactile' | 'clicky' | 'silent_linear' | 'silent_tactile' | 'silent_clicky' | 'magnetic' | 'optical' | 'low_profile';
-
 export type SortOption = 'lowest' | 'highest' | 'newest' | 'popular' | 'vendors' | 'drops';
-
-export interface ProductWithRelations {
-  id: string;
-  name: string;
-  slug: string;
-  image: string | null;
-  description: string | null;
-  brand: { name: string; slug: string } | null;
-  productType: string;
-  vendorProducts: VendorProductWithVendor[];
-  votes: { type: string }[];
-}
 
 export interface VendorProductWithVendor {
   id: string;

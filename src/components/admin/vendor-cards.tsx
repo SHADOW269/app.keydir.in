@@ -2,60 +2,9 @@
 
 import { useState, useTransition, forwardRef, useImperativeHandle } from 'react';
 import { deleteVendorProduct, checkVendorProduct, scrapeVendorProduct, updateVendorStatus, clearManualOverride } from '@/lib/admin/actions';
+import type { ExistingVendorProduct, ExistingVariant, ExistingCoupon, VariantEntry, CouponEntry, VendorEntry } from './vendor-types';
 
 interface VendorOption { id: string; name: string; }
-
-interface ExistingVendorProduct {
-  id: string; vendorId: string; vendorUrl: string; shippingCost: number;
-  affiliateLink: string | null; price: number; stockStatus: string;
-  lastCheckedAt: Date | null; lastChecked?: Date | null;
-  manualUpdatedAt: Date | null; lastManualUpdate?: Date | null;
-  source: string; availability: string; scrapeStatus: string;
-  scrapeError: string | null; lastSuccessfulAt: Date | null;
-  scraperVersion: string | null; lastHttpStatus: number | null;
-  responseTimeMs: number | null; manualOverride: boolean;
-  updatedBy: string | null;
-  shippingIncluded?: boolean;
-  coupons?: ExistingCoupon[];
-  variants?: ExistingVariant[];
-}
-
-interface ExistingVariant {
-  id: string; name: string; color: string[] | null; switches: string[] | null; keycaps: string[] | null;
-  price: number; stockStatus: string; variantUrl: string | null; sku: string | null; isDefault: boolean;
-}
-
-interface ExistingCoupon {
-  id: string; code: string; discountType: string; discountValue: number | null;
-  minimumOrderAmount: number | null; expiryDate: Date | null; couponUrl: string | null;
-  description: string | null; enabled: boolean;
-}
-
-interface VariantEntry {
-  id?: string; name: string; color: string[]; switches: string[]; keycaps: string[];
-  price: number; stockStatus: string; variantUrl: string; sku: string; isDefault: boolean;
-}
-
-interface CouponEntry {
-  id?: string;
-  code: string;
-  discountType: 'percentage' | 'flat' | 'free_shipping';
-  discountValue: number;
-  minimumOrderAmount: number;
-  expiryDate: string;
-  couponUrl: string;
-  description: string;
-  enabled: boolean;
-  collapsed: boolean;
-}
-
-interface VendorEntry {
-  id?: string; vendorId: string; vendorUrl: string; shippingCost: number;
-  affiliateLink: string; price: number; stockStatus: string;
-  shippingIncluded: boolean;
-  coupons: CouponEntry[];
-  variants: VariantEntry[];
-}
 
 export interface VendorCardsHandle {
   getEntries: () => VendorEntry[];

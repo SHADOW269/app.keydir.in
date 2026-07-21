@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { clamp } from '@/lib/utils';
 
 interface FilterOptions {
   priceMin: number;
@@ -39,8 +40,6 @@ function pctToVal(pct: number, PRICE_MIN: number, PRICE_MAX: number) {
 function valToPct(val: number, PRICE_MIN: number, PRICE_MAX: number) {
   return ((val - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
 }
-
-function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
 
 export default function FilterPanel({
   filterOptions,

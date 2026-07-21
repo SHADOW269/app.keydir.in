@@ -6,6 +6,8 @@ import { Navbar } from '@/components/layout/navbar';
 import { useRouter } from 'next/navigation';
 import { createProduct, updateProduct, deleteProduct, deleteVendorProduct, createVendorProduct, updateVendorStatus, checkVendorProduct, upsertKeyboardSpec, scrapeVendorProduct, clearManualOverride, upsertVendorVariants } from '@/lib/admin/actions';
 import { getKeyboardSectionProgress } from '@/lib/admin/keyboard-validation';
+import { ChipSelect, Toggle, TagInput, Field } from './form-primitives';
+import type { ExistingVendorProduct, CouponEntry, VendorEntry, VariantEntry } from './vendor-types';
 
 const LAYOUTS = ['40%', '60%', '65%', '75%', 'TKL', 'FRL (F-rowless)', '96%', '1800 Compact', '102-Key', 'Full Size', 'Pad / Macropad'];
 const STYLES = ['Standard', 'Alice', 'Split', 'Ortholinear', 'Low Profile', 'HHKB', 'WKL (Winkeyless)', 'Ergonomic Contoured'];
@@ -71,54 +73,10 @@ interface KeyboardSpecData {
   includedAccessories?: string[] | null; additionalAccessories?: string | null;
   specialFeatures?: string | null;
 }
-interface ExistingVendorProduct {
-  id: string; vendorId: string; vendorUrl: string; shippingCost: number; affiliateLink: string | null;
-  price: number; stockStatus: string; lastChecked: Date | null; lastManualUpdate: Date | null;
-  updatedBy: string | null; source: string;
-  availability?: string; scrapeStatus?: string; scrapeError?: string | null;
-  lastSuccessfulAt?: Date | null; scraperVersion?: string | null;
-  lastHttpStatus?: number | null; responseTimeMs?: number | null;
-  manualOverride?: boolean;
-  shippingIncluded?: boolean;
-  coupons?: ExistingCoupon[];
-  variants?: ExistingVariant[];
-}
-interface ExistingVariant {
-  id: string; name: string; color: string[] | null; switches: string[] | null; keycaps: string[] | null;
-  price: number; stockStatus: string; variantUrl: string | null; sku: string | null; isDefault: boolean;
-}
-interface ExistingCoupon {
-  id: string; code: string; discountType: string; discountValue: number | null;
-  minimumOrderAmount: number | null; expiryDate: Date | null; couponUrl: string | null;
-  description: string | null; enabled: boolean;
-}
 interface Props {
   product?: Product; keyboardSpec?: KeyboardSpecData | null;
   brands: Brand[]; vendors: Vendor[];
   existingVendorProducts?: ExistingVendorProduct[]; fixedProductType?: string;
-}
-interface CouponEntry {
-  id?: string;
-  code: string;
-  discountType: 'percentage' | 'flat' | 'free_shipping';
-  discountValue: number;
-  minimumOrderAmount: number;
-  expiryDate: string;
-  couponUrl: string;
-  description: string;
-  enabled: boolean;
-  collapsed: boolean;
-}
-interface VendorEntry {
-  id?: string; vendorId: string; vendorUrl: string; shippingCost: number; affiliateLink: string;
-  price: number; stockStatus: string;
-  shippingIncluded: boolean;
-  coupons: CouponEntry[];
-  variants: VariantEntry[];
-}
-interface VariantEntry {
-  id?: string; name: string; color: string[]; switches: string[]; keycaps: string[];
-  price: number; stockStatus: string; variantUrl: string; sku: string; isDefault: boolean;
 }
 
 const SECTION_META: Record<string, { icon: string; label: string; subtitle: string }> = {
@@ -136,75 +94,6 @@ const SECTION_META: Record<string, { icon: string; label: string; subtitle: stri
 };
 
 const SECTION_IDS = Object.keys(SECTION_META);
-
-function ChipSelect({ options, value, onChange, name }: { options: string[]; value: string[]; onChange: (v: string[]) => void; name: string }) {
-  const toggle = (opt: string) => onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
-  return (
-    <div className="kb-chip-grid">
-      <input type="hidden" name={name} value={JSON.stringify(value)} />
-      {options.map((opt) => (
-        <button key={opt} type="button" className={`kb-chip ${value.includes(opt) ? 'active' : ''}`} onClick={() => toggle(opt)}>
-          <span className="kb-chip-check">{value.includes(opt) ? '☑' : '☐'}</span>
-          {opt}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ label, name, checked, onChange }: { label: string; name: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="kb-toggle-row">
-      <span className="kb-toggle-label">{label}</span>
-      <input type="hidden" name={name} value={checked ? 'true' : 'false'} />
-      <div className="kb-toggle-right">
-        <span className={`kb-toggle-status ${checked ? 'on' : ''}`}>{checked ? 'Yes' : 'No'}</span>
-        <button type="button" className={`kb-switch ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)} aria-label={label}>
-          <span className="kb-switch-thumb" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TagInput({ label, value, onChange, placeholder }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
-  const [input, setInput] = useState('');
-  const add = () => {
-    const trimmed = input.trim();
-    if (trimmed && !value.includes(trimmed)) { onChange([...value, trimmed]); setInput(''); }
-  };
-  return (
-    <div className="kb-tag-input-wrap">
-      <label className="kb-field-label">{label}</label>
-      <div className="kb-tag-chips">
-        {value.map((tag) => (
-          <span key={tag} className="kb-tag-chip">
-            {tag}
-            <button type="button" className="kb-tag-remove" onClick={() => onChange(value.filter((t) => t !== tag))}>×</button>
-          </span>
-        ))}
-        <input
-          type="text"
-          className="kb-tag-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } }}
-          onBlur={add}
-          placeholder={placeholder || `+ Add ${label}`}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className={`kb-field ${wide ? 'full-width' : ''}`}>
-      <label className="kb-field-label">{label}</label>
-      {children}
-    </div>
-  );
-}
 
 export function KeyboardForm({
   product, keyboardSpec, brands, vendors,

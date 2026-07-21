@@ -6,8 +6,6 @@ import { prisma } from '@/lib/prisma';
 
 const LOCATIONS = ['home', 'keyboards', 'switches', 'keycaps', 'mouse', 'vendors', 'builders', 'brands', 'search', 'guide', 'about'] as const;
 
-type FormDataValue = string | File | null;
-
 function val(formData: FormData, key: string): string {
   return (formData.get(key) as string) || '';
 }

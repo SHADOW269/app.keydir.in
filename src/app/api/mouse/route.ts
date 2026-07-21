@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
+import { computeVoteStats } from '@/lib/vote-utils';
 import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
@@ -155,10 +156,7 @@ export async function GET(request: NextRequest) {
   } catch {}
 
   const result = products.map((p) => {
-    const upvotes = p.votes.filter((v) => v.type === 'upvote').length;
-    const downvotes = p.votes.filter((v) => v.type === 'downvote').length;
-    const totalVotes = upvotes + downvotes;
-    const approval = totalVotes >= 10 ? Math.round((upvotes / totalVotes) * 100) : null;
+    const { upvotes, downvotes, approval } = computeVoteStats(p.votes);
 
     return {
       id: p.id,

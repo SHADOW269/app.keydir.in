@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { CollapsibleCard } from '@/components/admin/collapsible-card';
 import type { ScrapeResult } from '@/lib/scraper/types';
 import { updateVendor, updateVendorScraperConfig, deleteVendor, testVendorScraper } from '@/lib/admin/actions';
+import { timeAgo } from '@/lib/utils';
 
 interface Vendor {
   id: string;
@@ -179,7 +180,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
               <div className="vd-hd-meta">
                 <span className="vd-hd-meta-item">Products: {stats.productCount}</span>
                 <span className="vd-hd-meta-sep">·</span>
-                <span className="vd-hd-meta-item">Last Scrape: {lastLog ? timeAgo(lastLog.createdAt) : '—'}</span>
+                <span className="vd-hd-meta-item">Last Scrape: {lastLog ? timeAgo(new Date(lastLog.createdAt)) : '—'}</span>
                 <span className="vd-hd-meta-sep">·</span>
                 <span className="vd-hd-meta-item" style={{ color: healthColor }}>Success: {stats.successRate !== null ? `${stats.successRate}%` : '—'}</span>
                 <span className="vd-hd-meta-sep">·</span>
@@ -529,7 +530,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                         )}
                         <div className="sch-mon-stats">
                           <span>{priceEnabled ? requestsPerDay(priceSchedule) : 0} req/day</span>
-                          <span>{lastLog ? `Last: ${timeAgo(lastLog.createdAt)}` : 'No runs'}</span>
+                          <span>{lastLog ? `Last: ${timeAgo(new Date(lastLog.createdAt))}` : 'No runs'}</span>
                         </div>
                       </div>
                     </div>
@@ -565,7 +566,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                         )}
                         <div className="sch-mon-stats">
                           <span>{stockEnabled ? requestsPerDay(stockSchedule) : 0} req/day</span>
-                          <span>{lastLog ? `Last: ${timeAgo(lastLog.createdAt)}` : 'No runs'}</span>
+                          <span>{lastLog ? `Last: ${timeAgo(new Date(lastLog.createdAt))}` : 'No runs'}</span>
                         </div>
                       </div>
                     </div>
@@ -904,17 +905,6 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
         )}
       </div>
   );
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
 }
 
 function getLabel(schedule: string): string {

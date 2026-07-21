@@ -9,7 +9,8 @@ import { ProductHeroCommunity } from '@/components/product/product-hero-communit
 import { ProductHeroSpecs } from '@/components/product/product-hero-specs';
 import { ProductSpecs } from '@/components/product/product-specs';
 import { prisma } from '@/lib/prisma';
-import { formatPrice, timeAgo } from '@/lib/utils';
+import { formatPrice, timeAgo, toNum } from '@/lib/utils';
+import { computeVoteStats } from '@/lib/vote-utils';
 import { getCurrentUser } from '@/lib/profile/actions';
 import type { Metadata } from 'next';
 
@@ -106,8 +107,7 @@ export default async function ProductPage({ params }: Props) {
     userVote = (voteItem?.type as 'upvote' | 'downvote') || null;
   }
 
-  const upvotes = product.votes.filter((v) => v.type === 'upvote').length;
-  const downvotes = product.votes.filter((v) => v.type === 'downvote').length;
+  const { upvotes, downvotes } = computeVoteStats(product.votes);
   const lowestPrice = serializedVendorProducts[0]?.effectivePrice ?? null;
   const highestPrice = serializedVendorProducts.length > 1
     ? serializedVendorProducts[serializedVendorProducts.length - 1]?.effectivePrice ?? null
@@ -119,17 +119,10 @@ export default async function ProductPage({ params }: Props) {
     return !latest || newest > latest ? newest : latest;
   }, null);
 
-  function priceNum(v: unknown): number {
-    if (typeof v === 'number') return v;
-    if (typeof v === 'string') return parseFloat(v);
-    if (v && typeof v === 'object' && 'toNumber' in v) return (v as { toNumber(): number }).toNumber();
-    return 0;
-  }
-
   const allHistory = serializedVendorProducts
     .flatMap((vp) =>
       vp.priceHistory.map((ph) => ({
-        price: priceNum(ph.price),
+        price: toNum(ph.price),
         recordedAt: ph.recordedAt,
         vendor: vp.vendor.name,
       }))
@@ -192,11 +185,11 @@ export default async function ProductPage({ params }: Props) {
                   <div className="product-hero-price-block">
                     <span className="product-hero-price-label">PRICE</span>
                     <div className="product-hero-price-row">
-                      <span className="product-hero-price">{formatPrice(priceNum(lowestPrice))}</span>
+                      <span className="product-hero-price">{formatPrice(toNum(lowestPrice))}</span>
                       {highestPrice && highestPrice !== lowestPrice && (
                         <>
                           <span className="product-hero-price-range-sep">→</span>
-                          <span className="product-hero-price-alt">{formatPrice(priceNum(highestPrice))}</span>
+                          <span className="product-hero-price-alt">{formatPrice(toNum(highestPrice))}</span>
                         </>
                       )}
                     </div>
@@ -250,11 +243,11 @@ export default async function ProductPage({ params }: Props) {
             <div className="product-stat-label">Price Range</div>
             {lowestPrice ? (
               <div className="product-stat-price-row">
-                <span className="product-stat-big">{formatPrice(priceNum(lowestPrice))}</span>
+                <span className="product-stat-big">{formatPrice(toNum(lowestPrice))}</span>
                 {highestPrice && highestPrice !== lowestPrice && (
                   <>
                     <span className="product-stat-arrow">→</span>
-                    <span className="product-stat-big alt">{formatPrice(priceNum(highestPrice))}</span>
+                    <span className="product-stat-big alt">{formatPrice(toNum(highestPrice))}</span>
                   </>
                 )}
               </div>

@@ -2,18 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { getScraper } from '@/lib/scraper';
-import { computeEffectivePrice } from '@/lib/utils';
-
-// ═══ SHARED SCRAPE HELPER ═══
-
-async function recomputeEffectivePrice(vendorProductId: string) {
-  const vp = await prisma.vendorProduct.findUnique({ where: { id: vendorProductId }, select: { totalPrice: true } });
-  if (!vp) return;
-  const coupons = await prisma.vendorProductCoupon.findMany({ where: { vendorProductId }, select: { discountType: true, discountValue: true, enabled: true } });
-  const effectivePrice = computeEffectivePrice(Number(vp.totalPrice), coupons);
-  await prisma.vendorProduct.update({ where: { id: vendorProductId }, data: { effectivePrice, bestFinalPrice: effectivePrice } });
-}
+import { getScraper, testScraper } from '@/lib/scraper';
+import { recomputeEffectivePrice } from '@/lib/recompute-price';
+import { availabilityToLegacy } from '@/lib/utils';
 
 async function scrapeOneProduct(vpId: string): Promise<{ ok: boolean; error?: string }> {
   const vp = await prisma.vendorProduct.findUnique({
@@ -400,4 +391,162 @@ export async function getActivityFeed(): Promise<ActivityEntry[]> {
 
     return { id: log.id, icon, text, time, color };
   });
+}
+
+// ═══ PER-PRODUCT SCRAPER ACTIONS ═══
+
+export async function scrapeVendorProduct(vendorProductId: string) {
+  const vp = await prisma.vendorProduct.findUnique({
+    where: { id: vendorProductId },
+    select: {
+      vendorUrl: true, price: true, availability: true,
+      shippingCost: true, shippingIncluded: true,
+      vendor: { select: { id: true, slug: true, scraperEnabled: true } },
+    },
+  });
+  if (!vp) return { error: 'Vendor product not found' };
+  if (!vp.vendor.scraperEnabled) return { error: `Scraper not enabled for ${vp.vendor.slug}` };
+
+  const entry = await getScraper(vp.vendor.slug);
+  if (!entry) return { error: `No scraper configured for ${vp.vendor.slug}` };
+
+  try {
+    const result = await entry.scraper(vp.vendorUrl);
+
+    await prisma.scrapeLog.create({
+      data: {
+        vendorId: vp.vendor.id,
+        vendorProductId,
+        status: result.success ? 'SUCCESS' : 'FAILED',
+        httpStatus: result.httpStatus ?? null,
+        responseTimeMs: result.responseTimeMs ?? null,
+        error: result.error ?? null,
+        price: result.price ?? null,
+        availability: result.availability ?? null,
+        selectorVersion: entry.version,
+      },
+    });
+
+    if (!result.success || result.price == null) {
+      await prisma.vendorProduct.update({
+        where: { id: vendorProductId },
+        data: {
+          scrapeStatus: 'FAILED',
+          scrapeError: result.error || 'Unknown error',
+          lastCheckedAt: new Date(),
+          lastHttpStatus: result.httpStatus ?? null,
+          responseTimeMs: result.responseTimeMs ?? null,
+        },
+      });
+      return { ok: false, message: result.error || 'Scrape failed' };
+    }
+
+    const newAvailability = result.availability || 'IN_STOCK';
+    const newTotalPrice = vp.shippingIncluded ? result.price : result.price + vp.shippingCost;
+
+    await prisma.vendorProduct.update({
+      where: { id: vendorProductId },
+      data: {
+        price: result.price,
+        availability: newAvailability,
+        totalPrice: newTotalPrice,
+        stockStatus: availabilityToLegacy(newAvailability),
+        scrapeStatus: 'SUCCESS',
+        scrapeError: null,
+        lastCheckedAt: new Date(),
+        lastSuccessfulAt: new Date(),
+        lastScrapedPrice: result.price,
+        lastScrapedAvailability: newAvailability,
+        scraperVersion: entry.version,
+        lastHttpStatus: result.httpStatus ?? null,
+        responseTimeMs: result.responseTimeMs ?? null,
+        source: 'scraper',
+      },
+    });
+
+    await recomputeEffectivePrice(vendorProductId);
+
+    await prisma.priceHistory.create({
+      data: {
+        vendorProductId,
+        price: result.price,
+        availability: newAvailability,
+        shippingCost: vp.shippingCost,
+        totalPrice: newTotalPrice,
+        source: 'SCRAPER',
+        stockStatus: availabilityToLegacy(newAvailability),
+      },
+    });
+
+    return { ok: true, price: result.price, availability: newAvailability };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : 'Unknown error' };
+  }
+}
+
+export async function approveScrapeReview(vendorProductId: string) {
+  const vp = await prisma.vendorProduct.findUnique({
+    where: { id: vendorProductId },
+    select: { lastScrapedPrice: true, lastScrapedAvailability: true, shippingCost: true, shippingIncluded: true },
+  });
+  if (!vp) return { error: 'Vendor product not found' };
+  if (vp.lastScrapedPrice == null) return { error: 'No scraped price to approve' };
+
+  const newTotalPrice = vp.shippingIncluded ? vp.lastScrapedPrice : vp.lastScrapedPrice + vp.shippingCost;
+  const newAvailability = vp.lastScrapedAvailability || 'IN_STOCK';
+
+  await prisma.vendorProduct.update({
+    where: { id: vendorProductId },
+    data: {
+      price: vp.lastScrapedPrice,
+      availability: newAvailability,
+      totalPrice: newTotalPrice,
+      stockStatus: availabilityToLegacy(newAvailability),
+      scrapeStatus: 'SUCCESS',
+      scrapeError: null,
+      lastSuccessfulAt: new Date(),
+      source: 'scraper',
+    },
+  });
+
+  await recomputeEffectivePrice(vendorProductId);
+
+  await prisma.priceHistory.create({
+    data: {
+      vendorProductId,
+      price: vp.lastScrapedPrice,
+      availability: newAvailability,
+      shippingCost: vp.shippingCost,
+      totalPrice: newTotalPrice,
+      source: 'SCRAPER',
+      stockStatus: availabilityToLegacy(newAvailability),
+    },
+  });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/admin/scraper');
+  return { ok: true };
+}
+
+export async function clearManualOverride(vendorProductId: string) {
+  await prisma.vendorProduct.update({
+    where: { id: vendorProductId },
+    data: {
+      manualOverride: false,
+      manualUpdatedAt: null,
+      manualUpdatedById: null,
+      scrapeStatus: 'PENDING',
+    },
+  });
+  revalidatePath('/admin/products');
+  return { ok: true };
+}
+
+export async function testVendorScraper(vendorId: string, testUrl: string) {
+  try {
+    const result = await testScraper(vendorId, testUrl);
+    return result;
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
+  }
 }

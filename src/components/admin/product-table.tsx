@@ -5,7 +5,7 @@ interface ProductRow {
   id: string;
   name: string;
   brand: { name: string } | null;
-  vendorProducts: { totalPrice: any }[];
+  vendorProducts: { totalPrice: number }[];
   _count: { vendorProducts: number; votes: number };
 }
 

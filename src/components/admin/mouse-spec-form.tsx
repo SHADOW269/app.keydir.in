@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { CollapsibleCard } from './collapsible-card';
+import { ChipSelect, Toggle, Field } from './form-primitives';
 
 const CONNECTION = ['Wired', 'Wireless 2.4GHz', 'Bluetooth', 'Tri-Mode'];
 const SENSORS = ['PixArt PAW3395', 'PAW3950', 'PAW3370', 'PAW3311', 'HERO 25K', 'HERO 2', 'Focus Pro 30K', 'Focus Pro 35K', 'Other'];
@@ -55,45 +56,6 @@ interface MouseSpecData {
 interface Props {
   spec?: MouseSpecData | null;
   onChange?: () => void;
-}
-
-function ChipSelect({ options, value, onChange, name }: { options: string[]; value: string[]; onChange: (v: string[]) => void; name: string }) {
-  const toggle = (opt: string) => onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
-  return (
-    <div className="kb-chip-grid">
-      <input type="hidden" name={name} value={JSON.stringify(value)} />
-      {options.map((opt) => (
-        <button key={opt} type="button" className={`kb-chip ${value.includes(opt) ? 'active' : ''}`} onClick={() => toggle(opt)}>
-          <span className="kb-chip-check">{value.includes(opt) ? '☑' : '☐'}</span>
-          {opt}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ label, name, checked, onChange }: { label: string; name: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="kb-toggle-row">
-      <span className="kb-toggle-label">{label}</span>
-      <input type="hidden" name={name} value={checked ? 'true' : 'false'} />
-      <div className="kb-toggle-right">
-        <span className={`kb-toggle-status ${checked ? 'on' : ''}`}>{checked ? 'Yes' : 'No'}</span>
-        <button type="button" className={`kb-switch ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)} aria-label={label}>
-          <span className="kb-switch-thumb" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className={`kb-field ${wide ? 'full-width' : ''}`}>
-      <label className="kb-field-label">{label}</label>
-      {children}
-    </div>
-  );
 }
 
 export function MouseSpecForm({ spec, onChange }: Props) {
