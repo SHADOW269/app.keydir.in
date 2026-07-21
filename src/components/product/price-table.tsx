@@ -30,7 +30,7 @@ const AVAILABILITY_LABELS: Record<string, { label: string; class: string }> = {
 
 export function PriceTable({ vendorProducts }: PriceTableProps) {
   const sorted = [...vendorProducts].sort(
-    (a, b) => toNum(a.totalPrice) - toNum(b.totalPrice)
+    (a, b) => toNum(a.effectivePrice) - toNum(b.effectivePrice)
   );
 
   const lowestId = sorted[0]?.id;
@@ -70,9 +70,17 @@ export function PriceTable({ vendorProducts }: PriceTableProps) {
                       : 'Free'}
                 </td>
                 <td className="font-bold">
-                  {formatPrice(toNum(vp.totalPrice))}
+                  {toNum(vp.effectivePrice) < toNum(vp.totalPrice) && (
+                    <span style={{ fontSize: '.7rem', color: 'var(--text-dim)', textDecoration: 'line-through', textDecorationColor: 'var(--red)', marginRight: '6px' }}>
+                      {formatPrice(toNum(vp.totalPrice))}
+                    </span>
+                  )}
+                  {formatPrice(toNum(vp.effectivePrice))}
                   {isLowest && (
                     <span className="badge b-green ml-2">LOWEST</span>
+                  )}
+                  {(vp.coupons ?? []).filter((c) => c.enabled).length > 0 && (
+                    <span className="badge b-yellow ml-1" style={{ fontSize: '.55rem', padding: '1px 4px' }}>🏷 COUPON</span>
                   )}
                 </td>
                 <td>

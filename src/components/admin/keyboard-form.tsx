@@ -79,20 +79,41 @@ interface ExistingVendorProduct {
   lastSuccessfulAt?: Date | null; scraperVersion?: string | null;
   lastHttpStatus?: number | null; responseTimeMs?: number | null;
   manualOverride?: boolean;
+  shippingIncluded?: boolean;
+  coupons?: ExistingCoupon[];
   variants?: ExistingVariant[];
 }
 interface ExistingVariant {
   id: string; name: string; color: string[] | null; switches: string[] | null; keycaps: string[] | null;
   price: number; stockStatus: string; variantUrl: string | null; sku: string | null; isDefault: boolean;
 }
+interface ExistingCoupon {
+  id: string; code: string; discountType: string; discountValue: number | null;
+  minimumOrderAmount: number | null; expiryDate: Date | null; couponUrl: string | null;
+  description: string | null; enabled: boolean;
+}
 interface Props {
   product?: Product; keyboardSpec?: KeyboardSpecData | null;
   brands: Brand[]; vendors: Vendor[];
   existingVendorProducts?: ExistingVendorProduct[]; fixedProductType?: string;
 }
+interface CouponEntry {
+  id?: string;
+  code: string;
+  discountType: 'percentage' | 'flat' | 'free_shipping';
+  discountValue: number;
+  minimumOrderAmount: number;
+  expiryDate: string;
+  couponUrl: string;
+  description: string;
+  enabled: boolean;
+  collapsed: boolean;
+}
 interface VendorEntry {
   id?: string; vendorId: string; vendorUrl: string; shippingCost: number; affiliateLink: string;
   price: number; stockStatus: string;
+  shippingIncluded: boolean;
+  coupons: CouponEntry[];
   variants: VariantEntry[];
 }
 interface VariantEntry {
@@ -210,6 +231,13 @@ export function KeyboardForm({
     existingVendorProducts.map((vp) => ({
       id: vp.id, vendorId: vp.vendorId, vendorUrl: vp.vendorUrl, shippingCost: vp.shippingCost,
       affiliateLink: vp.affiliateLink ?? '', price: vp.price, stockStatus: vp.stockStatus,
+      shippingIncluded: vp.shippingCost === 0,
+      coupons: (vp.coupons ?? []).map((c) => ({
+        id: c.id, code: c.code, discountType: c.discountType as CouponEntry['discountType'],
+        discountValue: c.discountValue ?? 0, minimumOrderAmount: c.minimumOrderAmount ?? 0,
+        expiryDate: c.expiryDate ? new Date(c.expiryDate).toISOString().slice(0, 10) : '',
+        couponUrl: c.couponUrl || '', description: c.description || '', enabled: c.enabled, collapsed: true,
+      })),
       variants: (vp.variants ?? []).map((v) => ({
         id: v.id, name: v.name, color: v.color ?? [], switches: v.switches ?? [], keycaps: v.keycaps ?? [],
         price: v.price, stockStatus: v.stockStatus, variantUrl: v.variantUrl ?? '', sku: v.sku ?? '', isDefault: v.isDefault,
@@ -388,8 +416,9 @@ export function KeyboardForm({
         fd.set('vendorId', entry.vendorId); fd.set('productId', productId);
         fd.set('vendorUrl', entry.vendorUrl); fd.set('price', String(entry.price || 0));
         fd.set('shippingCost', String(entry.shippingCost || 0));
-        fd.set('shippingIncluded', entry.shippingCost === 0 ? 'on' : '');
+        fd.set('shippingIncluded', entry.shippingIncluded ? 'on' : '');
         fd.set('stockStatus', entry.stockStatus || 'in_stock'); fd.set('affiliateLink', entry.affiliateLink);
+        fd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed, ...c }) => c)));
         const result = await createVendorProduct(fd);
         if (result && 'id' in result && entry.variants.length > 0) {
           await upsertVendorVariants(result.id as string, entry.variants);
@@ -421,9 +450,33 @@ export function KeyboardForm({
     setUploading(false);
   }
 
-  const addVendorEntry = () => { setVendorEntries((p) => [...p, { vendorId: '', vendorUrl: '', shippingCost: 0, affiliateLink: '', price: 0, stockStatus: 'in_stock', variants: [] }]); markChange(); };
+  const addVendorEntry = () => { setVendorEntries((p) => [...p, { vendorId: '', vendorUrl: '', shippingCost: 0, affiliateLink: '', price: 0, stockStatus: 'in_stock', shippingIncluded: true, coupons: [], variants: [] }]); markChange(); };
   const removeVendorEntry = (idx: number) => { setVendorEntries((p) => p.filter((_, i) => i !== idx)); markChange(); };
-  const updateVendorEntry = (idx: number, field: keyof VendorEntry, value: string | number) => { setVendorEntries((p) => p.map((e, i) => i === idx ? { ...e, [field]: value } : e)); markChange(); };
+  const updateVendorEntry = (idx: number, field: keyof VendorEntry, value: string | number | boolean) => { setVendorEntries((p) => p.map((e, i) => i === idx ? { ...e, [field]: value } : e)); markChange(); };
+
+  const addVendorCoupon = (vendorIdx: number) => {
+    setVendorEntries((p) => p.map((e, i) => i === vendorIdx ? {
+      ...e, coupons: [...e.coupons, { code: '', discountType: 'percentage', discountValue: 0, minimumOrderAmount: 0, expiryDate: '', couponUrl: '', description: '', enabled: true, collapsed: false }],
+    } : e));
+    markChange();
+  };
+  const removeVendorCoupon = (vendorIdx: number, couponIdx: number) => {
+    setVendorEntries((p) => p.map((e, i) => i === vendorIdx ? {
+      ...e, coupons: e.coupons.filter((_, ci) => ci !== couponIdx),
+    } : e));
+    markChange();
+  };
+  const updateVendorCoupon = (vendorIdx: number, couponIdx: number, field: keyof CouponEntry, value: unknown) => {
+    setVendorEntries((p) => p.map((e, i) => i === vendorIdx ? {
+      ...e, coupons: e.coupons.map((c, ci) => ci === couponIdx ? { ...c, [field]: value } : c),
+    } : e));
+    markChange();
+  };
+  const toggleVendorCouponCollapsed = (vendorIdx: number, couponIdx: number) => {
+    setVendorEntries((p) => p.map((e, i) => i === vendorIdx ? {
+      ...e, coupons: e.coupons.map((c, ci) => ci === couponIdx ? { ...c, collapsed: !c.collapsed } : c),
+    } : e));
+  };
 
   const addVariant = (vendorIdx: number) => {
     setVendorEntries((p) => p.map((e, i) => i === vendorIdx ? {
@@ -481,7 +534,8 @@ export function KeyboardForm({
       fd.set('price', String(entry.price || 0));
       fd.set('stockStatus', entry.stockStatus || 'in_stock');
       fd.set('shippingCost', String(entry.shippingCost || 0));
-      fd.set('shippingIncluded', entry.shippingCost === 0 ? 'on' : '');
+      fd.set('shippingIncluded', entry.shippingIncluded ? 'on' : '');
+      fd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed, ...c }) => c)));
       const result = await updateVendorStatus(fd);
       if (result?.error) { setError(result.error); }
       else { window.location.reload(); }
@@ -1150,11 +1204,110 @@ export function KeyboardForm({
                               </div>
                             </div>
                             <div className="kb-vendor-field">
-                              <span className="kb-vendor-field-label">📦 Shipping Cost</span>
-                              <input type="number" className="kb-vendor-input" placeholder="0" step="0.01" value={entry.shippingCost || ''} onChange={(e) => updateVendorEntry(idx, 'shippingCost', parseFloat(e.target.value) || 0)} />
+                              <span className="kb-vendor-field-label">🚚 Shipping Type</span>
+                              <div className="pe-ship-group">
+                                <button type="button" className={`pe-ship-btn ${entry.shippingIncluded ? 'active' : ''}`} onClick={() => { updateVendorEntry(idx, 'shippingIncluded', true); updateVendorEntry(idx, 'shippingCost', 0); }}>
+                                  {entry.shippingIncluded && <span className="pe-ship-check">✓</span>}
+                                  FREE SHIPPING
+                                </button>
+                                <button type="button" className={`pe-ship-btn ${!entry.shippingIncluded ? 'active' : ''}`} onClick={() => updateVendorEntry(idx, 'shippingIncluded', false)}>
+                                  {!entry.shippingIncluded && <span className="pe-ship-check">✓</span>}
+                                  PAID SHIPPING
+                                </button>
+                              </div>
+                            </div>
+                            <div className={`pe-ship-cost-wrap ${!entry.shippingIncluded ? 'open' : ''}`}>
+                              <div className="kb-vendor-field">
+                                <span className="kb-vendor-field-label">Shipping Cost</span>
+                                <div className="pe-input-wrap">
+                                  <span className="pe-input-prefix">₹</span>
+                                  <input type="number" className="pe-input pe-input--prefixed kb-vendor-input" placeholder="0" step="1" min="0" required={!entry.shippingIncluded} value={entry.shippingCost || ''} onChange={(e) => updateVendorEntry(idx, 'shippingCost', parseFloat(e.target.value) || 0)} />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
+                      </div>
+
+                      {/* Section: Coupons */}
+                      <div className="kb-vendor-section">
+                        <div className="kb-vendor-section-label">🏷️ Coupons</div>
+                        <div className="pe-coupon-header">
+                          <button type="button" className="pe-coupon-add-btn" onClick={() => addVendorCoupon(idx)}>+ Add Coupon</button>
+                        </div>
+                        {entry.coupons.length === 0 ? (
+                          <div className="pe-coupon-empty">No coupons — click "+ Add Coupon" to create one</div>
+                        ) : (
+                          entry.coupons.map((coupon, cIdx) => (
+                            <div key={cIdx} className={`pe-coupon-card ${coupon.collapsed ? 'collapsed' : ''}`}>
+                              <div className="pe-coupon-card-header" onClick={() => toggleVendorCouponCollapsed(idx, cIdx)}>
+                                <div className="pe-coupon-card-title">
+                                  <span className="pe-coupon-chevron">{coupon.collapsed ? '▸' : '▾'}</span>
+                                  <span className="pe-coupon-card-code">{coupon.code || 'Untitled Coupon'}</span>
+                                  <span className={`pe-coupon-type-badge ${coupon.discountType}`}>
+                                    {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : coupon.discountType === 'flat' ? `₹${coupon.discountValue} OFF` : 'FREE SHIPPING'}
+                                  </span>
+                                  {!coupon.enabled && <span className="pe-coupon-disabled-badge">DISABLED</span>}
+                                </div>
+                                <button type="button" className="pe-coupon-remove-btn" onClick={(e) => { e.stopPropagation(); removeVendorCoupon(idx, cIdx); }}>Remove</button>
+                              </div>
+                              <div className="pe-coupon-card-body">
+                                <div className="pe-row-2">
+                                  <div className="pe-field">
+                                    <label className="pe-label">Coupon Code *</label>
+                                    <input type="text" className="pe-input" placeholder="e.g. SAVE10" value={coupon.code} onChange={(e) => updateVendorCoupon(idx, cIdx, 'code', e.target.value)} />
+                                  </div>
+                                  <div className="pe-field">
+                                    <label className="pe-label">Discount Type</label>
+                                    <div className="pe-avail-group">
+                                      {(['percentage', 'flat', 'free_shipping'] as const).map((opt) => (
+                                        <button key={opt} type="button" className={`pe-avail-btn ${coupon.discountType === opt ? 'active' : ''}`} onClick={() => updateVendorCoupon(idx, cIdx, 'discountType', opt)}>
+                                          {opt === 'percentage' ? '%' : opt === 'flat' ? '₹' : '🚚'} {opt === 'free_shipping' ? 'Free Ship.' : opt === 'percentage' ? 'Percentage' : 'Flat Amount'}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                                {coupon.discountType !== 'free_shipping' && (
+                                  <div className="pe-field pe-field--full">
+                                    <label className="pe-label">Discount Value *</label>
+                                    <div className="pe-input-wrap">
+                                      <span className="pe-input-prefix">{coupon.discountType === 'flat' ? '₹' : '%'}</span>
+                                      <input type="number" className="pe-input pe-input--prefixed" placeholder="0" step="1" min="0" value={coupon.discountValue || ''} onChange={(e) => updateVendorCoupon(idx, cIdx, 'discountValue', parseFloat(e.target.value) || 0)} />
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="pe-row-2">
+                                  <div className="pe-field">
+                                    <label className="pe-label">Minimum Order Amount (optional)</label>
+                                    <div className="pe-input-wrap">
+                                      <span className="pe-input-prefix">₹</span>
+                                      <input type="number" className="pe-input pe-input--prefixed" placeholder="0" step="1" min="0" value={coupon.minimumOrderAmount || ''} onChange={(e) => updateVendorCoupon(idx, cIdx, 'minimumOrderAmount', parseFloat(e.target.value) || 0)} />
+                                    </div>
+                                  </div>
+                                  <div className="pe-field">
+                                    <label className="pe-label">Expiry Date (optional)</label>
+                                    <input type="date" className="pe-input" value={coupon.expiryDate} onChange={(e) => updateVendorCoupon(idx, cIdx, 'expiryDate', e.target.value)} />
+                                  </div>
+                                </div>
+                                <div className="pe-field pe-field--full">
+                                  <label className="pe-label">Coupon URL (optional)</label>
+                                  <input type="url" className="pe-input" placeholder="https://... (link to promotion)" value={coupon.couponUrl} onChange={(e) => updateVendorCoupon(idx, cIdx, 'couponUrl', e.target.value)} />
+                                </div>
+                                <div className="pe-field pe-field--full">
+                                  <label className="pe-label">Description / Notes (optional)</label>
+                                  <input type="text" className="pe-input" placeholder="e.g. 10% off on orders above ₹999" value={coupon.description} onChange={(e) => updateVendorCoupon(idx, cIdx, 'description', e.target.value)} />
+                                </div>
+                                <div className="pe-coupon-enabled-row">
+                                  <span className="pe-coupon-enabled-label">Enabled</span>
+                                  <button type="button" className={`pe-coupon-toggle ${coupon.enabled ? 'on' : ''}`} onClick={() => updateVendorCoupon(idx, cIdx, 'enabled', !coupon.enabled)}>
+                                    <span className="pe-coupon-toggle-thumb" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
 
                       {/* Section: Availability */}

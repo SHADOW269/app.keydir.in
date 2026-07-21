@@ -76,6 +76,14 @@ export default async function ProductSlugPage({ params }: Props) {
         availability: true, scrapeStatus: true, scrapeError: true,
         lastSuccessfulAt: true, scraperVersion: true,
         lastHttpStatus: true, responseTimeMs: true, manualOverride: true,
+        coupons: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true, code: true, discountType: true, discountValue: true,
+            minimumOrderAmount: true, expiryDate: true, couponUrl: true,
+            description: true, enabled: true,
+          },
+        },
         variants: {
           orderBy: { createdAt: 'asc' },
           select: {
@@ -90,6 +98,11 @@ export default async function ProductSlugPage({ params }: Props) {
       price: Number(vp.price),
       lastChecked: vp.lastCheckedAt,
       lastManualUpdate: vp.manualUpdatedAt,
+      coupons: vp.coupons.map((c) => ({
+        ...c,
+        discountValue: Number(c.discountValue),
+        minimumOrderAmount: Number(c.minimumOrderAmount),
+      })),
       variants: vp.variants.map((v) => ({
         ...v,
         color: v.color as string[] | null,

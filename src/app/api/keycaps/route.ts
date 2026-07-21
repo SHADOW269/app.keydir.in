@@ -14,6 +14,20 @@ export async function GET(request: NextRequest) {
   const vendors = searchParams.getAll('vendor');
   const take = parseInt(searchParams.get('take') || '50', 10);
 
+  const arraySpecKeys = [
+    'keycapProfile', 'keycapLayoutSupport', 'keycapMaterial', 'keycapManufacturing',
+    'keycapLegends', 'keycapLegendPlacement', 'keycapLanguage', 'keycapKeyCount',
+    'keycapStemCompat', 'keycapManufacturer',
+  ] as const;
+
+  const stringSpecKeys = [
+    'keycapThickness', 'keycapColorway', 'keycapDesigner',
+  ] as const;
+
+  const booleanSpecKeys = [
+    'keycapNovelties', 'keycapSpacebars', 'keycapAccentKeys', 'keycapArtisan',
+  ] as const;
+
   const productWhere: Prisma.ProductWhereInput = {
     productType: 'keycaps',
   };
@@ -27,6 +41,36 @@ export async function GET(request: NextRequest) {
 
   if (brands.length > 0) {
     productWhere.brand = { name: { in: brands } };
+  }
+
+  const specAnd: Prisma.KeycapSpecWhereInput[] = [];
+
+  for (const key of arraySpecKeys) {
+    const values = searchParams.getAll(key);
+    if (values.length > 0) {
+      const orGroup: Prisma.KeycapSpecWhereInput[] = values.map((v) => ({
+        [key]: { path: [], equals: v },
+      }));
+      specAnd.push({ OR: orGroup });
+    }
+  }
+
+  for (const key of stringSpecKeys) {
+    const values = searchParams.getAll(key);
+    if (values.length > 0) {
+      specAnd.push({ [key]: { in: values } });
+    }
+  }
+
+  for (const key of booleanSpecKeys) {
+    const val = searchParams.get(key);
+    if (val === 'true' || val === 'false') {
+      specAnd.push({ [key]: val === 'true' });
+    }
+  }
+
+  if (specAnd.length > 0) {
+    productWhere.keycapSpec = { AND: specAnd };
   }
 
   const vpConditions: Prisma.VendorProductWhereInput[] = [];
@@ -79,8 +123,8 @@ export async function GET(request: NextRequest) {
       include: {
         brand: { select: { name: true } },
         vendorProducts: {
-          select: { totalPrice: true },
-          orderBy: { totalPrice: 'asc' },
+          select: { totalPrice: true, effectivePrice: true, _count: { select: { coupons: { where: { enabled: true } } } } },
+          orderBy: { effectivePrice: 'asc' },
           take: 1,
         },
         votes: { select: { type: true } },
@@ -102,8 +146,9 @@ export async function GET(request: NextRequest) {
       slug: p.slug,
       image: p.image,
       brand: p.brand,
-      lowestPrice: p.vendorProducts[0]?.totalPrice ?? null,
-      highestPrice: p.vendorProducts[0]?.totalPrice ?? null,
+      lowestPrice: p.vendorProducts[0]?.effectivePrice ?? null,
+      originalPrice: p.vendorProducts[0]?.totalPrice ?? null,
+      hasCoupons: (p.vendorProducts[0]?._count?.coupons ?? 0) > 0,
       vendorCount: p._count.vendorProducts,
       upvotes,
       downvotes,

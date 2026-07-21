@@ -12,5 +12,10 @@ export default async function EditBannerPage({ params }: { params: Promise<{ id:
   });
   if (!banner) notFound();
 
-  return <BannerForm banner={banner} />;
+  return (
+    <BannerForm
+      banner={banner}
+      stats={{ clicks: banner.totalClicks, views: banner.totalViews, updatedAt: banner.updatedAt }}
+    />
+  );
 }

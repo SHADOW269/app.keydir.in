@@ -8,8 +8,8 @@ export async function LowestPrices() {
     include: {
       brand: { select: { name: true } },
       vendorProducts: {
-        select: { totalPrice: true },
-        orderBy: { totalPrice: 'asc' },
+        select: { totalPrice: true, effectivePrice: true, _count: { select: { coupons: { where: { enabled: true } } } } },
+        orderBy: { effectivePrice: 'asc' },
         take: 1,
       },
       votes: { select: { type: true } },
@@ -32,8 +32,9 @@ export async function LowestPrices() {
       image: p.image,
       brand: p.brand,
       productType: p.productType,
-      lowestPrice: p.vendorProducts[0]?.totalPrice ?? null,
-      highestPrice: p.vendorProducts[0]?.totalPrice ?? null,
+      lowestPrice: p.vendorProducts[0]?.effectivePrice ?? null,
+      originalPrice: p.vendorProducts[0]?.totalPrice ?? null,
+      hasCoupons: (p.vendorProducts[0]?._count?.coupons ?? 0) > 0,
       vendorCount: p._count.vendorProducts,
       upvotes,
       downvotes,

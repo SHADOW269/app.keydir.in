@@ -61,9 +61,17 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     orderBy: { createdAt: 'desc' },
   });
 
+  const contributions = await prisma.contribution.findMany({
+    where: { profileId: profile.id, status: 'APPROVED' },
+    orderBy: { createdAt: 'desc' },
+    include: { approvedBy: { select: { username: true } } },
+  });
+
   const stats = await getProfileStats(profile.username);
   const xp = stats?.xp || 0;
   const rank = stats?.rank || 'Newbie';
+  const communityBadge = stats?.badges?.find((ub) => ub.badge.type === 'community');
+  const communityRole = communityBadge?.badge.name || 'Member';
 
   return (
     <>
@@ -204,7 +212,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             memberSince={profile.createdAt.getFullYear()}
             rank={rank}
             reputation={xp}
+            communityRole={communityRole}
             profile={JSON.parse(JSON.stringify(profile))}
+            contributions={JSON.parse(JSON.stringify(contributions))}
           />
         </div>
       </div>

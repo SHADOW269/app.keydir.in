@@ -129,6 +129,20 @@ export async function duplicateBanner(id: string) {
   revalidatePath('/admin/banners');
 }
 
+export async function trackBannerView(id: string) {
+  await prisma.banner.update({
+    where: { id },
+    data: { totalViews: { increment: 1 } },
+  });
+}
+
+export async function trackBannerClick(id: string) {
+  await prisma.banner.update({
+    where: { id },
+    data: { totalClicks: { increment: 1 } },
+  });
+}
+
 export async function getBannersForLocation(location: string) {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());

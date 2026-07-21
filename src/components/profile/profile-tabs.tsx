@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { removeFromCollection } from '@/lib/profile/actions';
 import { ProductCard } from '@/components/product/product-card';
+import ContributionCard from '@/components/profile/contribution-card';
 
 interface CollectionItem {
   id: string;
@@ -33,6 +34,17 @@ interface VoteItem {
   createdAt: Date;
 }
 
+interface ContributionItem {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  xpAwarded: number;
+  status: string;
+  createdAt: string;
+  approvedBy: { username: string } | null;
+}
+
 interface ProfileTabsProps {
   activeTab: string;
   profileUsername: string;
@@ -43,6 +55,7 @@ interface ProfileTabsProps {
   memberSince: number;
   rank: string;
   reputation: number;
+  communityRole: string;
   profile: {
     id: string;
     displayName: string | null;
@@ -53,6 +66,7 @@ interface ProfileTabsProps {
     monkeytype: string | null;
     website: string | null;
   };
+  contributions?: ContributionItem[];
 }
 
 const TABS = [
@@ -72,7 +86,9 @@ export function ProfileTabs({
   memberSince,
   rank,
   reputation,
+  communityRole,
   profile,
+  contributions,
 }: ProfileTabsProps) {
   const router = useRouter();
   const [removing, setRemoving] = useState<string | null>(null);
@@ -126,7 +142,7 @@ export function ProfileTabs({
                 </div>
                 <div className="profile-info-row">
                   <span className="profile-info-label">Role</span>
-                  <span className="profile-info-value">Community Member</span>
+                  <span className="profile-info-value">{communityRole}</span>
                 </div>
                 <div className="profile-info-row">
                   <span className="profile-info-label">Rank</span>
@@ -174,7 +190,8 @@ export function ProfileTabs({
                     product={{
                       ...item.product,
                       lowestPrice: null,
-                      highestPrice: null,
+                      originalPrice: null,
+                      hasCoupons: false,
                       vendorCount: 0,
                       upvotes: 0,
                       downvotes: 0,
@@ -195,18 +212,36 @@ export function ProfileTabs({
 
         {/* ═══ CONTRIBUTIONS TAB ═══ */}
         {current === 'contributions' && (
-          <div className="profile-empty">
-            <div className="profile-empty-icon">{'\u2b50'}</div>
-            <p className="profile-empty-text">No contributions yet.</p>
-            <p className="profile-empty-sub">
-              Help improve KeyDir by adding products, updating prices, or editing specs.
-            </p>
-            <div className="profile-empty-links">
-              <Link href="/keyboards">Browse Keyboards</Link>
-              <Link href="/switches">Browse Switches</Link>
-              <Link href="/mouse">Browse Mice</Link>
+          contributions && contributions.length > 0 ? (
+            <div className="card-contribution-list">
+              {contributions.map((c) => (
+                <ContributionCard
+                  key={c.id}
+                  id={c.id}
+                  type={c.type}
+                  title={c.title}
+                  description={c.description}
+                  xpAwarded={c.xpAwarded}
+                  status={c.status}
+                  createdAt={c.createdAt}
+                  approvedBy={c.approvedBy?.username || null}
+                />
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="profile-empty">
+              <div className="profile-empty-icon">{'\u2b50'}</div>
+              <p className="profile-empty-text">No contributions yet.</p>
+              <p className="profile-empty-sub">
+                Help improve KeyDir by adding products, updating prices, or editing specs.
+              </p>
+              <div className="profile-empty-links">
+                <Link href="/keyboards">Browse Keyboards</Link>
+                <Link href="/switches">Browse Switches</Link>
+                <Link href="/mouse">Browse Mice</Link>
+              </div>
+            </div>
+          )
         )}
 
         {/* ═══ ACTIVITY TAB ═══ */}

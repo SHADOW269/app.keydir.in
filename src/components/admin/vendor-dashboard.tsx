@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { Navbar } from '@/components/layout/navbar';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CollapsibleCard } from '@/components/admin/collapsible-card';
 import type { ScrapeResult } from '@/lib/scraper/types';
 import { updateVendor, updateVendorScraperConfig, deleteVendor, testVendorScraper } from '@/lib/admin/actions';
@@ -58,7 +57,7 @@ interface LogEntry {
   createdAt: string;
 }
 
-type Tab = 'vendor' | 'scraper' | 'selectors' | 'scheduler' | 'testing' | 'logs' | 'statistics' | 'security' | 'advanced';
+type Tab = 'vendor' | 'scraper' | 'selectors' | 'scheduler' | 'testing' | 'credentials' | 'advanced';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'vendor', label: 'Vendor', icon: '◆' },
@@ -66,15 +65,15 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'selectors', label: 'Selectors', icon: '◎' },
   { id: 'scheduler', label: 'Scheduler', icon: '◷' },
   { id: 'testing', label: 'Testing', icon: '⚡' },
-  { id: 'logs', label: 'Logs', icon: '≡' },
-  { id: 'statistics', label: 'Statistics', icon: '▦' },
-  { id: 'security', label: 'Security', icon: '█' },
+  { id: 'credentials', label: 'Credentials', icon: '█' },
   { id: 'advanced', label: 'Advanced', icon: '⚙' },
 ];
 
 export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor; stats: Stats; recentLogs: LogEntry[] }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('vendor');
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') || 'vendor') as Tab;
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -85,8 +84,6 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
   const [testUrl, setTestUrl] = useState('');
   const [testResult, setTestResult] = useState<ScrapeResult | null>(null);
   const [testing, setTesting] = useState(false);
-  const [chartColor, setChartColor] = useState(vendor.chartColor ?? '#22C55E');
-
   // Scheduler state
   const [priceEnabled, setPriceEnabled] = useState(true);
   const [priceSchedule, setPriceSchedule] = useState('every-12h');
@@ -164,69 +161,42 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
   const lastLog = recentLogs[0];
 
   return (
-    <>
-      <Navbar />
-      <div className="vd-wrap">
-        {/* ═══ STICKY HEADER ═══ */}
-        <div className="vd-header">
-          <div className="vd-header-inner">
-            <div className="vd-header-left">
-              <div className="vd-vendor-identity">
-                {vendor.logo ? (
-                  <img src={vendor.logo} alt={vendor.name} className="vd-logo" />
-                ) : (
-                  <div className="vd-logo-placeholder">{vendor.name.charAt(0)}</div>
-                )}
-                <div className="vd-vendor-meta">
-                  <div className="vd-vendor-name">{vendor.name}</div>
-                  <div className="vd-vendor-url">{vendor.website}</div>
-                </div>
-              </div>
-
-              <div className="vd-header-stats">
-                <div className="vd-stat-item">
-                  <span className="vd-stat-dot" style={{ background: vendor.enabled ? 'var(--green)' : 'var(--red)' }} />
-                  <span className="vd-stat-label">{vendor.enabled ? 'ENABLED' : 'DISABLED'}</span>
-                </div>
-                <div className="vd-stat-divider" />
-                <div className="vd-stat-item">
-                  <span className="vd-stat-value">{stats.productCount}</span>
-                  <span className="vd-stat-label">PRODUCTS</span>
-                </div>
-                <div className="vd-stat-divider" />
-                <div className="vd-stat-item">
-                  <span className="vd-stat-value">{lastLog ? timeAgo(lastLog.createdAt) : '—'}</span>
-                  <span className="vd-stat-label">LAST SCRAPE</span>
-                </div>
-                <div className="vd-stat-divider" />
-                <div className="vd-stat-item">
-                  <span className="vd-stat-value">{stats.avgResponseTime > 0 ? `${stats.avgResponseTime}ms` : '—'}</span>
-                  <span className="vd-stat-label">AVG RUNTIME</span>
-                </div>
-                <div className="vd-stat-divider" />
-                <div className="vd-stat-item">
-                  <span className="vd-stat-value" style={{ color: healthColor }}>{stats.successRate !== null ? `${stats.successRate}%` : '—'}</span>
-                  <span className="vd-stat-label">SUCCESS</span>
-                </div>
-                <div className="vd-stat-divider" />
-                <div className="vd-stat-item">
-                  <span className="vd-stat-value">v{vendor.scraperVersion}</span>
-                  <span className="vd-stat-label">VERSION</span>
-                </div>
+    <div className="vd-wrap">
+        {/* ═══ HEADER ═══ */}
+        <div className="vd-hd">
+          <div className="vd-hd-l">
+            {vendor.logo ? (
+              <img src={vendor.logo} alt={vendor.name} className="vd-logo" />
+            ) : (
+              <div className="vd-logo-placeholder">{vendor.name.charAt(0)}</div>
+            )}
+            <div className="vd-hd-info">
+              <span className="vd-hd-name">{vendor.name}</span>
+              <span className="ce-hd-badge" style={{ borderColor: vendor.enabled ? 'var(--green)' : 'var(--text-muted)', color: vendor.enabled ? 'var(--green)' : 'var(--text-muted)' }}>
+                {vendor.enabled ? 'ENABLED' : 'DISABLED'}
+              </span>
+              <span className="vd-hd-url">{vendor.website}</span>
+              <div className="vd-hd-meta">
+                <span className="vd-hd-meta-item">Products: {stats.productCount}</span>
+                <span className="vd-hd-meta-sep">·</span>
+                <span className="vd-hd-meta-item">Last Scrape: {lastLog ? timeAgo(lastLog.createdAt) : '—'}</span>
+                <span className="vd-hd-meta-sep">·</span>
+                <span className="vd-hd-meta-item" style={{ color: healthColor }}>Success: {stats.successRate !== null ? `${stats.successRate}%` : '—'}</span>
+                <span className="vd-hd-meta-sep">·</span>
+                <span className="vd-hd-meta-item">Version: v{vendor.scraperVersion}</span>
               </div>
             </div>
-
-            <div className="vd-header-actions">
-              <button type="button" className="btn-sm vd-action-btn" disabled={pending} onClick={() => document.querySelector<HTMLFormElement>('#vendor-form')?.requestSubmit()}>
-                {pending ? '...' : 'SAVE'}
-              </button>
-              <button type="button" className="btn-sm vd-action-btn vd-action-secondary" onClick={() => router.push('/admin/vendors')}>
-                CANCEL
-              </button>
-              <button type="button" className="btn-sm vd-action-btn vd-action-danger" onClick={() => setShowDeleteModal(true)}>
-                DELETE
-              </button>
-            </div>
+          </div>
+          <div className="vd-hd-r">
+            <button type="button" className="ce-toolbar-btn ce-toolbar-btn-primary" disabled={pending} onClick={() => document.querySelector<HTMLFormElement>('#vendor-form')?.requestSubmit()}>
+              {pending ? 'Saving…' : 'SAVE'}
+            </button>
+            <button type="button" className="ce-toolbar-btn" onClick={() => router.push('/admin/vendors')}>
+              CANCEL
+            </button>
+            <button type="button" className="ce-toolbar-btn ce-toolbar-btn-danger" onClick={() => setShowDeleteModal(true)}>
+              DELETE
+            </button>
           </div>
         </div>
 
@@ -267,30 +237,12 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                       <input name="website" required type="url" defaultValue={vendor.website} className="admin-input" />
                     </div>
                     <div className="admin-field">
-                      <label className="admin-label">Affiliate Link</label>
-                      <input name="affiliateLink" defaultValue={vendor.affiliateLink ?? ''} className="admin-input" />
-                    </div>
-                    <div className="admin-field">
-                      <label className="admin-label">Shipping Policy</label>
-                      <textarea name="shippingPolicy" rows={2} defaultValue={vendor.shippingPolicy ?? ''} className="admin-input" />
-                    </div>
-                    <div className="admin-field">
                       <label className="admin-label">Country</label>
                       <input name="country" defaultValue="IN" className="admin-input" />
                     </div>
                     <div className="admin-field">
                       <label className="admin-label">Currency</label>
                       <input name="currency" defaultValue="INR" className="admin-input" />
-                    </div>
-                    <div className="admin-field">
-                      <label className="admin-label">Chart Color</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input type="color" value={chartColor} style={{ width: 36, height: 36, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
-                          onChange={(e) => { const v = e.target.value; setChartColor(v); }} />
-                        <input type="text" name="chartColor" value={chartColor} className="admin-input" style={{ width: 100 }}
-                          pattern="^#[0-9a-fA-F]{6}$" maxLength={7}
-                          onChange={(e) => { const v = e.target.value; if (/^#[0-9a-fA-F]{6}$/.test(v)) setChartColor(v); }} />
-                      </div>
                     </div>
                     <div className="admin-field">
                       <label className="filter-option">
@@ -306,10 +258,6 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                     <div className="vd-stat-card">
                       <div className="vd-stat-card-value">{stats.productCount}</div>
                       <div className="vd-stat-card-label">Products</div>
-                    </div>
-                    <div className="vd-stat-card">
-                      <div className="vd-stat-card-value">{stats.scrapeLogCount}</div>
-                      <div className="vd-stat-card-label">Scrape Logs</div>
                     </div>
                     <div className="vd-stat-card">
                       <div className="vd-stat-card-value">{vendor.createdAt ? new Date(vendor.createdAt).toLocaleDateString() : '—'}</div>
@@ -833,127 +781,51 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
               </CollapsibleCard>
             </div>
 
-            {/* ─── LOGS TAB ─── */}
-            <div style={{ display: activeTab === 'logs' ? undefined : 'none' }}>
-              <CollapsibleCard title="Scrape Logs" icon="≡" id="vd-logs">
-                <div className="vd-logs-toolbar">
-                  <input type="text" className="admin-input" style={{ maxWidth: 300, fontSize: '0.7rem' }} placeholder="Search logs..." />
-                  <div className="vd-btn-row" style={{ marginLeft: 'auto' }}>
-                    <button type="button" className="btn-secondary btn-sm">EXPORT</button>
-                  </div>
-                </div>
-                <div className="vd-log-table">
-                  <div className="vd-log-header">
-                    <span className="vd-log-col-time">Timestamp</span>
-                    <span className="vd-log-col-status">Status</span>
-                    <span className="vd-log-col-duration">Duration</span>
-                    <span className="vd-log-col-http">HTTP</span>
-                    <span className="vd-log-col-error">Error</span>
-                  </div>
-                  {recentLogs.length === 0 ? (
-                    <div className="vd-log-empty">No logs found</div>
-                  ) : (
-                    recentLogs.map((log) => (
-                      <div key={log.id} className="vd-log-row">
-                        <span className="vd-log-col-time">{new Date(log.createdAt).toLocaleString()}</span>
-                        <span className="vd-log-col-status">
-                          <span className={`vd-sel-badge ${log.status === 'SUCCESS' ? 'vd-sel-badge--ok' : log.status === 'FAILED' ? 'vd-sel-badge--err' : 'vd-sel-badge--warn'}`}>
-                            {log.status}
-                          </span>
-                        </span>
-                        <span className="vd-log-col-duration">{log.responseTimeMs != null ? `${log.responseTimeMs}ms` : '—'}</span>
-                        <span className="vd-log-col-http">{log.httpStatus ?? '—'}</span>
-                        <span className="vd-log-col-error" title={log.error ?? ''}>{log.error ? log.error.substring(0, 50) + (log.error.length > 50 ? '...' : '') : '—'}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CollapsibleCard>
-            </div>
-
-            {/* ─── STATISTICS TAB ─── */}
-            <div style={{ display: activeTab === 'statistics' ? undefined : 'none' }}>
-              <>
-                <div className="vd-stats-dashboard">
-                  <div className="vd-stat-lg">
-                    <div className="vd-stat-lg-label">Success Rate</div>
-                    <div className="vd-stat-lg-value" style={{ color: stats.successRate === null ? 'var(--text-dim)' : stats.successRate >= 80 ? 'var(--green)' : stats.successRate >= 50 ? 'var(--orange)' : 'var(--red)' }}>
-                      {stats.successRate !== null ? `${stats.successRate}%` : '—'}
+            {/* ─── CREDENTIALS TAB ─── */}
+            <div style={{ display: activeTab === 'credentials' ? undefined : 'none' }}>
+              <form onSubmit={handleSaveScraper}>
+                <CollapsibleCard title="Credentials & Access" icon="█" id="vd-credentials">
+                  <div className="vd-form-grid">
+                    <div className="admin-field">
+                      <label className="admin-label">Cookies</label>
+                      <textarea name="cookies" rows={3} className="admin-input" placeholder='key=value; session=***' style={{ fontFamily: 'var(--f-m)', fontSize: '0.7rem' }} />
                     </div>
-                    <div className="vd-stat-lg-bar">
-                      <div className="vd-stat-lg-fill" style={{ width: stats.successRate !== null ? `${stats.successRate}%` : '0%', background: stats.successRate === null ? 'var(--text-dim)' : stats.successRate >= 80 ? 'var(--green)' : stats.successRate >= 50 ? 'var(--orange)' : 'var(--red)' }} />
+                    <div className="admin-field">
+                      <label className="admin-label">Proxy</label>
+                      <input name="proxy" type="password" className="admin-input" placeholder="http://user:pass@host:port" />
                     </div>
-                  </div>
-                  <div className="vd-stat-lg">
-                    <div className="vd-stat-lg-label">Avg Response Time</div>
-                    <div className="vd-stat-lg-value">{stats.avgResponseTime > 0 ? `${stats.avgResponseTime}ms` : '—'}</div>
-                  </div>
-                  <div className="vd-stat-lg">
-                    <div className="vd-stat-lg-label">Products Tracked</div>
-                    <div className="vd-stat-lg-value">{stats.productCount}</div>
-                  </div>
-                  <div className="vd-stat-lg">
-                    <div className="vd-stat-lg-label">Total Scrape Runs</div>
-                    <div className="vd-stat-lg-value">{stats.scrapeLogCount}</div>
-                  </div>
-                </div>
-
-                <CollapsibleCard title="Recent Breakdown" icon="▦" id="vd-stats-breakdown" defaultOpen={false}>
-                  <div className="vd-stats-grid">
-                    <div className="vd-stat-card"><div className="vd-stat-card-value" style={{ color: 'var(--green)' }}>{stats.successLogs}</div><div className="vd-stat-card-label">Successful</div></div>
-                    <div className="vd-stat-card"><div className="vd-stat-card-value" style={{ color: 'var(--red)' }}>{stats.failedLogs}</div><div className="vd-stat-card-label">Failed</div></div>
-                    <div className="vd-stat-card"><div className="vd-stat-card-value">{stats.totalRecentLogs}</div><div className="vd-stat-card-label">Total (Recent)</div></div>
-                    <div className="vd-stat-card"><div className="vd-stat-card-value">{vendor.scraperVersion}</div><div className="vd-stat-card-label">Config Version</div></div>
-                  </div>
-                </CollapsibleCard>
-              </>
-            </div>
-
-            {/* ─── SECURITY TAB ─── */}
-            <div style={{ display: activeTab === 'security' ? undefined : 'none' }}>
-              <>
-                <CollapsibleCard title="Security Configuration" icon="█" id="vd-security">
-                  <div className="vd-security-grid">
-                    <div className="vd-sec-row">
-                      <span className="vd-sec-icon" style={{ color: 'var(--green)' }}>●</span>
-                      <span className="vd-sec-label">Cookies</span>
-                      <span className="vd-sec-value">Stored Securely</span>
+                    <div className="admin-field">
+                      <label className="filter-option">
+                        <input type="checkbox" name="cloudflareProtected" defaultChecked={vendor.cloudflareProtected} />
+                        <span className="admin-label" style={{ margin: 0 }}>Cloudflare Protected</span>
+                      </label>
                     </div>
-                    <div className="vd-sec-row">
-                      <span className="vd-sec-icon" style={{ color: 'var(--green)' }}>●</span>
-                      <span className="vd-sec-label">API Keys</span>
-                      <span className="vd-sec-value">Stored as Environment Variables</span>
+                    <div className="admin-field">
+                      <label className="admin-label">API Key</label>
+                      <input name="apiKey" type="password" className="admin-input" placeholder="sk-••••••••" />
                     </div>
-                    <div className="vd-sec-row">
-                      <span className="vd-sec-icon" style={{ color: vendor.cloudflareProtected ? 'var(--green)' : 'var(--text-dim)' }}>
-                        {vendor.cloudflareProtected ? '●' : '○'}
-                      </span>
-                      <span className="vd-sec-label">Cloudflare</span>
-                      <span className="vd-sec-value">{vendor.cloudflareProtected ? 'Enabled' : 'Disabled'}</span>
+                    <div className="admin-field">
+                      <label className="admin-label">Rate Limit (RPM)</label>
+                      <input name="rateLimit" type="number" defaultValue={60} className="admin-input" />
                     </div>
-                    <div className="vd-sec-row">
-                      <span className="vd-sec-icon" style={{ color: 'var(--green)' }}>●</span>
-                      <span className="vd-sec-label">Rate Limits</span>
-                      <span className="vd-sec-value">Configured</span>
-                    </div>
-                    <div className="vd-sec-row">
-                      <span className="vd-sec-icon" style={{ color: 'var(--green)' }}>●</span>
-                      <span className="vd-sec-label">Proxy</span>
-                      <span className="vd-sec-value">Configured</span>
-                    </div>
-                    <div className="vd-sec-row">
-                      <span className="vd-sec-icon" style={{ color: vendor.useJavaScriptRendering ? 'var(--green)' : 'var(--text-dim)' }}>
-                        {vendor.useJavaScriptRendering ? '●' : '○'}
-                      </span>
-                      <span className="vd-sec-label">JavaScript Rendering</span>
-                      <span className="vd-sec-value">{vendor.useJavaScriptRendering ? 'Enabled' : 'Disabled'}</span>
+                    <div className="admin-field">
+                      <label className="filter-option">
+                        <input type="checkbox" name="useJavaScriptRendering" defaultChecked={vendor.useJavaScriptRendering} />
+                        <span className="admin-label" style={{ margin: 0 }}>JavaScript Rendering</span>
+                      </label>
                     </div>
                   </div>
                 </CollapsibleCard>
-                <div className="vd-security-note">
-                  Secrets are never displayed. Only masked values are shown. Replace secrets without revealing existing values.
+
+                <div style={{ marginTop: 20 }}>
+                  <button type="submit" disabled={pending} className="btn-primary">
+                    {pending ? 'SAVING...' : 'SAVE CREDENTIALS →'}
+                  </button>
                 </div>
-              </>
+              </form>
+              <div className="vd-security-note">
+                Secrets are masked. Replace without revealing existing values.
+              </div>
             </div>
 
             {/* ─── ADVANCED TAB ─── */}
@@ -1004,212 +876,33 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
               </>
             </div>
           </div>
-
-          {/* ═══ RIGHT SIDEBAR ═══ */}
-          <div className="vd-sidebar">
-            {activeTab === 'scheduler' ? (
-              <>
-                {/* ── Scheduler: Health ── */}
-                <div className="sch-side-card">
-                  <div className="sch-side-head">HEALTH</div>
-                  <div className="sch-side-badge" style={{ borderColor: healthColor, color: healthColor }}>
-                    <span className="sch-side-dot" style={{ background: healthColor }} />
-                    {healthLabel}
-                  </div>
-                  <div className="sch-side-rows">
-                    <div className="sch-side-row"><span>Success Rate</span><span style={{ color: healthColor }}>{stats.successRate !== null ? `${stats.successRate}%` : '—'}</span></div>
-                    <div className="sch-side-row"><span>Avg Runtime</span><span>{stats.avgResponseTime > 0 ? `${stats.avgResponseTime}ms` : '—'}</span></div>
-                    <div className="sch-side-row"><span>Consecutive Failures</span><span>{stats.failedLogs}</span></div>
-                    <div className="sch-side-row"><span>Last Success</span><span>{lastLog?.status === 'SUCCESS' ? timeAgo(lastLog.createdAt) : '—'}</span></div>
-                    <div className="sch-side-row"><span>429 Errors</span><span>{recentLogs.filter((l) => l.error?.includes('429')).length}</span></div>
-                  </div>
-                </div>
-
-                {/* ── Scheduler: Queue ── */}
-                <div className="sch-side-card">
-                  <div className="sch-side-head">QUEUE</div>
-                  <div className="sch-side-rows">
-                    <div className="sch-side-row"><span>Running Jobs</span><span>0</span></div>
-                    <div className="sch-side-row"><span>Waiting Jobs</span><span>0</span></div>
-                    <div className="sch-side-row"><span>Queue Position</span><span>—</span></div>
-                    <div className="sch-side-row"><span>Estimated Start</span><span>—</span></div>
-                  </div>
-                </div>
-
-                {/* ── Scheduler: Today's Activity ── */}
-                <div className="sch-side-card">
-                  <div className="sch-side-head">TODAY&apos;S ACTIVITY</div>
-                  <div className="sch-side-rows">
-                    <div className="sch-side-row"><span>Price Changes</span><span>{recentLogs.filter((l) => l.price != null && l.status === 'SUCCESS').length}</span></div>
-                    <div className="sch-side-row"><span>Stock Checks</span><span>{recentLogs.filter((l) => l.price == null && l.status === 'SUCCESS').length}</span></div>
-                    <div className="sch-side-row"><span>Requests</span><span>{stats.totalRecentLogs}</span></div>
-                    <div className="sch-side-row"><span>Errors</span><span style={{ color: stats.failedLogs > 0 ? 'var(--red)' : 'var(--text-dim)' }}>{stats.failedLogs}</span></div>
-                  </div>
-                </div>
-
-                {/* ── Scheduler: Config Summary ── */}
-                <div className="sch-side-card">
-                  <div className="sch-side-head">CONFIGURATION</div>
-                  <div className="sch-side-rows">
-                    <div className="sch-side-row"><span>Price Schedule</span><span>{priceEnabled ? getLabel(priceSchedule) : 'Disabled'}</span></div>
-                    <div className="sch-side-row"><span>Stock Schedule</span><span>{stockEnabled ? getLabel(stockSchedule) : 'Disabled'}</span></div>
-                    <div className="sch-side-row"><span>Est. Requests/Day</span><span>{(stockEnabled ? requestsPerDay(stockSchedule) : 0) + (priceEnabled ? requestsPerDay(priceSchedule) : 0)}</span></div>
-                    <div className="sch-side-row"><span>Avg Runtime</span><span>{stats.avgResponseTime > 0 ? `${stats.avgResponseTime}ms` : '—'}</span></div>
-                  </div>
-                </div>
-
-                {/* ── Scheduler: Recommendations ── */}
-                <div className="sch-side-card">
-                  <div className="sch-side-head">RECOMMENDATIONS</div>
-                  <div className="sch-side-recs">
-                    <div className="sch-side-rec">
-                      <span className="sch-side-rec-dot" style={{ background: 'var(--cyan)' }} />
-                      <div className="sch-side-rec-text">
-                        <span>Vendor prices rarely change.</span>
-                        <span className="sch-side-rec-action">Recommended: 12 Hours</span>
-                      </div>
-                    </div>
-                    <div className="sch-side-rec">
-                      <span className="sch-side-rec-dot" style={{ background: 'var(--green)' }} />
-                      <div className="sch-side-rec-text">
-                        <span>Vendor stock changes frequently.</span>
-                        <span className="sch-side-rec-action">Recommended: 30 Minutes</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Default sidebar: Health Widget */}
-                <div className="vd-panel">
-                  <div className="vd-panel-title">VENDOR HEALTH</div>
-                  <div className="vd-health" style={{ borderColor: healthColor }}>
-                    <div className="vd-health-status" style={{ color: healthColor }}>
-                      <span className="vd-health-dot" style={{ background: healthColor }} />
-                      {healthLabel}
-                    </div>
-                    <div className="vd-health-rows">
-                      <div className="vd-health-row"><span>Success Rate</span><span style={{ color: healthColor }}>{stats.successRate !== null ? `${stats.successRate}%` : '—'}</span></div>
-                      <div className="vd-health-row"><span>Last Success</span><span>{lastLog?.status === 'SUCCESS' ? timeAgo(lastLog.createdAt) : '—'}</span></div>
-                      <div className="vd-health-row"><span>Consecutive Failures</span><span>{stats.failedLogs}</span></div>
-                      <div className="vd-health-row"><span>Avg Runtime</span><span>{stats.avgResponseTime > 0 ? `${stats.avgResponseTime}ms` : '—'}</span></div>
-                    </div>
-                    {healthStatus === 'warning' && (
-                      <div className="vd-health-reason">
-                        Success rate below 80%. Check selectors and target site changes.
-                      </div>
-                    )}
-                    {healthStatus === 'error' && (
-                      <div className="vd-health-reason">
-                        Scraper is broken. Immediate attention required.
-                      </div>
-                    )}
-                    {healthStatus === 'unknown' && (
-                      <div className="vd-health-reason">
-                        No scrape data yet. Run a test to verify scraper configuration.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Default sidebar: Performance */}
-                <div className="vd-panel">
-                  <div className="vd-panel-title">PERFORMANCE</div>
-                  <div className="vd-perf-rows">
-                    <div className="vd-perf-row"><span>Avg Runtime</span><span>{stats.avgResponseTime > 0 ? `${stats.avgResponseTime}ms` : '—'}</span></div>
-                    <div className="vd-perf-row"><span>Fastest Run</span><span>{lastLog?.responseTimeMs != null ? `${lastLog.responseTimeMs}ms` : '—'}</span></div>
-                    <div className="vd-perf-row"><span>Slowest Run</span><span>—</span></div>
-                    <div className="vd-perf-row"><span>Products/Min</span><span>—</span></div>
-                  </div>
-                </div>
-
-                {/* Default sidebar: Recent Activity */}
-                <div className="vd-panel">
-                  <div className="vd-panel-title">RECENT ACTIVITY</div>
-                  <div className="vd-activity-list">
-                    {recentLogs.slice(0, 8).map((log) => (
-                      <div key={log.id} className="vd-activity-item">
-                        <span className="vd-activity-dot" style={{ background: log.status === 'SUCCESS' ? 'var(--green)' : log.status === 'FAILED' ? 'var(--red)' : 'var(--orange)' }} />
-                        <div className="vd-activity-info">
-                          <span className="vd-activity-text">
-                            {log.status === 'SUCCESS' ? 'Price updated' : log.status === 'FAILED' ? 'Scrape failed' : 'Pending'}
-                            {log.price != null && ` — ₹${log.price.toLocaleString()}`}
-                          </span>
-                          <span className="vd-activity-time">{timeAgo(log.createdAt)}</span>
-                        </div>
-                      </div>
-                    ))}
-                    {recentLogs.length === 0 && <div className="vd-empty-sm">No recent activity</div>}
-                  </div>
-                </div>
-
-                {/* Default sidebar: Config History */}
-                <div className="vd-panel">
-                  <div className="vd-panel-title">CONFIG HISTORY</div>
-                  <div className="vd-config-history">
-                    <div className="vd-ch-item">
-                      <span className="vd-ch-dot" />
-                      <div className="vd-ch-info">
-                        <span className="vd-ch-text">Version v{vendor.scraperVersion}</span>
-                        <span className="vd-ch-time">{vendor.updatedAt ? timeAgo(vendor.updatedAt) : '—'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
-        {/* ═══ STICKY BOTTOM BAR ═══ */}
-        <div className="vd-footer">
-          <div className="vd-footer-inner">
-            <span className="vd-footer-status">
-              <span className="vd-footer-dot" />
-              Unsaved changes
-            </span>
-            <div className="vd-footer-actions">
-              {activeTab === 'scheduler' && (
-                <>
-                  <button type="button" className="btn-secondary btn-sm">RUN PRICE CHECK</button>
-                  <button type="button" className="btn-secondary btn-sm">RUN STOCK CHECK</button>
-                </>
-              )}
-              <button type="button" className="btn-secondary btn-sm" onClick={() => router.push('/admin/vendors')}>CANCEL</button>
-              <button type="button" className="btn-primary btn-sm" disabled={pending} onClick={() => document.querySelector<HTMLFormElement>('#vendor-form')?.requestSubmit()}>
-                {pending ? 'SAVING...' : 'SAVE'}
-              </button>
+        {/* ═══ DELETE MODAL ═══ */}
+        {showDeleteModal && (
+          <div className="vd-modal-backdrop">
+            <div className="vd-modal">
+              <div className="vd-modal-title">CONFIRM DELETION</div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: 12 }}>
+                This will permanently delete <strong style={{ color: 'var(--text)' }}>{vendor.name}</strong> and all its product listings.
+              </p>
+              <input type="password" placeholder="Enter password" value={deletePassword}
+                onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(); }}
+                className="admin-input" autoFocus />
+              {deleteError && <p style={{ fontSize: '0.7rem', color: 'var(--red)', marginTop: 6 }}>{deleteError}</p>}
+              <div className="vd-btn-row" style={{ marginTop: 16 }}>
+                <button onClick={handleDelete} disabled={!deletePassword || deleting} className="btn-danger btn-sm" style={{ flex: 1 }}>
+                  {deleting ? 'DELETING...' : 'DELETE'}
+                </button>
+                <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="btn-secondary btn-sm" style={{ flex: 1 }}>
+                  CANCEL
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
-
-      {/* ═══ DELETE MODAL ═══ */}
-      {showDeleteModal && (
-        <div className="vd-modal-backdrop">
-          <div className="vd-modal">
-            <div className="vd-modal-title">CONFIRM DELETION</div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: 12 }}>
-              This will permanently delete <strong style={{ color: 'var(--text)' }}>{vendor.name}</strong> and all its product listings.
-            </p>
-            <input type="password" placeholder="Enter password" value={deletePassword}
-              onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(); }}
-              className="admin-input" autoFocus />
-            {deleteError && <p style={{ fontSize: '0.7rem', color: 'var(--red)', marginTop: 6 }}>{deleteError}</p>}
-            <div className="vd-btn-row" style={{ marginTop: 16 }}>
-              <button onClick={handleDelete} disabled={!deletePassword || deleting} className="btn-danger btn-sm" style={{ flex: 1 }}>
-                {deleting ? 'DELETING...' : 'DELETE'}
-              </button>
-              <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(null); }} className="btn-secondary btn-sm" style={{ flex: 1 }}>
-                CANCEL
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   );
 }
 

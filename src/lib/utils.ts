@@ -13,6 +13,23 @@ export function formatPrice(amount: number): string {
   }).format(amount);
 }
 
+export function computeEffectivePrice(totalPrice: number, coupons: { discountType: string; discountValue: number; enabled: boolean }[]): number {
+  let best = totalPrice;
+  for (const c of coupons) {
+    if (!c.enabled) continue;
+    let after: number;
+    if (c.discountType === 'percentage') {
+      after = Math.round(totalPrice * (1 - c.discountValue / 100));
+    } else if (c.discountType === 'flat') {
+      after = totalPrice - c.discountValue;
+    } else {
+      continue; // free_shipping doesn't reduce price
+    }
+    if (after < best) best = after;
+  }
+  return Math.max(0, best);
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

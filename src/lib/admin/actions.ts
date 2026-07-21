@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { slugify } from '@/lib/utils';
+import { slugify, computeEffectivePrice } from '@/lib/utils';
 import { getScraper, testScraper } from '@/lib/scraper';
 
 // ═══ PRODUCTS ═══
@@ -222,6 +222,10 @@ export async function createBrand(formData: FormData) {
   const name = formData.get('name') as string;
   const website = (formData.get('website') as string) || null;
   const country = (formData.get('country') as string) || 'IN';
+  const description = (formData.get('description') as string) || null;
+  const status = (formData.get('status') as string) || 'active';
+  const color = (formData.get('color') as string) || null;
+  const logo = (formData.get('logo') as string) || null;
 
   if (!name) {
     return { error: 'Name is required' };
@@ -233,7 +237,7 @@ export async function createBrand(formData: FormData) {
     return { error: 'A brand with this name already exists' };
   }
 
-  await prisma.brand.create({ data: { name, slug, website, country } });
+  await prisma.brand.create({ data: { name, slug, website, country, description, status, color, logo } });
   redirect('/admin/brands');
 }
 
@@ -241,6 +245,10 @@ export async function updateBrand(id: string, formData: FormData) {
   const name = formData.get('name') as string;
   const website = (formData.get('website') as string) || null;
   const country = (formData.get('country') as string) || 'IN';
+  const description = (formData.get('description') as string) || null;
+  const status = (formData.get('status') as string) || 'active';
+  const color = (formData.get('color') as string) || null;
+  const logo = (formData.get('logo') as string) || null;
 
   if (!name) {
     return { error: 'Name is required' };
@@ -252,7 +260,7 @@ export async function updateBrand(id: string, formData: FormData) {
     return { error: 'A brand with this name already exists' };
   }
 
-  await prisma.brand.update({ where: { id }, data: { name, slug, website, country } });
+  await prisma.brand.update({ where: { id }, data: { name, slug, website, country, description, status, color, logo } });
   revalidatePath('/admin/brands');
   redirect('/admin/brands');
 }
@@ -268,6 +276,60 @@ export async function deleteBrand(id: string, password: string) {
 }
 
 // ═══ VENDOR PRODUCTS (price entries) ═══
+
+interface CouponInput {
+  id?: string; code: string; discountType: string; discountValue: number;
+  minimumOrderAmount: number; expiryDate: string; couponUrl: string;
+  description: string; enabled: boolean;
+}
+
+async function recomputeEffectivePrice(vendorProductId: string) {
+  const vp = await prisma.vendorProduct.findUnique({ where: { id: vendorProductId }, select: { totalPrice: true } });
+  if (!vp) return;
+  const coupons = await prisma.vendorProductCoupon.findMany({ where: { vendorProductId }, select: { discountType: true, discountValue: true, enabled: true } });
+  const effectivePrice = computeEffectivePrice(Number(vp.totalPrice), coupons);
+  await prisma.vendorProduct.update({ where: { id: vendorProductId }, data: { effectivePrice, bestFinalPrice: effectivePrice } });
+}
+
+async function syncVendorProductCoupons(vendorProductId: string, couponsRaw: string | null) {
+  if (!couponsRaw) return;
+  let coupons: CouponInput[];
+  try { coupons = JSON.parse(couponsRaw); } catch { return; }
+  if (!Array.isArray(coupons)) return;
+
+  const existing = await prisma.vendorProductCoupon.findMany({ where: { vendorProductId }, select: { id: true } });
+  const existingIds = new Set(existing.map((c) => c.id));
+  const incomingIds = new Set(coupons.filter((c) => c.id).map((c) => c.id!));
+
+  // Delete removed coupons
+  for (const id of existingIds) {
+    if (!incomingIds.has(id)) {
+      await prisma.vendorProductCoupon.delete({ where: { id } });
+    }
+  }
+
+  // Upsert each coupon
+  for (const c of coupons) {
+    const data = {
+      code: c.code,
+      discountType: c.discountType,
+      discountValue: c.discountValue || 0,
+      minimumOrderAmount: c.minimumOrderAmount || 0,
+      expiryDate: c.expiryDate ? new Date(c.expiryDate) : null,
+      couponUrl: c.couponUrl || null,
+      description: c.description || null,
+      enabled: c.enabled,
+    };
+    if (c.id && existingIds.has(c.id)) {
+      await prisma.vendorProductCoupon.update({ where: { id: c.id }, data });
+    } else {
+      await prisma.vendorProductCoupon.create({ data: { ...data, vendorProductId } });
+    }
+  }
+
+  // Recompute effectivePrice
+  await recomputeEffectivePrice(vendorProductId);
+}
 
 export async function createVendorProduct(formData: FormData) {
   const vendorId = formData.get('vendorId') as string;
@@ -290,15 +352,17 @@ export async function createVendorProduct(formData: FormData) {
     where: { vendorId_productId: { vendorId, productId } },
     create: {
       vendorId, productId, vendorUrl, price, shippingCost, shippingIncluded,
-      totalPrice, stockStatus, affiliateLink, source: 'manual',
+      totalPrice, effectivePrice: totalPrice, bestFinalPrice: totalPrice, stockStatus, affiliateLink, source: 'manual',
       availability, scrapeStatus: 'PENDING',
     },
     update: {
-      vendorUrl, price, shippingCost, shippingIncluded, totalPrice,
+      vendorUrl, price, shippingCost, shippingIncluded, totalPrice, effectivePrice: totalPrice, bestFinalPrice: totalPrice,
       stockStatus, affiliateLink, lastCheckedAt: new Date(),
       availability, source: 'manual',
     },
   });
+
+  await syncVendorProductCoupons(vp.id, formData.get('coupons') as string | null);
 
   await prisma.priceHistory.create({
     data: {
@@ -342,7 +406,7 @@ export async function updateVendorStatus(formData: FormData) {
   await prisma.vendorProduct.update({
     where: { id: vendorProductId },
     data: {
-      price, stockStatus, shippingCost, shippingIncluded, totalPrice,
+      price, stockStatus, shippingCost, shippingIncluded, totalPrice, effectivePrice: totalPrice, bestFinalPrice: totalPrice,
       availability,
       manualOverride: true,
       manualUpdatedAt: new Date(),
@@ -353,6 +417,8 @@ export async function updateVendorStatus(formData: FormData) {
       scrapeStatus: 'MANUAL_OVERRIDE',
     },
   });
+
+  await syncVendorProductCoupons(vendorProductId, formData.get('coupons') as string | null);
 
   await prisma.priceHistory.create({
     data: {
@@ -737,6 +803,8 @@ export async function scrapeVendorProduct(vendorProductId: string) {
       },
     });
 
+    await recomputeEffectivePrice(vendorProductId);
+
     await prisma.priceHistory.create({
       data: {
         vendorProductId,
@@ -779,6 +847,8 @@ export async function approveScrapeReview(vendorProductId: string) {
       source: 'scraper',
     },
   });
+
+  await recomputeEffectivePrice(vendorProductId);
 
   await prisma.priceHistory.create({
     data: {

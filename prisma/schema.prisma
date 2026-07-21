@@ -52,6 +52,9 @@ model Brand {
   logo        String?
   website     String?
   country     String    @default("IN")
+  description String?
+  status      String    @default("active")
+  color       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -180,6 +183,8 @@ model VendorProduct {
   shippingCost      Int       @default(0)
   shippingIncluded  Boolean   @default(false)
   totalPrice        Int       @default(0)
+  effectivePrice    Int       @default(0) // best price after coupon discounts
+  bestFinalPrice    Int       @default(0) // absolute lowest final price (for "Best Final Price" sorting)
 
   // Legacy fields kept for backward compat during migration
   stockStatus       String    @default("in_stock")
@@ -212,11 +217,14 @@ model VendorProduct {
   product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   priceHistory  PriceHistory[]
   variants      VendorVariant[]
+  coupons       VendorProductCoupon[]
 
   @@unique([vendorId, productId])
   @@index([productId])
   @@index([vendorId])
   @@index([totalPrice])
+  @@index([effectivePrice])
+  @@index([bestFinalPrice])
   @@index([lastCheckedAt])
   @@index([scrapeStatus])
 }
@@ -234,6 +242,26 @@ model VendorVariant {
   variantUrl        String?
   sku               String?
   isDefault         Boolean   @default(false)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  vendorProduct VendorProduct @relation(fields: [vendorProductId], references: [id], onDelete: Cascade)
+
+  @@index([vendorProductId])
+}
+
+model VendorProductCoupon {
+  id                String    @id @default(cuid())
+  vendorProductId   String
+  code              String
+  discountType      String    @default("percentage") // percentage | flat | free_shipping
+  discountValue     Int       @default(0)
+  minimumOrderAmount Int     @default(0)
+  expiryDate        DateTime?
+  couponUrl         String?
+  description       String?
+  enabled           Boolean   @default(true)
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -322,6 +350,8 @@ model Banner {
   openNewTab    Boolean  @default(false)
   displayRule   String   @default("both")        // both | desktop | mobile
   bannerType    String   @default("hero")        // hero | inline | sidebar
+  totalClicks   Int      @default(0)
+  totalViews    Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -674,6 +704,13 @@ enum ContributionType {
   REPORT_VENDOR
   UPLOAD_IMAGES
   FIX_PRODUCT_INFO
+  ADD_VENDOR
+  ADD_BRAND
+  DOCUMENTATION
+  BUG_FIX
+  FEATURE_DEV
+  DB_CLEANUP
+  OTHER
 }
 
 enum ContributionStatus {
@@ -708,7 +745,7 @@ model Badge {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
-  type        String   @default("manual") // "rank" | "system" | "manual"
+  type        String   @default("community") // "rank" | "community"
   description String?
   bgColor     String   @default("#FAFF00")
   textColor   String   @default("#111111")
@@ -716,6 +753,7 @@ model Badge {
   icon        String?
   visible     Boolean  @default(true)
   sortOrder   Int      @default(0)
+  xpRequired  Int      @default(0) // for rank badges only
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

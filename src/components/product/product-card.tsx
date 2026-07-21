@@ -66,6 +66,9 @@ export function ProductCard({ product, variant = 'listing', brand, onRemove, rem
             {product.name.charAt(0)}
           </div>
         )}
+        {product.hasCoupons && (
+          <span className="product-card-coupon-badge">🏷️ COUPON</span>
+        )}
       </div>
       <div className="product-card-body">
         <div className="product-card-name">{product.name}</div>
@@ -73,6 +76,9 @@ export function ProductCard({ product, variant = 'listing', brand, onRemove, rem
         <div className="product-card-meta">
           {hasPrice && (
             <span className="product-card-price">
+              {product.originalPrice && product.originalPrice > product.lowestPrice! && (
+                <span className="product-card-price-original">{formatPrice(product.originalPrice)}</span>
+              )}
               {formatPrice(product.lowestPrice!)}
             </span>
           )}

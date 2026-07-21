@@ -53,7 +53,7 @@ const SECTION_META: Record<string, { icon: string; label: string }> = {
   basic:     { icon: '📝', label: 'Basic Info' },
   images:    { icon: '🖼', label: 'Images' },
   specs:     { icon: '⚙', label: 'Specifications' },
-  vendors:   { icon: '🏪', label: 'Vendors' },
+  vendors:   { icon: '🏪', label: 'Vendor Information' },
   seo:       { icon: '🔍', label: 'SEO' },
   metadata:  { icon: '📋', label: 'Metadata' },
 };

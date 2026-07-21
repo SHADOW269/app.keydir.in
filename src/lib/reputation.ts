@@ -85,15 +85,29 @@ export const XP_VALUES: Record<ContributionType, number> = {
   REPORT_VENDOR: 2,
   UPLOAD_IMAGES: 2,
   FIX_PRODUCT_INFO: 3,
+  ADD_VENDOR: 3,
+  ADD_BRAND: 3,
+  DOCUMENTATION: 2,
+  BUG_FIX: 5,
+  FEATURE_DEV: 10,
+  DB_CLEANUP: 2,
+  OTHER: 1,
 };
 
 export const CONTRIBUTION_TYPE_LABELS: Record<ContributionType, string> = {
-  ADD_PRODUCT: 'Added Product',
-  UPDATE_PRICE: 'Updated Price',
-  EDIT_SPECS: 'Edited Specifications',
-  REPORT_VENDOR: 'Reported Vendor',
-  UPLOAD_IMAGES: 'Uploaded Images',
-  FIX_PRODUCT_INFO: 'Fixed Product Information',
+  ADD_PRODUCT: 'Product Added',
+  UPDATE_PRICE: 'Price Update',
+  EDIT_SPECS: 'Specification Fix',
+  REPORT_VENDOR: 'Vendor Reported',
+  UPLOAD_IMAGES: 'Image Added',
+  FIX_PRODUCT_INFO: 'Product Info Fix',
+  ADD_VENDOR: 'Vendor Added',
+  ADD_BRAND: 'Brand Added',
+  DOCUMENTATION: 'Documentation',
+  BUG_FIX: 'Bug Fix',
+  FEATURE_DEV: 'Feature Development',
+  DB_CLEANUP: 'Database Cleanup',
+  OTHER: 'Other',
 };
 
 export const CONTRIBUTION_TYPE_ICONS: Record<ContributionType, string> = {
@@ -103,4 +117,11 @@ export const CONTRIBUTION_TYPE_ICONS: Record<ContributionType, string> = {
   REPORT_VENDOR: '🚨',
   UPLOAD_IMAGES: '📸',
   FIX_PRODUCT_INFO: '🔧',
+  ADD_VENDOR: '🏪',
+  ADD_BRAND: '🏷️',
+  DOCUMENTATION: '📄',
+  BUG_FIX: '🐛',
+  FEATURE_DEV: '⚡',
+  DB_CLEANUP: '🗄️',
+  OTHER: '📋',
 };

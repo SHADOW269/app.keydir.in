@@ -13,8 +13,8 @@ export function DeleteBannerButton({ id }: { id: string }) {
   }
 
   return (
-    <button type="button" className="btn-secondary btn-sm" onClick={handleDelete}>
-      Delete
+    <button type="button" className="banner-action-btn banner-action-delete" onClick={handleDelete}>
+      DELETE
     </button>
   );
 }

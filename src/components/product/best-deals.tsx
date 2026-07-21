@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function BestDeals() {
   const deals = await prisma.vendorProduct.findMany({
-    orderBy: { totalPrice: 'asc' },
+    orderBy: { effectivePrice: 'asc' },
     take: 10,
     where: { stockStatus: { in: ['in_stock', 'preorder'] } },
     include: {
@@ -34,8 +34,9 @@ export async function BestDeals() {
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
         {deals.map((deal) => {
-          const price = Number(deal.totalPrice);
-          const hasDiscount = deal.shippingIncluded || Number(deal.shippingCost) === 0;
+          const price = Number(deal.effectivePrice);
+          const originalPrice = Number(deal.totalPrice);
+          const hasDiscount = price < originalPrice;
           return (
             <Link
               key={deal.id}
@@ -50,8 +51,8 @@ export async function BestDeals() {
                   <span style={{ fontSize: '2rem', opacity: 0.15 }}>⌨</span>
                 )}
                 {hasDiscount && (
-                  <span className="badge b-green" style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '.65rem' }}>
-                    FREE SHIP
+                  <span className="badge b-yellow" style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '.65rem' }}>
+                    COUPON
                   </span>
                 )}
               </div>
@@ -63,6 +64,11 @@ export async function BestDeals() {
                   {deal.product.name}
                 </div>
                 <div style={{ fontFamily: 'var(--f-m)', fontSize: '1rem', fontWeight: 800, color: 'var(--green)' }}>
+                  {hasDiscount && (
+                    <span style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--text-dim)', textDecoration: 'line-through', textDecorationColor: 'var(--red)', marginRight: '6px' }}>
+                      ₹{originalPrice.toLocaleString('en-IN')}
+                    </span>
+                  )}
                   ₹{price.toLocaleString('en-IN')}
                 </div>
               </div>

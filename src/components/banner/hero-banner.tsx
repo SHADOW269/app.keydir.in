@@ -45,6 +45,7 @@ export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
   const touchX = useRef(0);
+  const viewedRef = useRef(new Set<string>());
 
   const next = useCallback(() => setCurrent((i) => (i + 1) % banners.length), [banners.length]);
   const prev = useCallback(() => setCurrent((i) => (i - 1 + banners.length) % banners.length), [banners.length]);
@@ -64,17 +65,27 @@ export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [next, prev]);
 
+  useEffect(() => {
+    const b = banners[current];
+    if (!b || viewedRef.current.has(b.id)) return;
+    viewedRef.current.add(b.id);
+    import('@/lib/admin/banner-actions').then(m => m.trackBannerView(b.id));
+  }, [current, banners]);
+
   if (banners.length === 0) return null;
 
   const banner = banners[current];
 
   function Wrapper({ children }: { children: React.ReactNode }) {
+    const handleClick = () => {
+      import('@/lib/admin/banner-actions').then(m => m.trackBannerClick(banner.id));
+    };
     if (banner.linkUrl) {
-      const isExternal = banner.linkUrl.startsWith('http');
-      if (isExternal || banner.openNewTab) {
-        return <a href={banner.linkUrl} target={banner.openNewTab ? '_blank' : undefined} rel="noopener noreferrer" className="hero-banner-link">{children}</a>;
+      const openBlank = banner.openNewTab || banner.linkUrl.startsWith('http');
+      if (openBlank) {
+        return <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className="hero-banner-link" onClick={handleClick}>{children}</a>;
       }
-      return <Link href={banner.linkUrl} className="hero-banner-link">{children}</Link>;
+      return <Link href={banner.linkUrl} className="hero-banner-link" onClick={handleClick}>{children}</Link>;
     }
     return <div className="hero-banner-link">{children}</div>;
   }

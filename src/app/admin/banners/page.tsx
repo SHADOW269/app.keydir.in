@@ -9,8 +9,7 @@ export const metadata = { title: 'Promotions — Admin' };
 
 const LOCATION_LABELS: Record<string, string> = {
   home: 'Home', keyboards: 'Keyboards', switches: 'Switches', keycaps: 'Keycaps',
-  mouse: 'Mouse', vendors: 'Vendors', builders: 'Builders', brands: 'Brands',
-  search: 'Search Results', guide: 'Guide', about: 'About',
+  mouse: 'Mouse',
 };
 
 export default async function AdminPromotionsPage() {
@@ -19,9 +18,9 @@ export default async function AdminPromotionsPage() {
     include: { locations: true },
   });
 
-  const active = banners.filter((b) => b.status === 'ACTIVE').length;
-  const scheduled = banners.filter((b) => b.status === 'SCHEDULED').length;
-  const draft = banners.filter((b) => b.status === 'DRAFT').length;
+  const active = banners.filter((b) => b.status === 'active').length;
+  const paused = banners.filter((b) => b.status === 'paused').length;
+  const draft = banners.filter((b) => b.status === 'draft').length;
 
   return (
     <div className="page-body">
@@ -38,7 +37,7 @@ export default async function AdminPromotionsPage() {
 
         <KpiCard label="Total Banners" value={banners.length} icon="◆" color="var(--yellow)" span={3} />
         <KpiCard label="Active" value={active} icon="●" color="var(--green)" span={3} />
-        <KpiCard label="Scheduled" value={scheduled} icon="◆" color="var(--blue)" span={3} />
+        <KpiCard label="Paused" value={paused} icon="◆" color="var(--orange)" span={3} />
         <KpiCard label="Drafts" value={draft} icon="○" color="var(--text-muted)" span={3} />
 
         <SectionHeader title="All Banners" span={12} />
@@ -47,7 +46,7 @@ export default async function AdminPromotionsPage() {
           <div className="dash-panel-header">Banner Directory</div>
           <div className="dash-panel-body" style={{ padding: 0 }}>
             <div className="overflow-x-auto">
-              <table className="dash-table">
+              <table className="dash-table banner-table">
                 <thead>
                   <tr>
                     <th className="dash-th">Name</th>
@@ -66,7 +65,7 @@ export default async function AdminPromotionsPage() {
                       <td className="dash-td">
                         <div className="flex flex-wrap gap-1">
                           {b.locations.map((l) => (
-                            <span key={l.location} className="badge b-yellow text-[10px]">{LOCATION_LABELS[l.location] || l.location}</span>
+                            <span key={l.location} className="bc-chip">{LOCATION_LABELS[l.location] || l.location}</span>
                           ))}
                         </div>
                       </td>
@@ -81,8 +80,8 @@ export default async function AdminPromotionsPage() {
                       </td>
                       <td className="dash-td text-center font-bold">{b.priority}</td>
                       <td className="dash-td">
-                        <div className="flex gap-2">
-                          <Link href={`/admin/banners/${b.id}`} className="text-[var(--yellow)] hover:text-[var(--green)] font-[family-name:var(--f-m)] text-xs font-bold">
+                        <div className="banner-actions">
+                          <Link href={`/admin/banners/${b.id}`} className="banner-action-btn banner-action-edit">
                             EDIT
                           </Link>
                           <DeleteBannerButton id={b.id} />

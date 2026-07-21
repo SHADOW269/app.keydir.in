@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
 import { AdminBadgeActions } from './admin-badge-actions';
-import { DashboardGrid, KpiCard, SectionHeader } from '@/components/admin/dashboard';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Badges — Admin' };
@@ -16,6 +15,8 @@ export default async function AdminBadgesPage() {
 
   const visibleBadges = badges.filter((b) => b.visible).length;
   const hiddenBadges = badges.length - visibleBadges;
+  const rankCount = badges.filter((b) => b.type === 'rank').length;
+  const communityCount = badges.filter((b) => b.type === 'community').length;
 
   return (
     <div className="page-body">
@@ -26,32 +27,32 @@ export default async function AdminBadgesPage() {
         </div>
       </div>
 
-      <DashboardGrid>
-        <SectionHeader title="Overview" span={12} />
-
-        <KpiCard label="Total Badges" value={badges.length} icon="◆" color="var(--yellow)" span={3} />
-        <KpiCard label="Visible" value={visibleBadges} icon="●" color="var(--green)" span={3} />
-        <KpiCard label="Hidden" value={hiddenBadges} icon="○" color="var(--text-muted)" span={3} />
-        <KpiCard label="Total Awards" value={totalAwarded} icon="◆" color="var(--purple)" span={3} />
-
-        <div style={{ gridColumn: 'span 12' }}>
-          <AdminBadgeActions
-            existingBadges={badges.map((b) => ({
-              id: b.id,
-              name: b.name,
-              slug: b.slug,
-              description: b.description,
-              bgColor: b.bgColor,
-              textColor: b.textColor,
-              borderColor: b.borderColor,
-              icon: b.icon,
-              visible: b.visible,
-              sortOrder: b.sortOrder,
-              userCount: b._count.userBadges,
-            }))}
-          />
-        </div>
-      </DashboardGrid>
+      <AdminBadgeActions
+        existingBadges={badges.map((b) => ({
+          id: b.id,
+          name: b.name,
+          slug: b.slug,
+          description: b.description,
+          bgColor: b.bgColor,
+          textColor: b.textColor,
+          borderColor: b.borderColor,
+          icon: b.icon,
+          visible: b.visible,
+          sortOrder: b.sortOrder,
+          userCount: b._count.userBadges,
+          type: b.type,
+          xpRequired: b.xpRequired,
+          createdAt: b.createdAt?.toISOString(),
+        }))}
+        stats={{
+          total: badges.length,
+          visible: visibleBadges,
+          hidden: hiddenBadges,
+          totalAwards: totalAwarded,
+          rankCount,
+          communityCount,
+        }}
+      />
     </div>
   );
 }

@@ -17,13 +17,18 @@ export async function GET(request: Request) {
         const existing = await prisma.profile.findUnique({ where: { userId: user.id } });
         if (!existing) {
           const username = user.user_metadata?.username || slugify(user.email?.split('@')[0] || 'user');
-          await prisma.profile.create({
+          const profile = await prisma.profile.create({
             data: {
               userId: user.id,
               username,
               displayName: user.user_metadata?.full_name || user.user_metadata?.username || null,
             },
           });
+
+          const communityBadge = await prisma.badge.findUnique({ where: { slug: 'community-member' } });
+          if (communityBadge) {
+            await prisma.userBadge.create({ data: { profileId: profile.id, badgeId: communityBadge.id } });
+          }
         }
       }
       return NextResponse.redirect(`${origin}${next}`);

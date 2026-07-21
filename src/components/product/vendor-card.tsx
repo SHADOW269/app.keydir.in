@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { formatPrice, timeAgo } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
 import type { VendorProductWithVendor } from '@/types';
@@ -28,6 +31,7 @@ interface VendorCardProps {
 }
 
 export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardProps) {
+  const [showAllCoupons, setShowAllCoupons] = useState(false);
   const stock = STOCK_MAP[vp.availability || vp.stockStatus] ?? STOCK_MAP.in_stock;
   const link = vp.vendor.affiliateLink || vp.vendorUrl;
   const shipping = vp.shippingIncluded
@@ -37,12 +41,31 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
       : 'Free Shipping';
   const variants = vp.variants ?? [];
   const hasVariants = variants.length > 0;
+  const allCoupons = (vp.coupons ?? []).filter((c) => c.enabled);
+  const hasCoupons = allCoupons.length > 0;
+  const bestCoupon = hasCoupons ? allCoupons[0] : null;
+  const extraCount = allCoupons.length - 1;
+  const hasFreeShipping = allCoupons.some((c) => c.discountType === 'free_shipping');
+
+  const discountLabel = (c: typeof bestCoupon) => {
+    if (!c) return null;
+    if (c.discountType === 'percentage') return `${c.discountValue}% OFF`;
+    if (c.discountType === 'flat') return `${formatPrice(c.discountValue)} OFF`;
+    return 'FREE SHIPPING';
+  };
 
   return (
     <div className={`vendor-card ${isLowest ? 'vendor-card-lowest' : ''}`}>
       <div className="vendor-card-row">
         <span className="vendor-card-name">{vp.vendor.name}</span>
-        <span className="vendor-card-price">{formatPrice(toNum(vp.totalPrice))}</span>
+        <span className="vendor-card-price">
+          {toNum(vp.effectivePrice) < toNum(vp.totalPrice) && (
+            <span className="vendor-card-price-original">
+              {formatPrice(toNum(vp.totalPrice))}
+            </span>
+          )}
+          {formatPrice(toNum(vp.effectivePrice))}
+        </span>
       </div>
       <div className="vendor-card-row">
         <span className="vendor-card-shipping">{shipping}</span>
@@ -50,6 +73,48 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
           {stock.icon} {stock.label}
         </span>
       </div>
+
+      {/* Coupons */}
+      {hasCoupons && (
+        <div className="vendor-card-coupons">
+          {bestCoupon && (
+            <div className="vendor-card-coupon" onClick={() => bestCoupon.couponUrl && window.open(bestCoupon.couponUrl, '_blank')}>
+              <span className="vendor-card-coupon-icon">🏷</span>
+              <span className="vendor-card-coupon-code">{bestCoupon.code}</span>
+              <span className={`vendor-card-coupon-discount ${bestCoupon.discountType}`}>
+                {discountLabel(bestCoupon)}
+              </span>
+              {bestCoupon.couponUrl && (
+                <ExternalLink size={10} className="vendor-card-coupon-link" />
+              )}
+            </div>
+          )}
+          {hasFreeShipping && !bestCoupon?.discountType?.includes('free_shipping') && (
+            <div className="vendor-card-coupon vendor-card-coupon-ship">
+              <span className="vendor-card-coupon-icon">🚚</span>
+              <span className="vendor-card-coupon-discount free_shipping">FREE SHIPPING</span>
+            </div>
+          )}
+          {extraCount > 0 && (
+            <button type="button" className="vendor-card-coupon-more" onClick={() => setShowAllCoupons(!showAllCoupons)}>
+              {showAllCoupons ? 'Show less' : `+${extraCount} more`}
+            </button>
+          )}
+          {showAllCoupons && allCoupons.slice(1).map((c) => (
+            <div key={c.id} className="vendor-card-coupon" onClick={() => c.couponUrl && window.open(c.couponUrl, '_blank')}>
+              <span className="vendor-card-coupon-icon">🏷</span>
+              <span className="vendor-card-coupon-code">{c.code}</span>
+              <span className={`vendor-card-coupon-discount ${c.discountType}`}>
+                {discountLabel(c)}
+              </span>
+              {c.couponUrl && (
+                <ExternalLink size={10} className="vendor-card-coupon-link" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {hasVariants && (
         <div className="vendor-card-variants">
           <div className="vendor-card-variants-header">Variants ({variants.length})</div>

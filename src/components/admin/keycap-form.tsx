@@ -124,9 +124,10 @@ export function KeycapForm({ product, brands, vendors, existingVendorProducts, k
       vfd.set('vendorUrl', entry.vendorUrl);
       vfd.set('price', String(entry.price || 0));
       vfd.set('shippingCost', String(entry.shippingCost || 0));
-      vfd.set('shippingIncluded', entry.shippingCost === 0 ? 'on' : '');
+      vfd.set('shippingIncluded', entry.shippingIncluded ? 'on' : '');
       vfd.set('stockStatus', entry.stockStatus || 'in_stock');
       vfd.set('affiliateLink', entry.affiliateLink);
+      vfd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed, ...c }) => c)));
       const result = await createVendorProduct(vfd);
       if (result && 'id' in result && entry.variants.length > 0) {
         await upsertVendorVariants(result.id as string, entry.variants);

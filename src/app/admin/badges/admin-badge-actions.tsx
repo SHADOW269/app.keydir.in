@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBadge, updateBadge, deleteBadge } from '@/lib/reputation/actions';
+import {
+  createBadge,
+  updateBadge,
+  deleteBadge,
+  reorderBadges,
+  bulkDeleteBadges,
+  duplicateBadge,
+} from '@/lib/reputation/actions';
 
 interface BadgeItem {
   id: string;
@@ -16,13 +23,27 @@ interface BadgeItem {
   visible: boolean;
   sortOrder: number;
   userCount: number;
+  type: string;
+  xpRequired: number;
+  createdAt?: string;
 }
 
 interface AdminBadgeActionsProps {
   existingBadges: BadgeItem[];
+  stats: {
+    total: number;
+    visible: number;
+    hidden: number;
+    totalAwards: number;
+    rankCount: number;
+    communityCount: number;
+  };
 }
 
-const DEFAULT_BADGE = {
+type FilterType = 'all' | 'visible' | 'hidden' | 'rank' | 'community';
+type SortType = 'order' | 'name' | 'users' | 'newest';
+
+const DEFAULT_FORM = {
   name: '',
   slug: '',
   description: '',
@@ -31,21 +52,96 @@ const DEFAULT_BADGE = {
   borderColor: '#111111',
   icon: '',
   sortOrder: 0,
+  xpRequired: 0,
+  type: 'community' as string,
 };
 
-export function AdminBadgeActions({ existingBadges }: AdminBadgeActionsProps) {
+const PRESET_COLORS = [
+  '#FAFF00', '#FF3366', '#00FF88', '#00CCFF', '#FF6600',
+  '#AA00FF', '#FF0055', '#00FFCC', '#FFD700', '#FF4444',
+  '#111111', '#222222', '#333333', '#FFFFFF', '#888888',
+];
+
+function getBadgeCategory(badge: BadgeItem): string {
+  if (badge.type === 'rank') return 'rank';
+  return 'community';
+}
+
+export function AdminBadgeActions({ existingBadges, stats }: AdminBadgeActionsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [sort, setSort] = useState<SortType>('order');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [drawer, setDrawer] = useState<'create' | 'edit' | null>(null);
   const [editing, setEditing] = useState<BadgeItem | null>(null);
-  const [form, setForm] = useState(DEFAULT_BADGE);
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState('');
 
-  function startCreate() {
-    setEditing(null);
-    setForm(DEFAULT_BADGE);
+  const filteredBadges = useMemo(() => {
+    let result = [...existingBadges];
+
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (b) =>
+          b.name.toLowerCase().includes(q) ||
+          b.slug.toLowerCase().includes(q) ||
+          (b.description || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (filter === 'visible') result = result.filter((b) => b.visible);
+    else if (filter === 'hidden') result = result.filter((b) => !b.visible);
+    else if (filter === 'rank') result = result.filter((b) => b.type === 'rank');
+    else if (filter === 'community') result = result.filter((b) => b.type === 'manual');
+
+    if (sort === 'name') result.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === 'users') result.sort((a, b) => b.userCount - a.userCount);
+    else if (sort === 'newest') result.sort((a, b) => b.sortOrder - a.sortOrder);
+    else result.sort((a, b) => a.sortOrder - b.sortOrder);
+
+    return result;
+  }, [existingBadges, search, filter, sort]);
+
+  const groupedBadges = useMemo(() => {
+    const groups: Record<string, BadgeItem[]> = { rank: [], community: [] };
+    for (const b of filteredBadges) {
+      const cat = getBadgeCategory(b);
+      if (groups[cat]) groups[cat].push(b);
+      else groups.community.push(b);
+    }
+    return groups;
+  }, [filteredBadges]);
+
+  const GROUP_LABELS: Record<string, string> = {
+    rank: 'Rank Badges',
+    community: 'Community Badges',
+  };
+
+  const GROUP_COLORS: Record<string, string> = {
+    rank: 'var(--yellow)',
+    community: 'var(--green)',
+  };
+
+  function toggleGroup(group: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
   }
 
-  function startEdit(badge: BadgeItem) {
+  function openCreate() {
+    setEditing(null);
+    setForm(DEFAULT_FORM);
+    setDrawer('create');
+  }
+
+  function openEdit(badge: BadgeItem) {
     setEditing(badge);
     setForm({
       name: badge.name,
@@ -56,7 +152,16 @@ export function AdminBadgeActions({ existingBadges }: AdminBadgeActionsProps) {
       borderColor: badge.borderColor,
       icon: badge.icon || '',
       sortOrder: badge.sortOrder,
+      xpRequired: badge.xpRequired || 0,
+      type: badge.type,
     });
+    setDrawer('edit');
+  }
+
+  function closeDrawer() {
+    setDrawer(null);
+    setEditing(null);
+    setForm(DEFAULT_FORM);
   }
 
   async function handleSave() {
@@ -73,26 +178,26 @@ export function AdminBadgeActions({ existingBadges }: AdminBadgeActionsProps) {
           borderColor: form.borderColor,
           icon: form.icon || null,
           sortOrder: form.sortOrder,
+          xpRequired: form.xpRequired,
         });
         if ('error' in res) { setMsg(res.error!); return; }
-        setMsg('Badge updated');
       } else {
         const res = await createBadge({
           name: form.name,
           slug,
+          type: form.type,
           description: form.description || undefined,
           bgColor: form.bgColor,
           textColor: form.textColor,
           borderColor: form.borderColor,
           icon: form.icon || undefined,
           sortOrder: form.sortOrder,
+          xpRequired: form.xpRequired,
         });
         if ('error' in res) { setMsg(res.error!); return; }
-        setMsg('Badge created');
       }
-
-      setEditing(null);
-      setForm(DEFAULT_BADGE);
+      closeDrawer();
+      setMsg(editing ? 'Badge updated' : 'Badge created');
       router.refresh();
     });
   }
@@ -107,162 +212,483 @@ export function AdminBadgeActions({ existingBadges }: AdminBadgeActionsProps) {
     });
   }
 
+  async function handleDuplicate(id: string) {
+    startTransition(async () => {
+      const res = await duplicateBadge(id);
+      if ('error' in res) { setMsg(res.error!); return; }
+      setMsg('Badge duplicated');
+      router.refresh();
+    });
+  }
+
+  async function handleToggleVisible(badge: BadgeItem) {
+    startTransition(async () => {
+      await updateBadge(badge.id, { visible: !badge.visible });
+      router.refresh();
+    });
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedIds.length) return;
+    if (!confirm(`Delete ${selectedIds.length} badge(s)? All assignments will be removed.`)) return;
+    startTransition(async () => {
+      const res = await bulkDeleteBadges(selectedIds);
+      if ('error' in res) { setMsg(res.error!); return; }
+      setMsg(`${selectedIds.length} badge(s) deleted`);
+      setSelectedIds([]);
+      router.refresh();
+    });
+  }
+
+  function toggleSelectAll() {
+    const allVisible = filteredBadges.map((b) => b.id);
+    const allSelected = allVisible.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : allVisible);
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
   return (
     <div>
-      {/* ═══ Badge List ═══ */}
-      <div className="overflow-x-auto mb-6">
-        <table className="price-table">
-          <thead>
-            <tr>
-              <th>Preview</th>
-              <th>Name</th>
-              <th>Slug</th>
-              <th>Users</th>
-              <th>Visible</th>
-              <th>Order</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {existingBadges.map((b) => (
-              <tr key={b.id}>
-                <td>
-                  <span
-                    className="inline-block px-2 py-1 text-xs font-bold rounded border"
-                    style={{ backgroundColor: b.bgColor, color: b.textColor, borderColor: b.borderColor }}
-                  >
-                    {b.icon} {b.name}
-                  </span>
-                </td>
-                <td className="font-bold">{b.name}</td>
-                <td className="text-[var(--text-muted)] text-sm font-mono">{b.slug}</td>
-                <td>{b.userCount}</td>
-                <td>{b.visible ? '✓' : '—'}</td>
-                <td>{b.sortOrder}</td>
-                <td className="flex gap-2">
-                  <button
-                    onClick={() => startEdit(b)}
-                    className="text-[var(--accent)] text-xs hover:underline"
-                  >
-                    EDIT
-                  </button>
-                  <button
-                    onClick={() => handleDelete(b.id)}
-                    className="text-red-400 text-xs hover:underline"
-                  >
-                    DELETE
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* ═══ KPI Cards ═══ */}
+      <div className="dash-grid" style={{ marginBottom: 16 }}>
+        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
+          <div className="dash-kpi-header">
+            <span className="dash-kpi-label">Total Badges</span>
+            <span className="dash-kpi-icon" style={{ color: 'var(--yellow)' }}>◆</span>
+          </div>
+          <div className="dash-kpi-value" style={{ color: 'var(--yellow)' }}>{stats.total}</div>
+        </div>
+        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
+          <div className="dash-kpi-header">
+            <span className="dash-kpi-label">Visible</span>
+            <span className="dash-kpi-icon" style={{ color: 'var(--green)' }}>●</span>
+          </div>
+          <div className="dash-kpi-value" style={{ color: 'var(--green)' }}>{stats.visible}</div>
+        </div>
+        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
+          <div className="dash-kpi-header">
+            <span className="dash-kpi-label">Hidden</span>
+            <span className="dash-kpi-icon" style={{ color: 'var(--text-muted)' }}>○</span>
+          </div>
+          <div className="dash-kpi-value" style={{ color: 'var(--text-muted)' }}>{stats.hidden}</div>
+        </div>
+        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
+          <div className="dash-kpi-header">
+            <span className="dash-kpi-label">Total Awards</span>
+            <span className="dash-kpi-icon" style={{ color: 'var(--purple)' }}>◆</span>
+          </div>
+          <div className="dash-kpi-value" style={{ color: 'var(--purple)' }}>{stats.totalAwards}</div>
+        </div>
+        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
+          <div className="dash-kpi-header">
+            <span className="dash-kpi-label">Rank</span>
+            <span className="dash-kpi-icon" style={{ color: 'var(--yellow)' }}>◆</span>
+          </div>
+          <div className="dash-kpi-value" style={{ color: 'var(--yellow)' }}>{stats.rankCount}</div>
+        </div>
+        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
+          <div className="dash-kpi-header">
+            <span className="dash-kpi-label">Community</span>
+            <span className="dash-kpi-icon" style={{ color: 'var(--green)' }}>◆</span>
+          </div>
+          <div className="dash-kpi-value" style={{ color: 'var(--green)' }}>{stats.communityCount}</div>
+        </div>
       </div>
 
-      {/* ═══ Create / Edit Form ═══ */}
-      <div className="border border-[var(--border)] p-4 rounded bg-[var(--bg-card)]">
-        <div className="text-sm font-bold mb-3 uppercase">
-          {editing ? `Edit: ${editing.name}` : 'Create New Badge'}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">Name</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-3 py-2 text-sm"
-              placeholder="e.g. Vendor"
-            />
+      {/* ═══ Toolbar ═══ */}
+      <div className="bdg-toolbar">
+        <div className="bdg-toolbar-left">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search badges..."
+            className="bdg-search"
+          />
+          <div className="bdg-filters">
+            {(['all', 'visible', 'hidden', 'rank', 'community'] as FilterType[]).map((f) => (
+              <button
+                key={f}
+                className={`bdg-filter-btn ${filter === f ? 'active' : ''}`}
+                onClick={() => setFilter(f)}
+              >
+                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
           </div>
-          {!editing && (
-            <div>
-              <label className="text-xs text-[var(--text-muted)] block mb-1">Slug (auto-generated if empty)</label>
+        </div>
+        <div className="bdg-toolbar-right">
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortType)} className="bdg-sort-select">
+            <option value="order">Sort: Order</option>
+            <option value="name">Sort: Name</option>
+            <option value="users">Sort: Most Used</option>
+            <option value="newest">Sort: Newest</option>
+          </select>
+          {selectedIds.length > 0 && (
+            <button className="btn-secondary btn-sm" onClick={handleBulkDelete}>
+              Delete ({selectedIds.length})
+            </button>
+          )}
+          <button className="btn-primary btn-sm" onClick={openCreate}>
+            + Create Badge
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ Badge Table ═══ */}
+      {filteredBadges.length === 0 ? (
+        <div className="bdg-empty">
+          <div className="bdg-empty-icon">◆</div>
+          <div className="bdg-empty-title">No badges found</div>
+          <div className="bdg-empty-desc">
+            {existingBadges.length === 0
+              ? 'Create your first badge to get started.'
+              : 'Try adjusting your search or filters.'}
+          </div>
+          {existingBadges.length === 0 && (
+            <button className="btn-primary btn-sm" onClick={openCreate}>
+              + Create Badge
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="bdg-table-wrap">
+          <div className="bdg-table-head">
+            <div className="bdg-th bdg-th-check">
               <input
-                type="text"
-                value={form.slug}
-                onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-3 py-2 text-sm"
-                placeholder="vendor"
+                type="checkbox"
+                checked={filteredBadges.every((b) => selectedIds.includes(b.id))}
+                onChange={toggleSelectAll}
               />
             </div>
-          )}
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">Icon (emoji)</label>
-            <input
-              type="text"
-              value={form.icon}
-              onChange={(e) => setForm({ ...form, icon: e.target.value })}
-              className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-3 py-2 text-sm"
-              placeholder="🔧"
-            />
+            <div className="bdg-th bdg-th-preview">Preview</div>
+            <div className="bdg-th bdg-th-name sortable" onClick={() => setSort(sort === 'name' ? 'order' : 'name')}>
+              Name {sort === 'name' && '▲'}
+            </div>
+            <div className="bdg-th bdg-th-category">Category</div>
+            <div className="bdg-th bdg-th-xp">XP Req.</div>
+            <div className="bdg-th bdg-th-users sortable" onClick={() => setSort(sort === 'users' ? 'order' : 'users')}>
+              Users {sort === 'users' && '▲'}
+            </div>
+            <div className="bdg-th bdg-th-visible">Visible</div>
+            <div className="bdg-th bdg-th-order sortable" onClick={() => setSort(sort === 'order' ? 'newest' : 'order')}>
+              Order {sort === 'order' && '▲'}
+            </div>
+            <div className="bdg-th bdg-th-actions">Actions</div>
           </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">Sort Order</label>
-            <input
-              type="number"
-              value={form.sortOrder}
-              onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
-              className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs text-[var(--text-muted)] block mb-1">Description</label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-3 py-2 text-sm"
-              placeholder="What this badge represents"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">Background Color</label>
-            <input
-              type="color"
-              value={form.bgColor}
-              onChange={(e) => setForm({ ...form, bgColor: e.target.value })}
-              className="w-full h-8 bg-[var(--bg)] border border-[var(--border)] rounded cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">Text Color</label>
-            <input
-              type="color"
-              value={form.textColor}
-              onChange={(e) => setForm({ ...form, textColor: e.target.value })}
-              className="w-full h-8 bg-[var(--bg)] border border-[var(--border)] rounded cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-[var(--text-muted)] block mb-1">Border Color</label>
-            <input
-              type="color"
-              value={form.borderColor}
-              onChange={(e) => setForm({ ...form, borderColor: e.target.value })}
-              className="w-full h-8 bg-[var(--bg)] border border-[var(--border)] rounded cursor-pointer"
-            />
-          </div>
-          <div className="flex items-end gap-3">
-            <button
-              onClick={handleSave}
-              disabled={pending || !form.name.trim()}
-              className="bg-[var(--accent)] text-black px-4 py-2 rounded text-sm font-bold hover:brightness-110 disabled:opacity-50"
-            >
-              {editing ? 'UPDATE' : 'CREATE'}
-            </button>
-            {editing && (
-              <button
-                onClick={startCreate}
-                className="text-[var(--text-muted)] text-sm hover:underline"
-              >
+
+          {(['rank', 'community'] as const).map((group) => {
+            const items = groupedBadges[group];
+            if (!items.length) return null;
+            const isCollapsed = collapsedGroups.has(group);
+            return (
+              <div key={group} className="bdg-group">
+                <button className="bdg-group-header" onClick={() => toggleGroup(group)}>
+                  <span className="bdg-group-chevron">{isCollapsed ? '▸' : '▾'}</span>
+                  <span className="bdg-group-dot" style={{ background: GROUP_COLORS[group] }} />
+                  <span className="bdg-group-label">{GROUP_LABELS[group]}</span>
+                  <span className="bdg-group-count">{items.length}</span>
+                </button>
+                {!isCollapsed && items.map((b) => (
+                  <div key={b.id} className={`bdg-row ${selectedIds.includes(b.id) ? 'selected' : ''}`}>
+                    <div className="bdg-td bdg-td-check">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(b.id)}
+                        onChange={() => toggleSelect(b.id)}
+                      />
+                    </div>
+                    <div className="bdg-td bdg-td-preview">
+                      <span
+                        className="bdg-preview-badge"
+                        style={{
+                          backgroundColor: b.bgColor,
+                          color: b.textColor,
+                          borderColor: b.borderColor,
+                        }}
+                      >
+                        {b.icon} {b.name}
+                      </span>
+                    </div>
+                    <div className="bdg-td bdg-td-name">
+                      <div className="bdg-name">{b.name}</div>
+                      <div className="bdg-slug">{b.slug}</div>
+                    </div>
+                    <div className="bdg-td bdg-td-category">
+                      <span className={`bdg-cat-badge bdg-cat-${getBadgeCategory(b)}`}>
+                        {getBadgeCategory(b)}
+                      </span>
+                    </div>
+                    <div className="bdg-td bdg-td-xp">
+                      {b.type === 'rank' ? (
+                        <span className="bdg-xp-val">{b.xpRequired.toLocaleString()}</span>
+                      ) : (
+                        <span className="bdg-xp-na">—</span>
+                      )}
+                    </div>
+                    <div className="bdg-td bdg-td-users">{b.userCount}</div>
+                    <div className="bdg-td bdg-td-visible">
+                      <span className={`bdg-vis-dot ${b.visible ? 'on' : 'off'}`} />
+                    </div>
+                    <div className="bdg-td bdg-td-order">{b.sortOrder}</div>
+                    <div className="bdg-td bdg-td-actions">
+                      <button className="bdg-action-btn" title="Edit" onClick={() => openEdit(b)}>
+                        ✎
+                      </button>
+                      <button className="bdg-action-btn" title="Duplicate" onClick={() => handleDuplicate(b.id)}>
+                        ⧉
+                      </button>
+                      <button
+                        className="bdg-action-btn"
+                        title={b.visible ? 'Hide' : 'Show'}
+                        onClick={() => handleToggleVisible(b)}
+                      >
+                        {b.visible ? '◉' : '○'}
+                      </button>
+                      <button className="bdg-action-btn bdg-action-danger" title="Delete" onClick={() => handleDelete(b.id)}>
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ Drawer ═══ */}
+      {drawer && (
+        <div className="bdg-drawer-overlay" onClick={closeDrawer}>
+          <div className="bdg-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="bdg-drawer-header">
+              <div className="bdg-drawer-title">
+                {drawer === 'create' ? 'Create Badge' : `Edit: ${editing?.name}`}
+              </div>
+              <button className="bdg-drawer-close" onClick={closeDrawer}>✕</button>
+            </div>
+
+            <div className="bdg-drawer-body">
+              {/* Live Preview */}
+              <div className="bdg-preview-section">
+                <div className="bdg-preview-label">Live Preview</div>
+                <div className="bdg-preview-box">
+                  <div className="bdg-preview-dark">
+                    <span
+                      className="bdg-preview-badge-lg"
+                      style={{
+                        backgroundColor: form.bgColor,
+                        color: form.textColor,
+                        borderColor: form.borderColor,
+                      }}
+                    >
+                      {form.icon} {form.name || 'Badge Name'}
+                    </span>
+                  </div>
+                  <div className="bdg-preview-profile">
+                    <div className="bdg-preview-avatar" />
+                    <div>
+                      <div className="bdg-preview-username">username</div>
+                      <span
+                        className="bdg-preview-badge-sm"
+                        style={{
+                          backgroundColor: form.bgColor,
+                          color: form.textColor,
+                          borderColor: form.borderColor,
+                        }}
+                      >
+                        {form.icon} {form.name || 'Badge'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="bdg-form">
+                {drawer === 'create' && (
+                  <div className="bdg-form-row">
+                    <label className="bdg-label">Badge Type</label>
+                    <div className="bdg-type-select">
+                      <button
+                        className={`bdg-type-btn ${form.type === 'community' ? 'active-community' : ''}`}
+                        onClick={() => setForm({ ...form, type: 'community' })}
+                        type="button"
+                      >
+                        Community
+                      </button>
+                      <button
+                        className={`bdg-type-btn ${form.type === 'rank' ? 'active-rank' : ''}`}
+                        onClick={() => setForm({ ...form, type: 'rank' })}
+                        type="button"
+                      >
+                        Rank
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bdg-form-row">
+                  <label className="bdg-label">Name</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="bdg-input"
+                    placeholder="e.g. Vendor"
+                  />
+                </div>
+
+                {drawer === 'create' && (
+                  <div className="bdg-form-row">
+                    <label className="bdg-label">Slug</label>
+                    <input
+                      type="text"
+                      value={form.slug}
+                      onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                      className="bdg-input"
+                      placeholder="auto-generated"
+                    />
+                  </div>
+                )}
+
+                <div className="bdg-form-row">
+                  <label className="bdg-label">Icon (emoji)</label>
+                  <input
+                    type="text"
+                    value={form.icon}
+                    onChange={(e) => setForm({ ...form, icon: e.target.value })}
+                    className="bdg-input"
+                    placeholder="🔧"
+                  />
+                </div>
+
+                <div className="bdg-form-row">
+                  <label className="bdg-label">Description</label>
+                  <input
+                    type="text"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    className="bdg-input"
+                    placeholder="What this badge represents"
+                  />
+                </div>
+
+                {(form.type === 'rank' || (editing && editing.type === 'rank')) && (
+                  <div className="bdg-form-row">
+                    <label className="bdg-label">XP Required</label>
+                    <input
+                      type="number"
+                      value={form.xpRequired}
+                      onChange={(e) => setForm({ ...form, xpRequired: parseInt(e.target.value) || 0 })}
+                      className="bdg-input"
+                      min={0}
+                    />
+                  </div>
+                )}
+
+                <div className="bdg-form-row">
+                  <label className="bdg-label">Sort Order</label>
+                  <input
+                    type="number"
+                    value={form.sortOrder}
+                    onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
+                    className="bdg-input"
+                  />
+                </div>
+
+                {/* Colors */}
+                <div className="bdg-colors">
+                  <label className="bdg-label">Colors</label>
+                  <div className="bdg-color-row">
+                    <div className="bdg-color-field">
+                      <span className="bdg-color-label">Background</span>
+                      <div className="bdg-color-input-wrap">
+                        <input
+                          type="color"
+                          value={form.bgColor}
+                          onChange={(e) => setForm({ ...form, bgColor: e.target.value })}
+                          className="bdg-color-input"
+                        />
+                        <input
+                          type="text"
+                          value={form.bgColor}
+                          onChange={(e) => setForm({ ...form, bgColor: e.target.value })}
+                          className="bdg-color-hex"
+                        />
+                      </div>
+                    </div>
+                    <div className="bdg-color-field">
+                      <span className="bdg-color-label">Text</span>
+                      <div className="bdg-color-input-wrap">
+                        <input
+                          type="color"
+                          value={form.textColor}
+                          onChange={(e) => setForm({ ...form, textColor: e.target.value })}
+                          className="bdg-color-input"
+                        />
+                        <input
+                          type="text"
+                          value={form.textColor}
+                          onChange={(e) => setForm({ ...form, textColor: e.target.value })}
+                          className="bdg-color-hex"
+                        />
+                      </div>
+                    </div>
+                    <div className="bdg-color-field">
+                      <span className="bdg-color-label">Border</span>
+                      <div className="bdg-color-input-wrap">
+                        <input
+                          type="color"
+                          value={form.borderColor}
+                          onChange={(e) => setForm({ ...form, borderColor: e.target.value })}
+                          className="bdg-color-input"
+                        />
+                        <input
+                          type="text"
+                          value={form.borderColor}
+                          onChange={(e) => setForm({ ...form, borderColor: e.target.value })}
+                          className="bdg-color-hex"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bdg-presets">
+                    {PRESET_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        className={`bdg-preset ${form.bgColor === c ? 'active' : ''}`}
+                        style={{ background: c }}
+                        onClick={() => setForm({ ...form, bgColor: c })}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {msg && <div className="bdg-msg">{msg}</div>}
+              </div>
+            </div>
+
+            <div className="bdg-drawer-footer">
+              <button className="btn-secondary btn-sm" onClick={closeDrawer}>
                 Cancel
               </button>
-            )}
+              <button
+                className="btn-primary btn-sm"
+                onClick={handleSave}
+                disabled={pending || !form.name.trim()}
+              >
+                {pending ? 'Saving...' : drawer === 'create' ? 'Create Badge' : 'Update Badge'}
+              </button>
+            </div>
           </div>
         </div>
-        {msg && <p className="text-xs mt-2 text-[var(--accent)]">{msg}</p>}
-      </div>
+      )}
     </div>
   );
 }

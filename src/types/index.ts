@@ -30,6 +30,7 @@ export interface VendorProductWithVendor {
   shippingCost: number | { toNumber(): number };
   shippingIncluded: boolean;
   totalPrice: number | { toNumber(): number };
+  effectivePrice: number | { toNumber(): number };
   stockStatus: string;
   availability?: Availability;
   lastChecked?: Date;
@@ -55,6 +56,17 @@ export interface VendorProductWithVendor {
     sku: string | null;
     isDefault: boolean;
   }>;
+  coupons?: Array<{
+    id: string;
+    code: string;
+    discountType: string;
+    discountValue: number;
+    minimumOrderAmount: number;
+    expiryDate: Date | null;
+    couponUrl: string | null;
+    description: string | null;
+    enabled: boolean;
+  }>;
 }
 
 export interface ProductCard {
@@ -65,7 +77,8 @@ export interface ProductCard {
   brand: { name: string } | null;
   productType: string;
   lowestPrice: number | null;
-  highestPrice: number | null;
+  originalPrice: number | null;
+  hasCoupons: boolean;
   vendorCount: number;
   upvotes: number;
   downvotes: number;

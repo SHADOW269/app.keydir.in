@@ -54,13 +54,14 @@ export default async function ProductPage({ params }: Props) {
         include: {
           vendor: true,
           variants: { orderBy: { createdAt: 'asc' } },
+          coupons: { orderBy: { createdAt: 'asc' } },
           priceHistory: {
             orderBy: { recordedAt: 'asc' },
             take: 500,
           },
         },
         where: { vendor: { enabled: true } },
-        orderBy: { totalPrice: 'asc' },
+        orderBy: { effectivePrice: 'asc' },
       },
       votes: { select: { type: true } },
     },
@@ -73,6 +74,12 @@ export default async function ProductPage({ params }: Props) {
     price: Number(vp.price),
     shippingCost: Number(vp.shippingCost),
     totalPrice: Number(vp.totalPrice),
+    effectivePrice: Number(vp.effectivePrice),
+    coupons: vp.coupons.map((c) => ({
+      ...c,
+      discountValue: Number(c.discountValue),
+      minimumOrderAmount: Number(c.minimumOrderAmount),
+    })),
     variants: vp.variants.map((v) => ({
       ...v,
       color: v.color as string[] | null,
@@ -101,9 +108,9 @@ export default async function ProductPage({ params }: Props) {
 
   const upvotes = product.votes.filter((v) => v.type === 'upvote').length;
   const downvotes = product.votes.filter((v) => v.type === 'downvote').length;
-  const lowestPrice = serializedVendorProducts[0]?.totalPrice ?? null;
+  const lowestPrice = serializedVendorProducts[0]?.effectivePrice ?? null;
   const highestPrice = serializedVendorProducts.length > 1
-    ? serializedVendorProducts[serializedVendorProducts.length - 1]?.totalPrice ?? null
+    ? serializedVendorProducts[serializedVendorProducts.length - 1]?.effectivePrice ?? null
     : null;
   const vendorCount = serializedVendorProducts.length;
 

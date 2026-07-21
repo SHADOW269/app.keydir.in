@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { XP_VALUES, getRank, RANKS, RANK_SLUGS, RANK_BADGE_DEFAULTS, getBadgePriority } from '@/lib/reputation';
+import { XP_VALUES, getRank, getBadgePriority } from '@/lib/reputation';
 import type { ContributionType } from '@prisma/client';
 
 // ═══ HELPERS ═══
@@ -26,14 +26,22 @@ async function ensureUserXP(profileId: string) {
 // ═══ SYSTEM BADGES ═══
 
 const SYSTEM_BADGES = [
-  { slug: 'community-member', name: 'Community Member', type: 'system', sortOrder: 0, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111' },
-  ...RANKS.map((r, i) => ({
-    slug: RANK_SLUGS[r.name],
-    name: r.name,
-    type: 'rank',
-    sortOrder: 10 + i,
-    ...RANK_BADGE_DEFAULTS[r.name],
-  })),
+  { slug: 'community-member', name: 'Community Member', type: 'community', sortOrder: 0, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'vendor', name: 'Vendor', type: 'community', sortOrder: 1, icon: '🏪', bgColor: '#00FF88', textColor: '#111111', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'builder', name: 'Builder', type: 'community', sortOrder: 2, icon: '🔧', bgColor: '#00CCFF', textColor: '#111111', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'moderator', name: 'Moderator', type: 'community', sortOrder: 3, icon: '🛡️', bgColor: '#AA00FF', textColor: '#FFFFFF', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'developer', name: 'Developer', type: 'community', sortOrder: 4, icon: '💻', bgColor: '#FF6600', textColor: '#111111', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'verified-store', name: 'Verified Store', type: 'community', sortOrder: 5, icon: '✅', bgColor: '#00FF88', textColor: '#111111', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'staff', name: 'Staff', type: 'community', sortOrder: 6, icon: '⭐', bgColor: '#FFD700', textColor: '#111111', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'sponsor', name: 'Sponsor', type: 'community', sortOrder: 7, icon: '💎', bgColor: '#FF3366', textColor: '#FFFFFF', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'rank-newbie', name: 'Newbie', type: 'rank', sortOrder: 10, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 0 },
+  { slug: 'rank-member', name: 'Member', type: 'rank', sortOrder: 11, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 50 },
+  { slug: 'rank-enthusiast', name: 'Enthusiast', type: 'rank', sortOrder: 12, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 150 },
+  { slug: 'rank-contributor', name: 'Contributor', type: 'rank', sortOrder: 13, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 400 },
+  { slug: 'rank-trusted-contributor', name: 'Trusted Contributor', type: 'rank', sortOrder: 14, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 800 },
+  { slug: 'rank-expert', name: 'Expert', type: 'rank', sortOrder: 15, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 1500 },
+  { slug: 'rank-veteran', name: 'Veteran', type: 'rank', sortOrder: 16, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 3000 },
+  { slug: 'rank-elite', name: 'Elite', type: 'rank', sortOrder: 17, icon: '', bgColor: '#FAFF00', textColor: '#111111', borderColor: '#111111', xpRequired: 6000 },
 ];
 
 let _badgesSeeded = false;
@@ -43,7 +51,7 @@ export async function ensureSystemBadges() {
   for (const b of SYSTEM_BADGES) {
     await prisma.badge.upsert({
       where: { slug: b.slug },
-      update: {},
+      update: { xpRequired: b.xpRequired, type: b.type },
       create: {
         slug: b.slug,
         name: b.name,
@@ -53,6 +61,7 @@ export async function ensureSystemBadges() {
         bgColor: b.bgColor,
         textColor: b.textColor,
         borderColor: b.borderColor,
+        xpRequired: b.xpRequired,
       },
     });
   }
@@ -61,38 +70,71 @@ export async function ensureSystemBadges() {
 
 export async function syncRankBadge(profileId: string) {
   const xp = await getProfileXP(profileId);
-  const newRank = getRank(xp);
-  const newRankSlug = RANK_SLUGS[newRank];
 
-  const newBadge = await prisma.badge.findUnique({ where: { slug: newRankSlug } });
-  if (!newBadge) return;
-
-  const currentBadges = await prisma.userBadge.findMany({
-    where: { profileId, badge: { type: 'rank' } },
-    include: { badge: true },
+  const allRankBadges = await prisma.badge.findMany({
+    where: { type: 'rank' },
+    orderBy: { xpRequired: 'asc' },
   });
 
-  for (const ub of currentBadges) {
-    if (ub.badge.slug !== newRankSlug) {
+  if (allRankBadges.length === 0) return;
+
+  let bestBadge = allRankBadges[0];
+  for (const b of allRankBadges) {
+    if (xp >= b.xpRequired) bestBadge = b;
+  }
+
+  const currentRankBadges = await prisma.userBadge.findMany({
+    where: { profileId, badge: { type: 'rank' } },
+  });
+
+  for (const ub of currentRankBadges) {
+    if (ub.badgeId !== bestBadge.id) {
       await prisma.userBadge.delete({ where: { id: ub.id } });
     }
   }
 
-  const hasRank = currentBadges.some(ub => ub.badge.slug === newRankSlug);
+  const hasRank = currentRankBadges.some(ub => ub.badgeId === bestBadge.id);
   if (!hasRank) {
-    await prisma.userBadge.create({ data: { profileId, badgeId: newBadge.id } });
+    await prisma.userBadge.create({ data: { profileId, badgeId: bestBadge.id } });
   }
 }
 
 export async function syncCommunityMember(profileId: string) {
   const badge = await prisma.badge.findUnique({ where: { slug: 'community-member' } });
   if (!badge) return;
+
+  // Handle legacy 'system' type — update to 'community' if needed
+  if (badge.type !== 'community') {
+    await prisma.badge.update({ where: { id: badge.id }, data: { type: 'community' } });
+  }
+
   const existing = await prisma.userBadge.findUnique({
     where: { profileId_badgeId: { profileId, badgeId: badge.id } },
   });
+
   if (!existing) {
+    // Remove any other community badges before assigning default
+    await prisma.userBadge.deleteMany({
+      where: { profileId, badge: { type: 'community' } },
+    });
     await prisma.userBadge.create({ data: { profileId, badgeId: badge.id } });
   }
+}
+
+export async function assignCommunityBadge(profileId: string, badgeId: string) {
+  await prisma.userBadge.deleteMany({
+    where: { profileId, badge: { type: 'community' } },
+  });
+
+  if (badgeId) {
+    const badge = await prisma.badge.findUnique({ where: { id: badgeId } });
+    if (!badge || badge.type !== 'community') return { error: 'invalid_badge' as const };
+    await prisma.userBadge.create({ data: { profileId, badgeId } });
+  }
+
+  revalidatePath('/admin/users');
+  revalidatePath('/profile/[username]', 'page');
+  return { ok: true };
 }
 
 // ═══ XP & RANK ═══
@@ -110,7 +152,6 @@ export async function getProfileRank(profileId: string) {
 export async function getUserBadges(profileId: string) {
   await ensureSystemBadges();
   await syncRankBadge(profileId);
-  await syncCommunityMember(profileId);
 
   const userBadges = await prisma.userBadge.findMany({
     where: { profileId },
@@ -263,6 +304,69 @@ export async function rejectContribution(contributionId: string) {
   return { ok: true };
 }
 
+export async function adminDirectContribution(data: {
+  profileId: string;
+  type: ContributionType;
+  title: string;
+  description?: string;
+  xpAwarded: number;
+}) {
+  const admin = await getAdminProfile();
+  if (!admin) return { error: 'not_authorized' as const };
+
+  const contribution = await prisma.contribution.create({
+    data: {
+      profileId: data.profileId,
+      type: data.type,
+      title: data.title,
+      description: data.description || null,
+      xpAwarded: data.xpAwarded,
+      status: 'APPROVED',
+      approvedById: admin.id,
+      approvedAt: new Date(),
+    },
+  });
+
+  const xp = await ensureUserXP(data.profileId);
+  const newTotal = xp.xp + data.xpAwarded;
+
+  await prisma.userXP.update({ where: { profileId: data.profileId }, data: { xp: newTotal } });
+  await prisma.activityLog.create({
+    data: {
+      profileId: data.profileId,
+      action: 'contribution_approved',
+      details: `Approved "${data.title}" +${data.xpAwarded} XP`,
+    },
+  });
+
+  await syncRankBadge(data.profileId);
+
+  revalidatePath('/admin/users');
+  revalidatePath('/profile/[username]', 'page');
+  return { ok: true, newTotal, rank: getRank(newTotal) };
+}
+
+export async function deleteContribution(contributionId: string) {
+  const admin = await getAdminProfile();
+  if (!admin) return { error: 'not_authorized' as const };
+
+  const contribution = await prisma.contribution.findUnique({ where: { id: contributionId } });
+  if (!contribution) return { error: 'not_found' as const };
+
+  if (contribution.status === 'APPROVED' && contribution.xpAwarded > 0) {
+    const xp = await ensureUserXP(contribution.profileId);
+    const newTotal = Math.max(0, xp.xp - contribution.xpAwarded);
+    await prisma.userXP.update({ where: { profileId: contribution.profileId }, data: { xp: newTotal } });
+    await syncRankBadge(contribution.profileId);
+  }
+
+  await prisma.contribution.delete({ where: { id: contributionId } });
+
+  revalidatePath('/admin/users');
+  revalidatePath('/profile/[username]', 'page');
+  return { ok: true };
+}
+
 export async function getPendingContributions() {
   return prisma.contribution.findMany({
     where: { status: 'PENDING' },
@@ -280,6 +384,7 @@ export async function getBadges() {
 export async function createBadge(data: {
   name: string;
   slug: string;
+  type?: string;
   description?: string;
   bgColor?: string;
   textColor?: string;
@@ -287,6 +392,7 @@ export async function createBadge(data: {
   icon?: string;
   visible?: boolean;
   sortOrder?: number;
+  xpRequired?: number;
 }) {
   const admin = await getAdminProfile();
   if (!admin) return { error: 'not_authorized' };
@@ -298,6 +404,7 @@ export async function createBadge(data: {
     data: {
       name: data.name,
       slug: data.slug,
+      type: data.type || 'community',
       description: data.description || null,
       bgColor: data.bgColor || '#FAFF00',
       textColor: data.textColor || '#111111',
@@ -305,6 +412,7 @@ export async function createBadge(data: {
       icon: data.icon || null,
       visible: data.visible ?? true,
       sortOrder: data.sortOrder ?? 0,
+      xpRequired: data.xpRequired ?? 0,
     },
   });
 
@@ -321,6 +429,7 @@ export async function updateBadge(badgeId: string, data: {
   icon?: string | null;
   visible?: boolean;
   sortOrder?: number;
+  xpRequired?: number;
 }) {
   const admin = await getAdminProfile();
   if (!admin) return { error: 'not_authorized' };
@@ -402,6 +511,7 @@ export async function suspendUser(profileId: string, reason: string, durationDay
   });
 
   revalidatePath('/admin/users');
+  revalidatePath('/profile/[username]', 'page');
   return { ok: true };
 }
 
@@ -418,6 +528,7 @@ export async function banUser(profileId: string, reason: string) {
   });
 
   revalidatePath('/admin/users');
+  revalidatePath('/profile/[username]', 'page');
   return { ok: true };
 }
 
@@ -457,4 +568,55 @@ export async function getUserActivityLog(profileId: string, limit = 50) {
     orderBy: { createdAt: 'desc' },
     take: limit,
   });
+}
+
+// ═══ BADGE BATCH ACTIONS ═══
+
+export async function reorderBadges(orderedIds: string[]) {
+  const admin = await getAdminProfile();
+  if (!admin) return { error: 'not_authorized' as const };
+
+  await prisma.$transaction(
+    orderedIds.map((id, i) => prisma.badge.update({ where: { id }, data: { sortOrder: i } }))
+  );
+
+  revalidatePath('/admin/badges');
+  return { ok: true };
+}
+
+export async function bulkDeleteBadges(ids: string[]) {
+  const admin = await getAdminProfile();
+  if (!admin) return { error: 'not_authorized' as const };
+
+  await prisma.userBadge.deleteMany({ where: { badgeId: { in: ids } } });
+  await prisma.badge.deleteMany({ where: { id: { in: ids } } });
+
+  revalidatePath('/admin/badges');
+  return { ok: true };
+}
+
+export async function duplicateBadge(badgeId: string) {
+  const admin = await getAdminProfile();
+  if (!admin) return { error: 'not_authorized' as const };
+
+  const source = await prisma.badge.findUnique({ where: { id: badgeId } });
+  if (!source) return { error: 'not_found' as const };
+
+  const badge = await prisma.badge.create({
+    data: {
+      name: `${source.name} (Copy)`,
+      slug: `${source.slug}-copy-${Date.now()}`,
+      description: source.description,
+      bgColor: source.bgColor,
+      textColor: source.textColor,
+      borderColor: source.borderColor,
+      icon: source.icon,
+      visible: source.visible,
+      sortOrder: source.sortOrder + 1,
+      type: source.type,
+    },
+  });
+
+  revalidatePath('/admin/badges');
+  return { ok: true, badgeId: badge.id };
 }
