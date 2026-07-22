@@ -1,5 +1,6 @@
 'use server';
 
+import { deleteImage } from '@/lib/services/image-service';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
@@ -148,9 +149,14 @@ export async function deleteBrand(id: string, password: string) {
 
 export async function upsertProductImages(productId: string, images: Array<{ id?: string; url: string; publicId?: string; alt?: string; sortOrder: number; isPrimary: boolean }>) {
   const existingIds = images.filter((img) => img.id).map((img) => img.id!);
+  const removed = await prisma.productImage.findMany({
+    where: { productId, id: { notIn: existingIds } },
+    select: { publicId: true },
+  });
   await prisma.productImage.deleteMany({
     where: { productId, id: { notIn: existingIds } },
   });
+  await Promise.all(removed.filter((r) => r.publicId).map((r) => deleteImage(r.publicId!)));
 
   for (const img of images) {
     if (img.id) {

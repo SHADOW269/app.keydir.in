@@ -21,6 +21,14 @@ export function ProductImageSection({ images, onImagesChange, onFieldChange }: P
   }
 
   function handleRemove(idx: number) {
+    const img = images[idx];
+    if (img.publicId) {
+      fetch('/api/images/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicId: img.publicId }),
+      });
+    }
     onImagesChange(images.filter((_, j) => j !== idx));
     onFieldChange?.();
   }
