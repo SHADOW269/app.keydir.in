@@ -28,11 +28,10 @@ interface Props {
   healthLabel: string;
   pending: boolean;
   onSave: () => void;
-  onCancel: () => void;
   onDelete: () => void;
 }
 
-export function VendorHeader({ vendor, stats, lastLog, healthColor, healthLabel, pending, onSave, onCancel, onDelete }: Props) {
+export function VendorHeader({ vendor, stats, lastLog, healthColor, healthLabel, pending, onSave, onDelete }: Props) {
   const router = useRouter();
   return (
     <div className="vd-hd">

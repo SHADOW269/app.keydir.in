@@ -39,9 +39,9 @@ export function TestingTab({ vendor, testUrl, setTestUrl, testResult, testing, h
             <button type="button" onClick={handleTest} disabled={testing || !testUrl} className="btn-primary btn-sm">
               {testing ? 'TESTING...' : 'RUN TEST'}
             </button>
-            <button type="button" className="btn-secondary btn-sm">RUN FULL SCRAPE</button>
-            <button type="button" className="btn-secondary btn-sm">DOWNLOAD HTML</button>
-            <button type="button" className="btn-secondary btn-sm">SCREENSHOT</button>
+            <button type="button" className="btn-secondary btn-sm" disabled>RUN FULL SCRAPE</button>
+            <button type="button" className="btn-secondary btn-sm" disabled>DOWNLOAD HTML</button>
+            <button type="button" className="btn-secondary btn-sm" disabled>SCREENSHOT</button>
           </div>
         </div>
 

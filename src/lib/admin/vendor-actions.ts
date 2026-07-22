@@ -7,15 +7,22 @@ import { slugify, legacyToAvailability } from '@/lib/utils';
 import { calculateTotalPrice, recomputeEffectivePrice } from '@/lib/services/pricing-service';
 import { getScraper } from '@/lib/scraper';
 
-// ═══ VENDORS ═══
+// ═══ FORM PARSERS ═══
 
-export async function createVendor(formData: FormData) {
+function parseVendorForm(formData: FormData) {
   const name = formData.get('name') as string;
   const website = formData.get('website') as string;
   const affiliateLink = (formData.get('affiliateLink') as string) || null;
   const shippingPolicy = (formData.get('shippingPolicy') as string) || null;
   const chartColor = (formData.get('chartColor') as string) || null;
   const enabled = formData.get('enabled') === 'on';
+  return { name, website, affiliateLink, shippingPolicy, chartColor, enabled };
+}
+
+// ═══ VENDORS ═══
+
+export async function createVendor(formData: FormData) {
+  const { name, website, affiliateLink, shippingPolicy, chartColor, enabled } = parseVendorForm(formData);
 
   if (!name || !website) {
     return { error: 'Name and website are required' };
@@ -35,12 +42,7 @@ export async function createVendor(formData: FormData) {
 }
 
 export async function updateVendor(id: string, formData: FormData) {
-  const name = formData.get('name') as string;
-  const website = formData.get('website') as string;
-  const affiliateLink = (formData.get('affiliateLink') as string) || null;
-  const shippingPolicy = (formData.get('shippingPolicy') as string) || null;
-  const chartColor = (formData.get('chartColor') as string) || null;
-  const enabled = formData.get('enabled') === 'on';
+  const { name, website, affiliateLink, shippingPolicy, chartColor, enabled } = parseVendorForm(formData);
 
   if (!name || !website) {
     return { error: 'Name and website are required' };

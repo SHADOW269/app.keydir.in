@@ -56,10 +56,13 @@ const SPECS = {
 
 type SpecKey = keyof typeof SPECS;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma delegate generics are incompatible with narrow interfaces
+type SpecModel = { upsert: (args: any) => Promise<any>; deleteMany: (args: any) => Promise<any> };
+
 async function upsertSpec(specKey: SpecKey, productId: string, data: Record<string, unknown>) {
   const { model, jsonFields } = SPECS[specKey];
   const specData = buildSpecData(data, jsonFields);
-  await (model as any).upsert({
+  await (model as SpecModel).upsert({
     where: { productId },
     create: { productId, ...specData },
     update: specData,
@@ -69,7 +72,7 @@ async function upsertSpec(specKey: SpecKey, productId: string, data: Record<stri
 
 async function deleteSpec(specKey: SpecKey, productId: string) {
   const { model } = SPECS[specKey];
-  await (model as any).deleteMany({ where: { productId } });
+  await (model as SpecModel).deleteMany({ where: { productId } });
 }
 
 export async function upsertKeyboardSpec(productId: string, data: Record<string, unknown>) {

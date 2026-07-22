@@ -142,7 +142,7 @@ export function SchedulerSection({
               {priceSchedule === 'custom' && (
                 <div className="admin-field">
                   <label className="admin-label">Cron</label>
-                  <input className="admin-input" placeholder="0 */6 * * *" style={{ fontFamily: 'var(--f-m)', fontSize: '0.7rem' }} disabled={!priceEnabled} />
+                  <input className="admin-input" placeholder="0 */6 * * *" style={{ fontFamily: 'var(--f-m)', fontSize: '0.7rem' }} disabled />
                 </div>
               )}
               <div className="sch-mon-stats">
@@ -178,7 +178,7 @@ export function SchedulerSection({
               {stockSchedule === 'custom' && (
                 <div className="admin-field">
                   <label className="admin-label">Cron</label>
-                  <input className="admin-input" placeholder="*/30 * * * *" style={{ fontFamily: 'var(--f-m)', fontSize: '0.7rem' }} disabled={!stockEnabled} />
+                  <input className="admin-input" placeholder="*/30 * * * *" style={{ fontFamily: 'var(--f-m)', fontSize: '0.7rem' }} disabled />
                 </div>
               )}
               <div className="sch-mon-stats">
@@ -278,7 +278,7 @@ export function SchedulerSection({
               <div className="admin-field"><label className="admin-label">Start</label><input type="time" className="admin-input" value={quietStart} onChange={(e) => setQuietStart(e.target.value)} /></div>
               <span className="sch-hours-sep">→</span>
               <div className="admin-field"><label className="admin-label">End</label><input type="time" className="admin-input" value={quietEnd} onChange={(e) => setQuietEnd(e.target.value)} /></div>
-              <div className="admin-field"><label className="admin-label">TZ</label><select className="admin-input" defaultValue="vendor"><option value="vendor">Local</option><option value="UTC">UTC</option><option value="IST">IST</option></select></div>
+              <div className="admin-field"><label className="admin-label">TZ</label><select className="admin-input" defaultValue="vendor" disabled><option value="vendor">Local</option><option value="UTC">UTC</option><option value="IST">IST</option></select></div>
             </div>
           </div>
           <div className="sch-hours-divider" />
@@ -289,7 +289,7 @@ export function SchedulerSection({
               <div className="admin-field"><label className="admin-label">Start</label><input type="time" className="admin-input" value={windowStart} onChange={(e) => setWindowStart(e.target.value)} /></div>
               <span className="sch-hours-sep">→</span>
               <div className="admin-field"><label className="admin-label">End</label><input type="time" className="admin-input" value={windowEnd} onChange={(e) => setWindowEnd(e.target.value)} /></div>
-              <div className="admin-field"><label className="admin-label">TZ</label><select className="admin-input" defaultValue="vendor"><option value="vendor">Local</option><option value="UTC">UTC</option><option value="IST">IST</option></select></div>
+              <div className="admin-field"><label className="admin-label">TZ</label><select className="admin-input" defaultValue="vendor" disabled><option value="vendor">Local</option><option value="UTC">UTC</option><option value="IST">IST</option></select></div>
             </div>
           </div>
         </div>

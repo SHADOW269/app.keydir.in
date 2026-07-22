@@ -22,7 +22,7 @@ export function parsePrice(html: string, vendor: string): number | null {
 
         // Single offer object
         if (offers.price != null && !Array.isArray(offers)) {
-          const price = sanitizePrice(String(offers.price));
+          const price = parsePriceValue(String(offers.price));
           if (price != null) {
             log(vendor, 'JSON-LD offer.price:', offers.price, '->', price, '(selector: offers.price)');
             return price;
@@ -33,7 +33,7 @@ export function parsePrice(html: string, vendor: string): number | null {
         if (Array.isArray(offers)) {
           const prices = offers
             .map((o: Record<string, unknown>) => ({
-              price: sanitizePrice(String(o.price)),
+              price: parsePriceValue(String(o.price)),
               name: String(o.name || ''),
               type: String(o.priceCurrency || ''),
             }))
@@ -60,7 +60,7 @@ export function parsePrice(html: string, vendor: string): number | null {
   for (const p of metaPatterns) {
     const m = html.match(p);
     if (m) {
-      const price = sanitizePrice(m[1]);
+      const price = parsePriceValue(m[1]);
       if (price != null) {
         log(vendor, 'Meta tag:', m[0].substring(0, 80), '->', price, '(selector: meta product:price)');
         return price;
@@ -71,7 +71,7 @@ export function parsePrice(html: string, vendor: string): number | null {
   // ── Strategy 3: data-price attribute ──
   const dataPriceMatch = html.match(/data-price="([^"]+)"/i);
   if (dataPriceMatch) {
-    const price = sanitizePrice(dataPriceMatch[1]);
+    const price = parsePriceValue(dataPriceMatch[1]);
     if (price != null) {
       log(vendor, 'data-price:', dataPriceMatch[1], '->', price, '(selector: [data-price])');
       return price;
@@ -101,7 +101,7 @@ export function parsePrice(html: string, vendor: string): number | null {
     re.lastIndex = 0;
     let match;
     while ((match = re.exec(cleaned)) !== null) {
-      const price = sanitizePrice(match[1]);
+      const price = parsePriceValue(match[1]);
       if (price != null && price > 0) {
         log(vendor, `Pattern "${name}":`, match[0].substring(0, 80), '->', price, `(selector: ${name})`);
         return price;
@@ -113,13 +113,7 @@ export function parsePrice(html: string, vendor: string): number | null {
   return null;
 }
 
-/**
- * Sanitize a raw price string into a clean integer.
- * Handles: "8999", "8,999", "8999.00", "₹8,999", "Rs. 8,999", "Rs 8999.00"
- * Returns null if not a valid price.
- */
-function sanitizePrice(raw: string): number | null {
-  // Strip currency symbols, whitespace, "Rs.", "INR", etc.
+export function parsePriceValue(raw: string): number | null {
   const cleaned = raw
     .replace(/[₹$€£]/g, '')
     .replace(/\bRs\.?\s*/gi, '')
@@ -127,30 +121,29 @@ function sanitizePrice(raw: string): number | null {
     .replace(/,/g, '')
     .trim();
 
-  // Extract the number (allow decimal for .00 cases but truncate to int)
   const numMatch = cleaned.match(/^(\d+(?:\.\d{1,2})?)$/);
   if (!numMatch) return null;
 
   const num = parseFloat(numMatch[1]);
-  if (isNaN(num) || num <= 0 || num > 99_99_999) return null; // sanity: 0 < price < 1Cr
+  if (isNaN(num) || num <= 0 || num > 99_99_999) return null;
 
   return Math.round(num);
 }
 
-export function extractAvailability(html: string): 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK' {
-  const lower = html.toLowerCase();
-
-  // Check for add-to-cart button (strong signal for in-stock)
-  const hasAddToCart = /(?:add\s*to\s*cart|buy\s*now|place\s*order)/i.test(html);
-  const hasOutOfStock = /(?:out\s*of\s*stock|sold\s*out|unavailable|currently\s*unavailable)/i.test(lower);
-  const hasPreorder = /(?:pre[\s-]*order|preorder)/i.test(lower);
-  const hasGroupBuy = /(?:group\s*buy|groupbuy)/i.test(lower);
-  const hasComingSoon = /(?:coming\s*soon)/i.test(lower);
-
-  if (hasOutOfStock && !hasAddToCart) return 'OUT_OF_STOCK';
-  if (hasPreorder) return 'PREORDER';
-  if (hasGroupBuy) return 'GROUP_BUY';
-  if (hasComingSoon) return 'COMING_SOON';
-
+export function parseAvailability(raw: string): 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK' {
+  const lower = raw.toLowerCase();
+  if (/out\s*of\s*stock|sold\s*out|unavailable|currently\s*unavailable/i.test(lower)) return 'OUT_OF_STOCK';
+  if (/pre[\s-]*order/i.test(lower)) return 'PREORDER';
+  if (/group\s*buy/i.test(lower)) return 'GROUP_BUY';
+  if (/coming\s*soon/i.test(lower)) return 'COMING_SOON';
   return 'IN_STOCK';
+}
+
+export function parseCustomHeaders(raw: string | null): Record<string, string> | undefined {
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
 }

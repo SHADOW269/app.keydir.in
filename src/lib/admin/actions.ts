@@ -77,9 +77,10 @@ export async function updateProduct(id: string, formData: FormData) {
   const updated = await prisma.product.update({
     where: { id },
     data: {
-      name, slug, brandId, productType, image, imagePublicId, description,
+      name, slug, productType, image, imagePublicId, description,
       longDescription, sku, status, metaTitle, metaDescription, ogImage,
       releaseDate: releaseDate ? new Date(releaseDate) : null,
+      brand: brandId ? { connect: { id: brandId } } : { disconnect: true },
     },
     select: { slug: true },
   });

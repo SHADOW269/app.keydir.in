@@ -80,7 +80,7 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="ce">
+    <form id="brand-form" onSubmit={handleSubmit} className="ce">
       <EditorHeader
         title={isEdit ? (name || brand!.name) : 'Add Brand'}
         subtitle={!isEdit ? 'Create a new keyboard brand.' : undefined}
@@ -92,8 +92,8 @@ export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
         pending={pending}
         cancelHref="/admin/brands"
         isEdit={isEdit}
+        formId="brand-form"
         onDelete={() => setShowDeleteModal(true)}
-        onSave={() => {}}
       />
       {error && <div className="ce-err">{error}</div>}
 

@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import type { ScrapeResult, VendorConfig } from './types';
 import { safeFetch } from './types';
-import { parsePrice } from './parse';
+import { parsePrice, parsePriceValue, parseAvailability, parseCustomHeaders } from './parse';
 
 const DEBUG = process.env.SCRAPER_DEBUG === 'true';
 
@@ -119,39 +119,4 @@ function extractAttribute($: cheerio.CheerioAPI, selector: string | null, attrib
   }
 
   return null;
-}
-
-function parsePriceValue(raw: string): number | null {
-  const cleaned = raw
-    .replace(/[₹$€£]/g, '')
-    .replace(/\bRs\.?\s*/gi, '')
-    .replace(/\bINR\s*/gi, '')
-    .replace(/,/g, '')
-    .trim();
-
-  const numMatch = cleaned.match(/^(\d+(?:\.\d{1,2})?)$/);
-  if (!numMatch) return null;
-
-  const num = parseFloat(numMatch[1]);
-  if (isNaN(num) || num <= 0 || num > 99_99_999) return null;
-
-  return Math.round(num);
-}
-
-function parseAvailability(raw: string): 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK' {
-  const lower = raw.toLowerCase();
-  if (/out\s*of\s*stock|sold\s*out|unavailable|currently\s*unavailable/i.test(lower)) return 'OUT_OF_STOCK';
-  if (/pre[\s-]*order/i.test(lower)) return 'PREORDER';
-  if (/group\s*buy/i.test(lower)) return 'GROUP_BUY';
-  if (/coming\s*soon/i.test(lower)) return 'COMING_SOON';
-  return 'IN_STOCK';
-}
-
-function parseCustomHeaders(raw: string | null): Record<string, string> | undefined {
-  if (!raw) return undefined;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
 }

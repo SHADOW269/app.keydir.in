@@ -26,11 +26,11 @@ export function AdvancedTab({ vendor }: Props) {
           </div>
           <div className="admin-field">
             <label className="admin-label">Worker Assignment</label>
-            <input className="admin-input" defaultValue="default" />
+            <input className="admin-input" defaultValue="default" disabled />
           </div>
           <div className="admin-field">
             <label className="admin-label">Priority</label>
-            <input name="priority" type="number" defaultValue={5} className="admin-input" min={1} max={10} />
+            <input name="priority" type="number" defaultValue={5} className="admin-input" min={1} max={10} disabled />
           </div>
         </div>
       </CollapsibleCard>
@@ -50,10 +50,10 @@ export function AdvancedTab({ vendor }: Props) {
             value={JSON.stringify(vendor, null, 2)} />
         </div>
         <div className="vd-btn-row" style={{ marginTop: 12 }}>
-          <button type="button" className="btn-secondary btn-sm">IMPORT</button>
-          <button type="button" className="btn-secondary btn-sm">EXPORT</button>
-          <button type="button" className="btn-secondary btn-sm">BACKUP</button>
-          <button type="button" className="btn-secondary btn-sm">RESTORE</button>
+          <button type="button" className="btn-secondary btn-sm" disabled>IMPORT</button>
+          <button type="button" className="btn-secondary btn-sm" disabled>EXPORT</button>
+          <button type="button" className="btn-secondary btn-sm" disabled>BACKUP</button>
+          <button type="button" className="btn-secondary btn-sm" disabled>RESTORE</button>
         </div>
       </CollapsibleCard>
     </>

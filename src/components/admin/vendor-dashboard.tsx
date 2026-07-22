@@ -143,7 +143,6 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
           healthLabel={healthStatus === 'healthy' ? 'HEALTHY' : healthStatus === 'warning' ? 'WARNING' : healthStatus === 'unknown' ? 'NO DATA' : 'BROKEN'}
           pending={pending}
           onSave={() => document.querySelector<HTMLFormElement>('#vendor-form')?.requestSubmit()}
-          onCancel={() => {}}
           onDelete={() => setShowDeleteModal(true)}
         />
 
