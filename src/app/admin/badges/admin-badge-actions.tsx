@@ -10,6 +10,8 @@ import {
   bulkDeleteBadges,
   duplicateBadge,
 } from '@/lib/reputation/actions';
+import { BadgeKpiSection } from './badge-kpi-section';
+import { BadgeToolbarSection } from './badge-toolbar-section';
 
 interface BadgeItem {
   id: string;
@@ -255,90 +257,20 @@ export function AdminBadgeActions({ existingBadges, stats }: AdminBadgeActionsPr
   return (
     <div>
       {/* ═══ KPI Cards ═══ */}
-      <div className="dash-grid" style={{ marginBottom: 16 }}>
-        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
-          <div className="dash-kpi-header">
-            <span className="dash-kpi-label">Total Badges</span>
-            <span className="dash-kpi-icon" style={{ color: 'var(--yellow)' }}>◆</span>
-          </div>
-          <div className="dash-kpi-value" style={{ color: 'var(--yellow)' }}>{stats.total}</div>
-        </div>
-        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
-          <div className="dash-kpi-header">
-            <span className="dash-kpi-label">Visible</span>
-            <span className="dash-kpi-icon" style={{ color: 'var(--green)' }}>●</span>
-          </div>
-          <div className="dash-kpi-value" style={{ color: 'var(--green)' }}>{stats.visible}</div>
-        </div>
-        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
-          <div className="dash-kpi-header">
-            <span className="dash-kpi-label">Hidden</span>
-            <span className="dash-kpi-icon" style={{ color: 'var(--text-muted)' }}>○</span>
-          </div>
-          <div className="dash-kpi-value" style={{ color: 'var(--text-muted)' }}>{stats.hidden}</div>
-        </div>
-        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
-          <div className="dash-kpi-header">
-            <span className="dash-kpi-label">Total Awards</span>
-            <span className="dash-kpi-icon" style={{ color: 'var(--purple)' }}>◆</span>
-          </div>
-          <div className="dash-kpi-value" style={{ color: 'var(--purple)' }}>{stats.totalAwards}</div>
-        </div>
-        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
-          <div className="dash-kpi-header">
-            <span className="dash-kpi-label">Rank</span>
-            <span className="dash-kpi-icon" style={{ color: 'var(--yellow)' }}>◆</span>
-          </div>
-          <div className="dash-kpi-value" style={{ color: 'var(--yellow)' }}>{stats.rankCount}</div>
-        </div>
-        <div className="dash-kpi" style={{ gridColumn: 'span 2' }}>
-          <div className="dash-kpi-header">
-            <span className="dash-kpi-label">Community</span>
-            <span className="dash-kpi-icon" style={{ color: 'var(--green)' }}>◆</span>
-          </div>
-          <div className="dash-kpi-value" style={{ color: 'var(--green)' }}>{stats.communityCount}</div>
-        </div>
-      </div>
+      <BadgeKpiSection stats={stats} />
 
       {/* ═══ Toolbar ═══ */}
-      <div className="bdg-toolbar">
-        <div className="bdg-toolbar-left">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search badges..."
-            className="bdg-search"
-          />
-          <div className="bdg-filters">
-            {(['all', 'visible', 'hidden', 'rank', 'community'] as FilterType[]).map((f) => (
-              <button
-                key={f}
-                className={`bdg-filter-btn ${filter === f ? 'active' : ''}`}
-                onClick={() => setFilter(f)}
-              >
-                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="bdg-toolbar-right">
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortType)} className="bdg-sort-select">
-            <option value="order">Sort: Order</option>
-            <option value="name">Sort: Name</option>
-            <option value="users">Sort: Most Used</option>
-            <option value="newest">Sort: Newest</option>
-          </select>
-          {selectedIds.length > 0 && (
-            <button className="btn-secondary btn-sm" onClick={handleBulkDelete}>
-              Delete ({selectedIds.length})
-            </button>
-          )}
-          <button className="btn-primary btn-sm" onClick={openCreate}>
-            + Create Badge
-          </button>
-        </div>
-      </div>
+      <BadgeToolbarSection
+        search={search}
+        onSearchChange={setSearch}
+        filter={filter}
+        onFilterChange={setFilter}
+        sort={sort}
+        onSortChange={(s) => setSort(s)}
+        selectedCount={selectedIds.length}
+        onBulkDelete={handleBulkDelete}
+        onCreate={openCreate}
+      />
 
       {/* ═══ Badge Table ═══ */}
       {filteredBadges.length === 0 ? (

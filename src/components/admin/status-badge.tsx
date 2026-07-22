@@ -30,17 +30,11 @@ interface ScraperStatusBadgeProps {
   size?: 'sm' | 'md';
 }
 
+import { AVAILABILITY_MAP } from '@/lib/constants';
+
 const SCRAPE_STATUS: Record<string, { label: string; cls: string; icon?: string }> = {
   SUCCESS: { label: 'In Stock', cls: 'b-green', icon: '✓' },
-  PREORDER: { label: 'Preorder', cls: 'b-yellow', icon: '◷' },
-  GROUP_BUY: { label: 'Group Buy', cls: 'b-blue', icon: '◎' },
-  COMING_SOON: { label: 'Coming Soon', cls: 'b-orange', icon: '⏳' },
-  OUT_OF_STOCK: { label: 'Out of Stock', cls: 'b-red', icon: '✕' },
-  in_stock: { label: 'In Stock', cls: 'b-green', icon: '✓' },
-  preorder: { label: 'Preorder', cls: 'b-yellow', icon: '◷' },
-  group_buy: { label: 'Group Buy', cls: 'b-blue', icon: '◎' },
-  coming_soon: { label: 'Coming Soon', cls: 'b-orange', icon: '⏳' },
-  out_of_stock: { label: 'Out of Stock', cls: 'b-red', icon: '✕' },
+  ...Object.fromEntries(Object.entries(AVAILABILITY_MAP).map(([k, v]) => [k, { label: v.label, cls: v.class, icon: v.icon }])),
 };
 
 export function ScraperStatusBadge({ status, size }: ScraperStatusBadgeProps) {

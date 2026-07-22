@@ -10,6 +10,7 @@ import { useDeleteEntity } from './hooks/use-delete-entity';
 import { useScraperTest } from './hooks/use-scraper-test';
 import { useFormSubmit } from './hooks/use-form-submit';
 import { timeAgo } from '@/lib/utils';
+import { VendorCredentialsSection } from './vendor-credentials-section';
 
 interface Vendor {
   id: string;
@@ -738,49 +739,11 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
 
             {/* ─── CREDENTIALS TAB ─── */}
             <TabPanel tabId="credentials" activeTab={activeTab}>
-              <form onSubmit={handleSaveScraper}>
-                <CollapsibleCard title="Credentials & Access" icon="█" id="vd-credentials">
-                  <div className="vd-form-grid">
-                    <div className="admin-field">
-                      <label className="admin-label">Cookies</label>
-                      <textarea name="cookies" rows={3} className="admin-input" placeholder='key=value; session=***' style={{ fontFamily: 'var(--f-m)', fontSize: '0.7rem' }} />
-                    </div>
-                    <div className="admin-field">
-                      <label className="admin-label">Proxy</label>
-                      <input name="proxy" type="password" className="admin-input" placeholder="http://user:pass@host:port" />
-                    </div>
-                    <div className="admin-field">
-                      <label className="filter-option">
-                        <input type="checkbox" name="cloudflareProtected" defaultChecked={vendor.cloudflareProtected} />
-                        <span className="admin-label" style={{ margin: 0 }}>Cloudflare Protected</span>
-                      </label>
-                    </div>
-                    <div className="admin-field">
-                      <label className="admin-label">API Key</label>
-                      <input name="apiKey" type="password" className="admin-input" placeholder="sk-••••••••" />
-                    </div>
-                    <div className="admin-field">
-                      <label className="admin-label">Rate Limit (RPM)</label>
-                      <input name="rateLimit" type="number" defaultValue={60} className="admin-input" />
-                    </div>
-                    <div className="admin-field">
-                      <label className="filter-option">
-                        <input type="checkbox" name="useJavaScriptRendering" defaultChecked={vendor.useJavaScriptRendering} />
-                        <span className="admin-label" style={{ margin: 0 }}>JavaScript Rendering</span>
-                      </label>
-                    </div>
-                  </div>
-                </CollapsibleCard>
-
-                <div style={{ marginTop: 20 }}>
-                  <button type="submit" disabled={pending} className="btn-primary">
-                    {pending ? 'SAVING...' : 'SAVE CREDENTIALS →'}
-                  </button>
-                </div>
-              </form>
-              <div className="vd-security-note">
-                Secrets are masked. Replace without revealing existing values.
-              </div>
+              <VendorCredentialsSection
+                vendor={vendor}
+                pending={pending}
+                onSubmit={handleSaveScraper}
+              />
             </TabPanel>
 
             {/* ─── ADVANCED TAB ─── */}

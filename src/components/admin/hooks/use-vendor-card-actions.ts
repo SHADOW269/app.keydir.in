@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { checkVendorProduct, updateVendorStatus } from '@/lib/admin/vendor-actions';
+import { checkVendorProduct } from '@/lib/admin/vendor-actions';
 import { scrapeVendorProduct, clearManualOverride } from '@/lib/admin/scraper-actions';
-import type { VendorEntry } from '../vendor-types';
+import { saveVendorEntries } from '@/lib/admin/vendor-batch-save';
+import type { VendorEntry, ExistingVendorProduct } from '../vendor-types';
 
 type CheckResult = { ok: boolean; message: string; scrapedPrice?: number; scrapedAvailability?: string; scraperVersion?: string } | null;
 
-export function useVendorCardActions(entries: VendorEntry[]) {
+export function useVendorCardActions(entries: VendorEntry[], productId: string, existingVendorProducts: ExistingVendorProduct[]) {
   const [checking, setChecking] = useState<Record<number, boolean>>({});
   const [scraping, setScraping] = useState<Record<number, boolean>>({});
   const [updating, setUpdating] = useState<Record<number, boolean>>({});
@@ -66,17 +67,14 @@ export function useVendorCardActions(entries: VendorEntry[]) {
     const entry = entries[idx];
     if (!entry.id) return;
     setUpdating((p) => ({ ...p, [idx]: true }));
-    const fd = new FormData();
-    fd.set('vendorProductId', entry.id);
-    fd.set('price', String(entry.price || 0));
-    fd.set('stockStatus', entry.stockStatus || 'in_stock');
-    fd.set('shippingCost', String(entry.shippingCost || 0));
-    fd.set('shippingIncluded', entry.shippingIncluded ? 'on' : '');
-    fd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed, ...c }) => c)));
-    await updateVendorStatus(fd);
-    window.location.reload();
+    try {
+      await saveVendorEntries(productId, entries, existingVendorProducts);
+      window.location.reload();
+    } catch {
+      // saveVendorEntries internally calls server actions; surface via reload
+    }
     setUpdating((p) => ({ ...p, [idx]: false }));
-  }, [entries]);
+  }, [entries, productId, existingVendorProducts]);
 
   const handleClearOverride = useCallback(async (idx: number) => {
     const entry = entries[idx];

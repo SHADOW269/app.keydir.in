@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { slugify, legacyToAvailability } from '@/lib/utils';
-import { calculateTotalPrice, recomputeEffectivePrice, applyPriceUpdate } from '@/lib/services/pricing-service';
+import { calculateTotalPrice, recomputeEffectivePrice } from '@/lib/services/pricing-service';
 import { getScraper } from '@/lib/scraper';
 
 // ═══ VENDORS ═══
@@ -211,63 +211,6 @@ export async function createVendorProduct(formData: FormData) {
 
   revalidatePath('/admin/products');
   return { ok: true, id: vp.id };
-}
-
-export async function updateVendorStatus(formData: FormData) {
-  const vendorProductId = formData.get('vendorProductId') as string;
-  const price = parseInt(formData.get('price') as string);
-  const stockStatus = formData.get('stockStatus') as string || 'in_stock';
-  const shippingCost = parseInt(formData.get('shippingCost') as string) || 0;
-  const shippingIncluded = formData.get('shippingIncluded') === 'on';
-
-  if (!vendorProductId || isNaN(price)) {
-    return { error: 'Vendor product ID and price are required' };
-  }
-
-  const vp = await prisma.vendorProduct.findUnique({ where: { id: vendorProductId }, select: { productId: true } });
-  if (!vp) return { error: 'Vendor product not found' };
-
-  const totalPrice = calculateTotalPrice(price, shippingCost, shippingIncluded);
-  const availability = legacyToAvailability(stockStatus);
-
-  let username = 'admin';
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const profile = await prisma.profile.findUnique({ where: { userId: user.id }, select: { username: true } });
-      if (profile) username = profile.username;
-    }
-  } catch {}
-
-  await prisma.vendorProduct.update({
-    where: { id: vendorProductId },
-    data: {
-      price, stockStatus, shippingCost, shippingIncluded, totalPrice, effectivePrice: totalPrice, bestFinalPrice: totalPrice,
-      availability,
-      manualOverride: true,
-      manualUpdatedAt: new Date(),
-      lastCheckedAt: new Date(),
-      updatedBy: username,
-      manualUpdatedById: username,
-      source: 'manual',
-      scrapeStatus: 'MANUAL_OVERRIDE',
-    },
-  });
-
-  await syncVendorProductCoupons(vendorProductId, formData.get('coupons') as string | null);
-
-  await prisma.priceHistory.create({
-    data: {
-      vendorProductId, price, shippingCost, totalPrice,
-      stockStatus, availability, source: 'MANUAL',
-    },
-  });
-
-  revalidatePath('/admin/products');
-  revalidatePath(`/products/${vp.productId}`);
-  return { ok: true };
 }
 
 export async function checkVendorProduct(vendorProductId: string) {

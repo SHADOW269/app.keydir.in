@@ -51,34 +51,13 @@ interface Props { banner?: BannerData | null; stats?: { clicks: number; views: n
 import { uploadFile } from '@/lib/utils';
 
 import { Card } from './admin-card';
-
-/* ══════════════════════════════════════════
-   Seg
-   ══════════════════════════════════════════ */
-function Seg({ items, val, set }: { items: { v: string; l: string }[]; val: string; set: (v: string) => void }) {
-  return (
-    <div className="sg">
-      {items.map(i => (
-        <button key={i.v} type="button" onClick={() => set(i.v)}
-          className={`sg-b ${val === i.v ? 'on' : ''}`}>{i.l}</button>
-      ))}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════
-   Chips
-   ══════════════════════════════════════════ */
-function Chips({ items, sel, tog }: { items: { v: string; l: string }[]; sel: Set<string>; tog: (v: string) => void }) {
-  return (
-    <div className="ck">
-      {items.map(i => (
-        <button key={i.v} type="button" onClick={() => tog(i.v)}
-          className={`ck-b ${sel.has(i.v) ? 'on' : ''}`}>{i.l}</button>
-      ))}
-    </div>
-  );
-}
+import { EditorHeader } from './admin-header';
+import { DangerZoneCard } from './danger-zone-card';
+import { BannerBasicSection } from './banner-basic-section';
+import { BannerConfigSection } from './banner-config-section';
+import { BannerActionSection } from './banner-action-section';
+import { BannerScheduleSection } from './banner-schedule-section';
+import { BannerPreviewSection } from './banner-preview-section';
 
 /* ══════════════════════════════════════════
    ImgCard
@@ -199,6 +178,7 @@ export function BannerForm({ banner, stats }: Props) {
 
   const eff = status === 'active' && dte && new Date(dte) < new Date() ? 'expired' : status;
   const effD = STATUS.find(s => s.v === eff) || STATUS[0];
+  const startAfterEnd = !!(dts && dte && new Date(dts) > new Date(dte));
 
   function tog(v: string) { setLocs(p => { const n = new Set(p); n.has(v) ? n.delete(v) : n.add(v); return n; }); }
 
@@ -236,31 +216,20 @@ export function BannerForm({ banner, stats }: Props) {
     : '—';
 
   return (
-    <form onSubmit={sub} className="ce">
-      {/* HEADER */}
-      <header className="ce-hd">
-        <div className="ce-hd-l">
-          <div className="ce-hd-title-row">
-            <span className="ce-name">{edit ? title || 'Edit' : 'New Banner'}</span>
-            {edit && <span className="ce-hd-badge" style={{ borderColor: statusColor, color: statusColor }}>{statusLabel}</span>}
-          </div>
-          {edit && (
-            <div className="ce-hd-stats">
-              <span className="ce-hd-stat">Last updated <strong>{lastUpdated}</strong></span>
-              <span className="ce-hd-stat-sep">•</span>
-              <span className="ce-hd-stat">Clicks <strong>{stats?.clicks?.toLocaleString('en-IN') ?? '0'}</strong></span>
-              <span className="ce-hd-stat-sep">•</span>
-              <span className="ce-hd-stat">Views <strong>{stats?.views?.toLocaleString('en-IN') ?? '0'}</strong></span>
-              <span className="ce-hd-stat-sep">•</span>
-              <span className="ce-hd-stat">CTR <strong>{ctr}%</strong></span>
-            </div>
-          )}
-        </div>
-        <div className="ce-hd-r">
-          <button type="submit" disabled={pend} className="ce-toolbar-btn ce-toolbar-btn-primary">{pend ? 'Saving…' : edit ? 'SAVE' : 'CREATE'}</button>
-          {edit && <button type="button" onClick={del} className="ce-toolbar-btn ce-toolbar-btn-danger">DELETE</button>}
-        </div>
-      </header>
+    <form id="banner-editor" onSubmit={sub} className="ce">
+      <EditorHeader
+        title={edit ? title || 'Edit' : 'New Banner'}
+        stats={edit ? [
+          { label: 'Last updated', value: lastUpdated },
+          { label: 'Clicks', value: stats?.clicks?.toLocaleString('en-IN') ?? '0' },
+          { label: 'Views', value: stats?.views?.toLocaleString('en-IN') ?? '0' },
+          { label: 'CTR', value: `${ctr}%` },
+        ] : undefined}
+        pending={pend}
+        isEdit={edit}
+        formId="banner-editor"
+        onDelete={() => { if (confirm('Delete?')) del(); }}
+      />
       {err && <div className="ce-err">{err}</div>}
 
       {/* TWO-COLUMN */}
@@ -269,114 +238,63 @@ export function BannerForm({ banner, stats }: Props) {
         {/* ── LEFT ── */}
         <div className="ce-left">
 
-          <Card t="Basic Information">
-            <div className="ce-field">
-              <label className="ce-lb">Banner Name</label>
-              <input className="admin-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Summer Sale 2026" />
-            </div>
-            <div className="ce-2c">
-              <div className="ce-field">
-                <label className="ce-lb">Status</label>
-                <div className="sp">
-                  {STATUS.map(s => (
-                    <button key={s.v} type="button" onClick={() => setStatus(s.v)}
-                      className={`sp-b ${status === s.v ? 'on' : ''}`}
-                      style={status === s.v ? { borderColor: s.c, color: s.c } : undefined}>
-                      <i className="sp-dot" style={{ background: s.c }} />{s.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="ce-field">
-                <label className="ce-lb">Priority</label>
-                <input className="admin-input" type="number" min={0} value={prio} onChange={e => setPrio(parseInt(e.target.value) || 0)} />
-                <span className="ce-hi">Lower number = shown first</span>
-              </div>
-            </div>
-          </Card>
+          <BannerBasicSection
+            title={title}
+            onTitleChange={setTitle}
+            status={status}
+            onStatusChange={setStatus}
+            prio={prio}
+            onPrioChange={setPrio}
+          />
 
-          <Card t="Configuration">
-            <div className="ce-field">
-              <label className="ce-lb">Banner Type</label>
-              <div className="sc">
-                {TYPES.map(t => (
-                  <button key={t.v} type="button" onClick={() => setBtype(t.v)}
-                    className={`sc-b ${btype === t.v ? 'on' : ''}`}>
-                    <span className="sc-ic">{t.i}</span>
-                    <span className="sc-body">
-                      <span className="sc-nm">{t.l}</span>
-                      <span className="sc-ds">{t.d}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="ce-field">
-              <label className="ce-lb">Display Rule</label>
-              <Seg items={RULES} val={rule} set={setRule} />
-            </div>
-            <div className="ce-field">
-              <label className="ce-lb">Display Locations</label>
-              <Chips items={PAGES} sel={locs} tog={tog} />
-              {locs.size === 0 && <span className="ce-warn">Select at least one location</span>}
-            </div>
-          </Card>
+          <BannerConfigSection
+            btype={btype}
+            onBtypeChange={setBtype}
+            rule={rule}
+            onRuleChange={setRule}
+            locs={locs}
+            onLocToggle={tog}
+          />
 
-          <Card t="Click Action">
-            <div className="ce-field">
-              <label className="ce-lb">Destination</label>
-              <Seg items={ACTIONS} val={ltype} set={setLtype} />
-            </div>
-            <div className="ce-field">
-              <label className="ce-lb">
-                {ltype === 'url' ? 'URL' : ltype === 'internal' ? 'Path' : `${ltype[0].toUpperCase() + ltype.slice(1)} Slug`}
-              </label>
-              <input className="admin-input ce-mono" value={lurl} onChange={e => setLurl(e.target.value)}
-                placeholder={ltype === 'url' ? 'https://example.com' : ltype === 'internal' ? '/keyboards' : 'slug'} />
-            </div>
-            <div className="ce-field">
-              <label className="ce-cb">
-                <input type="checkbox" checked={ntab} onChange={e => setNtab(e.target.checked)} disabled={ltype === 'url'} />
-                Open in new tab
-                {ltype === 'url' && <span className="ce-hi"> (auto for external)</span>}
-              </label>
-            </div>
-          </Card>
+          <BannerActionSection
+            ltype={ltype}
+            onLtypeChange={setLtype}
+            lurl={lurl}
+            onLurlChange={setLurl}
+            ntab={ntab}
+            onNtabChange={setNtab}
+          />
 
-          <Card t="Schedule">
-            <div className="ce-2c">
-              <div className="ce-field">
-                <label className="ce-lb">Start Date</label>
-                <input className="admin-input" type="date" value={dts} onChange={e => setDts(e.target.value)} />
-              </div>
-              <div className="ce-field">
-                <label className="ce-lb">End Date</label>
-                <input className="admin-input" type="date" value={dte} onChange={e => setDte(e.target.value)} />
-              </div>
-            </div>
-            <div className="ce-eff">
-              <span className="ce-eff-l">Effective Status:</span>
-              <span className="ce-eff-v" style={{ color: effD.c }}>{effD.l}</span>
-              {dts && dte && new Date(dts) > new Date(dte) && <span className="ce-warn">Start after end</span>}
-            </div>
-          </Card>
+          <BannerScheduleSection
+            dts={dts}
+            onDtsChange={setDts}
+            dte={dte}
+            onDteChange={setDte}
+            effLabel={effD.l}
+            effColor={effD.c}
+            startAfterEnd={startAfterEnd}
+          />
+
+          {edit && (
+            <DangerZoneCard
+              description="This will permanently delete the banner."
+              buttonLabel="Delete Banner"
+              onAction={() => { if (confirm('Delete?')) del(); }}
+            />
+          )}
         </div>
 
         {/* ── RIGHT ── */}
         <div className="ce-right">
-          <Card t="Live Preview">
-            <div className="pv-tabs">
-              <button type="button" onClick={() => setDev('d')} className={`pv-tab ${dev === 'd' ? 'on' : ''}`}>Desktop</button>
-              <button type="button" onClick={() => setDev('m')} className={`pv-tab ${dev === 'm' ? 'on' : ''}`}>Mobile</button>
-            </div>
-            <Prev img={dev === 'd' ? (dimg || null) : (mimg || null)} title={title} type={btype} dev={dev} />
-            <div className="pv-sep" />
-            <div className="pv-img-hd">Images</div>
-            <ImgCard label="Desktop Image" res="1920 × 500" url={dimg || null} set={setDimg} clr={() => setDimg('')} />
-            <ImgCard label="Mobile Image" res="1080 × 1350" url={mimg || null} set={setMimg} clr={() => setMimg('')} />
-            {rule !== 'mobile' && !dimg && <span className="ce-warn">Desktop image needed</span>}
-            {rule !== 'desktop' && !mimg && <span className="ce-warn">Mobile image needed</span>}
-          </Card>
+          <BannerPreviewSection
+            dev={dev}
+            onDevChange={setDev}
+            preview={<Prev img={dev === 'd' ? (dimg || null) : (mimg || null)} title={title} type={btype} dev={dev} />}
+            desktopImg={<ImgCard label="Desktop Image" res="1920 × 500" url={dimg || null} set={setDimg} clr={() => setDimg('')} />}
+            mobileImg={<ImgCard label="Mobile Image" res="1080 × 1350" url={mimg || null} set={setMimg} clr={() => setMimg('')} />}
+            showDesktopWarn={rule !== 'mobile' && !dimg}
+            showMobileWarn={rule !== 'desktop' && !mimg}
+          />
         </div>
       </div>
     </form>

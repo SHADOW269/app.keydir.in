@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navbar } from '@/components/layout/navbar';
-import { CollapsibleCard } from './collapsible-card';
 import { DeletePasswordModal } from './delete-password-modal';
 import { AdminHeader } from './admin-header';
 import { StickySaveBar } from './sticky-save-bar';
+import { ProductBasicSection } from './product-basic-section';
+import { ProductImageSection } from './product-image-section';
+import { ProductSeoSection } from './product-seo-section';
+import { ProductMetadataSection } from './product-metadata-section';
 import { useScrollSpy } from './hooks/use-scroll-spy';
 import { useDeleteEntity } from './hooks/use-delete-entity';
 import { createProduct, updateProduct, deleteProduct } from '@/lib/admin/actions';
@@ -148,93 +151,18 @@ export function ProductEditor({
               {renderForm ? (
                 renderForm()
               ) : (<>
-              <div id="pe-section-basic">
-                <CollapsibleCard title="Basic Information" icon="📝" id="pe-card-basic">
-                  <div className="pe-field pe-field--full">
-                    <label className="pe-label">Product Name <span className="pe-required">*</span></label>
-                    <input name="name" required defaultValue={product?.name} className="pe-input" placeholder={`e.g. ${productLabel === 'Switch' ? 'Gateron Oil King, Cherry MX Brown' : 'Product name'}`} onChange={() => !hasChanges && setHasChanges(true)} />
-                  </div>
-                  <div className="pe-row-2">
-                    <div className="pe-field">
-                      <label className="pe-label">Brand</label>
-                      <select name="brandId" defaultValue={product?.brandId ?? ''} className="pe-select" onChange={() => !hasChanges && setHasChanges(true)}>
-                        <option value="">— No Brand —</option>
-                        {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="pe-field">
-                      <label className="pe-label">SKU</label>
-                      <input name="sku" defaultValue={product?.sku ?? ''} className="pe-input" placeholder="Internal SKU" onChange={() => !hasChanges && setHasChanges(true)} />
-                    </div>
-                  </div>
-                  <div className="pe-field pe-field--full">
-                    <label className="pe-label">Short Description</label>
-                    <input name="description" defaultValue={product?.description ?? ''} className="pe-input" placeholder="Brief description for cards and search results" maxLength={200} onChange={() => !hasChanges && setHasChanges(true)} />
-                  </div>
-                  <div className="pe-field pe-field--full">
-                    <label className="pe-label">Long Description</label>
-                    <div className="pe-textarea-wrap">
-                      <textarea name="longDescription" defaultValue={product?.longDescription ?? ''} className="pe-textarea" placeholder="Detailed description — specs, features, use case..." maxLength={2000} onInput={(e) => { if (!hasChanges) setHasChanges(true); }} />
-                    </div>
-                  </div>
-                  <div className="pe-row-2">
-                    <div className="pe-field">
-                      <label className="pe-label">Status</label>
-                      <select name="status" defaultValue={product?.status ?? 'active'} className="pe-select" onChange={() => !hasChanges && setHasChanges(true)}>
-                        <option value="active">Active</option>
-                        <option value="draft">Draft</option>
-                        <option value="archived">Archived</option>
-                      </select>
-                    </div>
-                    <div className="pe-field">
-                      <label className="pe-label">Release Date</label>
-                      <input type="date" name="releaseDate" defaultValue={product?.releaseDate ?? ''} className="pe-input" onChange={() => !hasChanges && setHasChanges(true)} />
-                    </div>
-                  </div>
-                </CollapsibleCard>
-              </div>
+              <ProductBasicSection
+                product={product}
+                brands={brands}
+                productLabel={productLabel}
+                onFieldChange={() => !hasChanges && setHasChanges(true)}
+              />
 
-              <div id="pe-section-images">
-                <CollapsibleCard title="Images" icon="🖼" id="pe-card-images">
-                  <div className="pe-images-section">
-                    <div className="pe-image-list">
-                      {images.map((img, i) => (
-                        <div key={img.id || i} className={`pe-image-thumb ${img.isPrimary ? 'pe-image-thumb--primary' : ''}`}>
-                          <img src={img.url} alt={img.alt || ''} />
-                          <div className="pe-image-actions">
-                            {!img.isPrimary && (
-                              <button type="button" className="pe-image-btn" onClick={() => {
-                                const next = images.map((im, j) => ({ ...im, isPrimary: j === i }));
-                                onImagesChange(next);
-                                setHasChanges(true);
-                              }}>Primary</button>
-                            )}
-                            <button type="button" className="pe-image-btn pe-image-btn--danger" onClick={() => {
-                              onImagesChange(images.filter((_, j) => j !== i));
-                              setHasChanges(true);
-                            }}>Remove</button>
-                          </div>
-                          {img.isPrimary && <span className="pe-image-primary-badge">PRIMARY</span>}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="pe-image-add">
-                      <label className="pe-label">Add Image URL</label>
-                      <div className="pe-image-add-row">
-                        <input type="url" className="pe-input" placeholder="https://..." id="pe-image-url-input" />
-                        <button type="button" className="btn-secondary" onClick={() => {
-                          const input = document.getElementById('pe-image-url-input') as HTMLInputElement;
-                          if (!input?.value) return;
-                          const newImg: ProductImage = { url: input.value, sortOrder: images.length, isPrimary: images.length === 0 };
-                          onImagesChange([...images, newImg]);
-                          input.value = '';
-                          setHasChanges(true);
-                        }}>+ Add</button>
-                      </div>
-                    </div>
-                  </div>
-                </CollapsibleCard>
-              </div>
+              <ProductImageSection
+                images={images}
+                onImagesChange={onImagesChange}
+                onFieldChange={() => !hasChanges && setHasChanges(true)}
+              />
 
               {specContent && (
                 <div id="pe-section-specs">
@@ -248,51 +176,12 @@ export function ProductEditor({
                 </div>
               )}
 
-              <div id="pe-section-seo">
-                <CollapsibleCard title="SEO" icon="🔍" id="pe-card-seo" defaultOpen={false}>
-                  <div className="pe-field pe-field--full">
-                    <label className="pe-label">Meta Title</label>
-                    <input name="metaTitle" defaultValue={product?.metaTitle ?? ''} className="pe-input" placeholder="SEO title — falls back to product name" maxLength={70} onChange={() => !hasChanges && setHasChanges(true)} />
-                    <span className="pe-hint">{(product?.metaTitle ?? '').length}/70 characters</span>
-                  </div>
-                  <div className="pe-field pe-field--full">
-                    <label className="pe-label">Meta Description</label>
-                    <div className="pe-textarea-wrap">
-                      <textarea name="metaDescription" defaultValue={product?.metaDescription ?? ''} className="pe-textarea pe-textarea--short" placeholder="SEO description — falls back to short description" maxLength={160} onInput={() => !hasChanges && setHasChanges(true)} />
-                    </div>
-                    <span className="pe-hint">{(product?.metaDescription ?? '').length}/160 characters</span>
-                  </div>
-                  <div className="pe-field pe-field--full">
-                    <label className="pe-label">OG Image URL</label>
-                    <input name="ogImage" defaultValue={product?.ogImage ?? ''} className="pe-input" placeholder="Open Graph image — falls back to product image" onChange={() => !hasChanges && setHasChanges(true)} />
-                  </div>
-                </CollapsibleCard>
-              </div>
+              <ProductSeoSection
+                product={product}
+                onFieldChange={() => !hasChanges && setHasChanges(true)}
+              />
 
-              <div id="pe-section-metadata">
-                <CollapsibleCard title="Metadata" icon="📋" id="pe-card-metadata" defaultOpen={false}>
-                  <div className="pe-row-2">
-                    <div className="pe-field">
-                      <label className="pe-label">Product ID</label>
-                      <input className="pe-input" value={product?.id ?? 'New'} disabled />
-                    </div>
-                    <div className="pe-field">
-                      <label className="pe-label">Slug</label>
-                      <input className="pe-input" value={product?.slug ?? 'Auto-generated'} disabled />
-                    </div>
-                  </div>
-                  <div className="pe-row-2">
-                    <div className="pe-field">
-                      <label className="pe-label">Product Type</label>
-                      <input className="pe-input" value={productType} disabled />
-                    </div>
-                    <div className="pe-field">
-                      <label className="pe-label">Created</label>
-                      <input className="pe-input" value={product?.createdAt ? new Date(product.createdAt as unknown as string).toLocaleDateString() : '—'} disabled />
-                    </div>
-                  </div>
-                </CollapsibleCard>
-              </div>
+              <ProductMetadataSection product={product} productType={productType} />
               </>
               )}
             </form>

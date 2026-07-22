@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { clamp } from '@/lib/utils';
+import { AVAILABILITY_MAP } from '@/lib/constants';
 
 interface FilterOptions {
   priceMin: number;
@@ -27,7 +28,7 @@ interface FilterPanelProps {
   onClose?: () => void;
 }
 
-const AVAILABILITY = ['In Stock', 'Pre-order', 'Group Buy', 'Coming Soon', 'Out of Stock'];
+const AVAILABILITY = ['in_stock', 'preorder', 'group_buy', 'coming_soon', 'out_of_stock'].map((k) => AVAILABILITY_MAP[k].label);
 
 function fmtPrice(n: number): string {
   return '₹' + n.toLocaleString('en-IN');

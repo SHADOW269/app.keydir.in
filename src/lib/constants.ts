@@ -26,6 +26,8 @@ export interface FilterOptions {
   priceMax: number;
 }
 
+export const AVAILABILITY_KEYS = ['in_stock', 'preorder', 'group_buy', 'coming_soon', 'out_of_stock'] as const;
+
 export const AVAILABILITY_MAP: Record<string, { label: string; class: string; icon?: string }> = {
   IN_STOCK: { label: 'In Stock', class: 'b-green', icon: '✓' },
   PREORDER: { label: 'Preorder', class: 'b-yellow', icon: '◷' },
