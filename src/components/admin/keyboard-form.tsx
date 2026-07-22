@@ -13,15 +13,14 @@ interface Props {
   product?: Product; keyboardSpec?: KeyboardSpecData | null;
   brands: Brand[]; vendors: { id: string; name: string }[];
   existingVendorProducts?: ExistingVendorProduct[]; fixedProductType?: string;
+  productImages?: { url: string; sortOrder: number; isPrimary: boolean; id?: string; alt?: string }[];
 }
 
 export function KeyboardForm({
   product, keyboardSpec, brands, vendors,
-  existingVendorProducts = [], fixedProductType,
+  existingVendorProducts = [], fixedProductType, productImages = [],
 }: Props) {
-  const { images, setImages, uploadImage } = useProductImages(
-    product?.image ? [{ url: product.image, sortOrder: 0, isPrimary: true }] : []
-  );
+  const { images, setImages } = useProductImages(productImages);
   const { vendorCardsRef, handleSubmit } = useSpecFormSubmit(
     upsertKeyboardSpec,
     {
@@ -52,20 +51,18 @@ export function KeyboardForm({
       images={images}
       onImagesChange={setImages}
       onFormSubmit={handleFormSubmit}
-      vendorContent={
-        product?.id ? (
-          <VendorCards
-            ref={vendorCardsRef}
-            productId={product.id}
-            vendors={vendors}
-            existingVendorProducts={existingVendorProducts}
-            onChange={() => {}}
-          />
-        ) : undefined
+      specContent={
+        <KeyboardSpecForm spec={keyboardSpec} onChange={() => {}} />
       }
-      renderForm={() => (
-        <KeyboardSpecForm spec={keyboardSpec} onChange={() => {}} onImageUpload={uploadImage} />
-      )}
+      vendorContent={product?.id ? (
+        <VendorCards
+          ref={vendorCardsRef}
+          productId={product.id}
+          vendors={vendors}
+          existingVendorProducts={existingVendorProducts}
+          onChange={() => {}}
+        />
+      ) : undefined}
     />
   );
 }

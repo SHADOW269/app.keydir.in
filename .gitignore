@@ -141,3 +141,4 @@ public/uploads/
 *.bak
 *.orig
 tsconfig.tsbuildinfo
+.aider*

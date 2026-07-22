@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { ChipSelect, Toggle, TagInput, Field } from './form-primitives';
 import { SWITCH_COMPAT, SWITCH_TYPE, STEM_MATERIALS, TOP_HOUSING, BOTTOM_HOUSING, SPRING_TYPES } from './switch-constants';
-import { uploadFile } from '@/lib/utils';
 import type { KeyboardSpecData } from '@/lib/admin/spec-types';
 
 const LAYOUTS = ['40%', '60%', '65%', '75%', 'TKL', 'FRL (F-rowless)', '96%', '1800 Compact', '102-Key', 'Full Size', 'Pad / Macropad'];
@@ -29,19 +28,10 @@ const ACCESSORIES = ['USB Cable', 'Dust Cover', 'Carry Case', 'Keycap Puller', '
 
 interface Props {
   spec?: KeyboardSpecData | null;
-  brands?: { id: string; name: string }[];
-  onChange: () => void;
-  onImageUpload?: (file: File) => void;
+  onChange?: () => void;
 }
 
-export function KeyboardSpecForm({ spec, brands, onChange, onImageUpload }: Props) {
-  const [imageUrl, setImageUrl] = useState('');
-  const [imageMode, setImageMode] = useState<'url' | 'upload'>('url');
-  const [uploading, setUploading] = useState(false);
-
-  const [name, setName] = useState('');
-  const [brandId, setBrandId] = useState('');
-  const [description, setDescription] = useState('');
+export function KeyboardSpecForm({ spec, onChange }: Props) {
   const [layout, setLayout] = useState(spec?.layout ?? '');
   const [keyboardStyle, setKeyboardStyle] = useState<string[]>(spec?.keyboardStyle ?? []);
   const [caseMaterial, setCaseMaterial] = useState(spec?.caseMaterial ?? '');
@@ -103,90 +93,10 @@ export function KeyboardSpecForm({ spec, brands, onChange, onImageUpload }: Prop
   const [additionalAccessories, setAdditionalAccessories] = useState(spec?.additionalAccessories ?? '');
   const [specialFeatures, setSpecialFeatures] = useState(spec?.specialFeatures ?? '');
 
-  const markChange = useCallback(() => onChange(), [onChange]);
-
-  async function handleLocalImageUpload(file: File) {
-    if (onImageUpload) { onImageUpload(file); return; }
-    setUploading(true);
-    try {
-      const url = await uploadFile(file, 'products');
-      setImageUrl(url);
-      markChange();
-    } catch {}
-    setUploading(false);
-  }
+  const markChange = () => onChange?.();
 
   return (
     <>
-      {/* Basic Information */}
-      <div id="pe-section-basic" className="kb-section">
-        <div className="kb-section-body">
-          <div className="kb-pair-grid">
-            <Field label="Keyboard Name *">
-              <input name="name" required value={name} onChange={(e) => { setName(e.target.value); markChange(); }} className="kb-input" placeholder="e.g. Rainy75, Wooting 60HE" />
-            </Field>
-            <Field label="Brand">
-              <select name="brandId" value={brandId} onChange={(e) => { setBrandId(e.target.value); markChange(); }} className="kb-input">
-                <option value="">— No Brand —</option>
-                {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="Short Description" wide>
-            <textarea name="description" rows={3} value={description} onChange={(e) => { setDescription(e.target.value); markChange(); }} className="kb-input kb-textarea" placeholder="Brief overview of the keyboard's key features and selling points..." maxLength={500} />
-            <div className="kb-char-count">{description.length}/500</div>
-          </Field>
-        </div>
-      </div>
-
-      {/* Product Image */}
-      <div id="pe-section-images" className="kb-section">
-        <div className="kb-section-body">
-          <div className="kb-image-tabs">
-            <button type="button" className={`kb-image-tab ${imageMode === 'url' ? 'active' : ''}`} onClick={() => setImageMode('url')}>Image URL</button>
-            <button type="button" className={`kb-image-tab ${imageMode === 'upload' ? 'active' : ''}`} onClick={() => setImageMode('upload')}>Upload Image</button>
-          </div>
-          {imageMode === 'url' ? (
-            <Field label="Direct Image URL">
-              <input type="url" name="imageUrl" value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); markChange(); }} className="kb-input" placeholder="https://example.com/keyboard.jpg" />
-              <div className="kb-field-hint">Accepts .jpg, .png, .webp, .jpeg, .avif</div>
-            </Field>
-          ) : (
-            <div
-              className={`kb-dropzone ${uploading ? 'uploading' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add('dragover'); }}
-              onDragLeave={(e) => { e.currentTarget.classList.remove('dragover'); }}
-              onDrop={(e) => {
-                e.preventDefault(); e.stopPropagation();
-                e.currentTarget.classList.remove('dragover');
-                const file = e.dataTransfer.files?.[0];
-                if (file) handleLocalImageUpload(file);
-              }}
-            >
-              <input type="file" accept=".jpg,.jpeg,.png,.webp,.avif" className="kb-dropzone-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLocalImageUpload(f); }} />
-              {uploading ? (
-                <div className="kb-dropzone-text">Uploading...</div>
-              ) : (
-                <>
-                  <div className="kb-dropzone-icon">⬆</div>
-                  <div className="kb-dropzone-text">Drag & drop an image here, or click to browse</div>
-                </>
-              )}
-              <div className="kb-dropzone-hint">Max 5 MB · JPG, PNG, WebP, AVIF</div>
-            </div>
-          )}
-          {imageUrl && (
-            <div className="kb-image-preview-area">
-              <img src={imageUrl} alt="Preview" className="kb-image-preview-img" />
-              <div className="kb-image-preview-actions">
-                <button type="button" className="btn-secondary btn-sm" onClick={() => { setImageUrl(''); markChange(); }}>Remove</button>
-                <button type="button" className="btn-secondary btn-sm" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.jpg,.jpeg,.png,.webp,.avif'; input.onchange = (e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) handleLocalImageUpload(f); }; input.click(); }}>Replace</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Layout & Build */}
       <div id="pe-section-layout" className="kb-section">
         <div className="kb-section-body">

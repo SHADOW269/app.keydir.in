@@ -116,9 +116,10 @@ export default async function ProductSlugPage({ params }: Props) {
   const isKeyboard = product.productType === 'keyboards';
 
   if (isKeyboard) {
-    const keyboardSpec = await prisma.keyboardSpec.findUnique({
-      where: { productId: slug },
-    });
+    const [keyboardSpec, productImages] = await Promise.all([
+      prisma.keyboardSpec.findUnique({ where: { productId: slug } }),
+      prisma.productImage.findMany({ where: { productId: slug }, orderBy: { sortOrder: 'asc' } }),
+    ]);
     const serializedSpec = keyboardSpec ? {
       ...keyboardSpec,
       keyboardStyle: keyboardSpec.keyboardStyle as string[] | null,
@@ -157,6 +158,13 @@ export default async function ProductSlugPage({ params }: Props) {
         brands={brands}
         vendors={vendors}
         existingVendorProducts={existingVendorProducts}
+        productImages={productImages.map((img) => ({
+          id: img.id,
+          url: img.url,
+          alt: img.alt ?? undefined,
+          sortOrder: img.sortOrder,
+          isPrimary: img.isPrimary,
+        }))}
       />
     );
   }

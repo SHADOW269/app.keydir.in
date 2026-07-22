@@ -109,7 +109,7 @@ export default async function CompareCategoryPage({ params, searchParams }: Prop
   }));
 
   return (
-    <CompareLayout breadcrumb={config.breadcrumb}>
+    <CompareLayout breadcrumb={config.breadcrumb} bannerLocation={config.categoryFilter}>
       <CompareClient
         initialSlugs={slugs}
         initialProducts={serialized}

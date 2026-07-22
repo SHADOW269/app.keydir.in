@@ -1,14 +1,12 @@
 import { prisma } from '@/lib/prisma';
+import { getBannersForLocation } from '@/lib/admin/banner-actions';
 import { CategoryContent } from '@/components/product/category-content';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SwitchesPage() {
   const [banners, totalCount] = await Promise.all([
-    prisma.banner.findMany({
-      where: { status: 'live', locations: { some: { location: 'switches' } } },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-    }),
+    getBannersForLocation('switches'),
     prisma.product.count({ where: { productType: 'switches', status: 'active' } }),
   ]);
 

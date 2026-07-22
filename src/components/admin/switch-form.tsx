@@ -13,12 +13,12 @@ interface Props {
   product?: Product;
   brands: Brand[];
   vendors: { id: string; name: string }[];
-  existingVendorProducts: ExistingVendorProduct[];
+  existingVendorProducts?: ExistingVendorProduct[];
   switchSpec?: SwitchSpecData | null;
   productImages?: { url: string; sortOrder: number; isPrimary: boolean; id?: string; alt?: string }[];
 }
 
-export function SwitchForm({ product, brands, vendors, existingVendorProducts, switchSpec, productImages = [] }: Props) {
+export function SwitchForm({ product, brands, vendors, existingVendorProducts = [], switchSpec, productImages = [] }: Props) {
   const { images, setImages } = useProductImages(productImages);
   const { vendorCardsRef, handleSubmit } = useSpecFormSubmit(
     upsertSwitchSpec,
@@ -32,9 +32,10 @@ export function SwitchForm({ product, brands, vendors, existingVendorProducts, s
     existingVendorProducts,
   );
 
-  async function handleFormSubmit() {
-    if (!product?.id) return;
-    await handleSubmit(product.id);
+  async function handleFormSubmit(_formData: FormData, productId?: string) {
+    const id = productId || product?.id;
+    if (!id) return;
+    await handleSubmit(id);
   }
 
   return (

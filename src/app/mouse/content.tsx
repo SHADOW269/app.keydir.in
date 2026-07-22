@@ -1,14 +1,12 @@
 import { prisma } from '@/lib/prisma';
+import { getBannersForLocation } from '@/lib/admin/banner-actions';
 import { CategoryContent } from '@/components/product/category-content';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MousePage() {
   const [banners, totalCount] = await Promise.all([
-    prisma.banner.findMany({
-      where: { status: 'live', locations: { some: { location: 'mouse' } } },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-    }),
+    getBannersForLocation('mouse'),
     prisma.product.count({ where: { productType: 'mouse', status: 'active' } }),
   ]);
 
