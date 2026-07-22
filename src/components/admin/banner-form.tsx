@@ -72,7 +72,7 @@ function ImgCard({ label, res, url, set, clr }: {
 
   const go = useCallback(async (f: File) => {
     setBusy(true); setErr(null);
-    try { set(await uploadFile(f)); } catch (e) { setErr(e instanceof Error ? e.message : 'Failed'); }
+    try { const r = await uploadFile(f); set(r.url); } catch (e) { setErr(e instanceof Error ? e.message : 'Failed'); }
     finally { setBusy(false); }
   }, [set]);
 

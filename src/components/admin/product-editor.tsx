@@ -151,6 +151,7 @@ export function ProductEditor({
           <div className="pe-main">
             <form ref={formRef} id="pe-editor-form" onSubmit={handleSubmit} className="pe-form">
               <input type="hidden" name="image" value={images.find((i) => i.isPrimary)?.url ?? images[0]?.url ?? ''} />
+              <input type="hidden" name="imagePublicId" value={images.find((i) => i.isPrimary)?.publicId ?? images[0]?.publicId ?? ''} />
 
               {renderForm ? (
                 renderForm()

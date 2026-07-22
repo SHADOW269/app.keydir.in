@@ -104,12 +104,20 @@ export function extractJsonArray(val: unknown): string[] {
   return [];
 }
 
-export async function uploadFile(file: File, dir?: string): Promise<string> {
+export interface UploadResult {
+  url: string;
+  publicId: string;
+  width: number;
+  height: number;
+  format: string;
+}
+
+export async function uploadFile(file: File, dir?: string): Promise<UploadResult> {
   const fd = new FormData();
   fd.append('file', file);
   if (dir) fd.append('dir', dir);
   const r = await fetch('/api/upload', { method: 'POST', body: fd });
   const d = await r.json();
   if (!r.ok) throw new Error(d.error || 'Upload failed');
-  return d.url;
+  return d;
 }

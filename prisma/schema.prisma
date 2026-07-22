@@ -112,6 +112,7 @@ model Product {
   brandId         String?
   productType     String    @default("keyboards")
   image           String?
+  imagePublicId   String?
   description     String?
 
   // Extended product fields
@@ -507,6 +508,7 @@ model ProductImage {
   id        String   @id @default(cuid())
   productId String
   url       String
+  publicId  String?
   alt       String?
   sortOrder Int      @default(0)
   isPrimary Boolean  @default(false)

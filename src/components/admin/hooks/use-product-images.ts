@@ -21,9 +21,11 @@ export function useProductImages(initial: ProductImage[] = []) {
 
   const uploadImage = useCallback((file: File) => {
     uploadFile(file, 'products')
-      .then((url) => addImage(url))
+      .then((r) => {
+        setImages((prev) => [...prev, { url: r.url, publicId: r.publicId, sortOrder: prev.length, isPrimary: prev.length === 0 }]);
+      })
       .catch(() => {});
-  }, [addImage]);
+  }, []);
 
   return { images, setImages, addImage, removeImage, setPrimary, uploadImage };
 }

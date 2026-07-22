@@ -4,13 +4,14 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
 
-// ═══ PRODUCTS ═══
+// ═══ FORM PARSERS ═══
 
-export async function createProduct(formData: FormData) {
+function parseProductForm(formData: FormData) {
   const name = formData.get('name') as string;
   const brandId = (formData.get('brandId') as string) || null;
   const productType = (formData.get('productType') as string) || 'keyboards';
   const image = (formData.get('image') as string) || null;
+  const imagePublicId = (formData.get('imagePublicId') as string) || null;
   const description = (formData.get('description') as string) || null;
   const longDescription = (formData.get('longDescription') as string) || null;
   const sku = (formData.get('sku') as string) || null;
@@ -19,6 +20,24 @@ export async function createProduct(formData: FormData) {
   const metaTitle = (formData.get('metaTitle') as string) || null;
   const metaDescription = (formData.get('metaDescription') as string) || null;
   const ogImage = (formData.get('ogImage') as string) || null;
+  return { name, brandId, productType, image, imagePublicId, description, longDescription, sku, releaseDate, status, metaTitle, metaDescription, ogImage };
+}
+
+function parseBrandForm(formData: FormData) {
+  const name = formData.get('name') as string;
+  const website = (formData.get('website') as string) || null;
+  const country = (formData.get('country') as string) || 'IN';
+  const description = (formData.get('description') as string) || null;
+  const status = (formData.get('status') as string) || 'active';
+  const color = (formData.get('color') as string) || null;
+  const logo = (formData.get('logo') as string) || null;
+  return { name, website, country, description, status, color, logo };
+}
+
+// ═══ PRODUCTS ═══
+
+export async function createProduct(formData: FormData) {
+  const { name, brandId, productType, image, imagePublicId, description, longDescription, sku, releaseDate, status, metaTitle, metaDescription, ogImage } = parseProductForm(formData);
 
   if (!name) {
     return { error: 'Name is required' };
@@ -32,7 +51,7 @@ export async function createProduct(formData: FormData) {
 
   const product = await prisma.product.create({
     data: {
-      name, slug, brandId, productType, image, description,
+      name, slug, brandId, productType, image, imagePublicId, description,
       longDescription, sku, status, metaTitle, metaDescription, ogImage,
       releaseDate: releaseDate ? new Date(releaseDate) : null,
     },
@@ -42,18 +61,7 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function updateProduct(id: string, formData: FormData) {
-  const name = formData.get('name') as string;
-  const brandId = (formData.get('brandId') as string) || null;
-  const productType = (formData.get('productType') as string) || 'keyboards';
-  const image = (formData.get('image') as string) || null;
-  const description = (formData.get('description') as string) || null;
-  const longDescription = (formData.get('longDescription') as string) || null;
-  const sku = (formData.get('sku') as string) || null;
-  const releaseDate = (formData.get('releaseDate') as string) || null;
-  const status = (formData.get('status') as string) || 'active';
-  const metaTitle = (formData.get('metaTitle') as string) || null;
-  const metaDescription = (formData.get('metaDescription') as string) || null;
-  const ogImage = (formData.get('ogImage') as string) || null;
+  const { name, brandId, productType, image, imagePublicId, description, longDescription, sku, releaseDate, status, metaTitle, metaDescription, ogImage } = parseProductForm(formData);
 
   if (!name) {
     return { error: 'Name is required' };
@@ -68,7 +76,7 @@ export async function updateProduct(id: string, formData: FormData) {
   const updated = await prisma.product.update({
     where: { id },
     data: {
-      name, slug, brandId, productType, image, description,
+      name, slug, brandId, productType, image, imagePublicId, description,
       longDescription, sku, status, metaTitle, metaDescription, ogImage,
       releaseDate: releaseDate ? new Date(releaseDate) : null,
     },
@@ -93,13 +101,7 @@ export async function deleteProduct(id: string, password: string) {
 // ═══ BRANDS ═══
 
 export async function createBrand(formData: FormData) {
-  const name = formData.get('name') as string;
-  const website = (formData.get('website') as string) || null;
-  const country = (formData.get('country') as string) || 'IN';
-  const description = (formData.get('description') as string) || null;
-  const status = (formData.get('status') as string) || 'active';
-  const color = (formData.get('color') as string) || null;
-  const logo = (formData.get('logo') as string) || null;
+  const { name, website, country, description, status, color, logo } = parseBrandForm(formData);
 
   if (!name) {
     return { error: 'Name is required' };
@@ -116,13 +118,7 @@ export async function createBrand(formData: FormData) {
 }
 
 export async function updateBrand(id: string, formData: FormData) {
-  const name = formData.get('name') as string;
-  const website = (formData.get('website') as string) || null;
-  const country = (formData.get('country') as string) || 'IN';
-  const description = (formData.get('description') as string) || null;
-  const status = (formData.get('status') as string) || 'active';
-  const color = (formData.get('color') as string) || null;
-  const logo = (formData.get('logo') as string) || null;
+  const { name, website, country, description, status, color, logo } = parseBrandForm(formData);
 
   if (!name) {
     return { error: 'Name is required' };
@@ -150,7 +146,7 @@ export async function deleteBrand(id: string, password: string) {
 
 // ═══ PRODUCT IMAGES ═══
 
-export async function upsertProductImages(productId: string, images: Array<{ id?: string; url: string; alt?: string; sortOrder: number; isPrimary: boolean }>) {
+export async function upsertProductImages(productId: string, images: Array<{ id?: string; url: string; publicId?: string; alt?: string; sortOrder: number; isPrimary: boolean }>) {
   const existingIds = images.filter((img) => img.id).map((img) => img.id!);
   await prisma.productImage.deleteMany({
     where: { productId, id: { notIn: existingIds } },
@@ -160,18 +156,18 @@ export async function upsertProductImages(productId: string, images: Array<{ id?
     if (img.id) {
       await prisma.productImage.update({
         where: { id: img.id },
-        data: { url: img.url, alt: img.alt, sortOrder: img.sortOrder, isPrimary: img.isPrimary },
+        data: { url: img.url, publicId: img.publicId ?? null, alt: img.alt, sortOrder: img.sortOrder, isPrimary: img.isPrimary },
       });
     } else {
       await prisma.productImage.create({
-        data: { productId, url: img.url, alt: img.alt, sortOrder: img.sortOrder, isPrimary: img.isPrimary },
+        data: { productId, url: img.url, publicId: img.publicId ?? null, alt: img.alt, sortOrder: img.sortOrder, isPrimary: img.isPrimary },
       });
     }
   }
 
   const primary = images.find((img) => img.isPrimary);
   if (primary) {
-    await prisma.product.update({ where: { id: productId }, data: { image: primary.url } });
+    await prisma.product.update({ where: { id: productId }, data: { image: primary.url, imagePublicId: primary.publicId ?? null } });
   }
 
   revalidatePath('/admin/products');

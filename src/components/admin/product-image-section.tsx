@@ -1,6 +1,8 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import { CollapsibleCard } from './collapsible-card';
+import { uploadFile } from '@/lib/utils';
 import type { ProductImage } from '@/lib/admin/spec-types';
 
 interface Props {
@@ -10,6 +12,9 @@ interface Props {
 }
 
 export function ProductImageSection({ images, onImagesChange, onFieldChange }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   function handleSetPrimary(idx: number) {
     onImagesChange(images.map((im, j) => ({ ...im, isPrimary: j === idx })));
     onFieldChange?.();
@@ -20,13 +25,27 @@ export function ProductImageSection({ images, onImagesChange, onFieldChange }: P
     onFieldChange?.();
   }
 
-  function handleAdd() {
-    const input = document.getElementById('pe-image-url-input') as HTMLInputElement;
-    if (!input?.value) return;
-    const newImg: ProductImage = { url: input.value, sortOrder: images.length, isPrimary: images.length === 0 };
-    onImagesChange([...images, newImg]);
-    input.value = '';
-    onFieldChange?.();
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const result = await uploadFile(file, 'products');
+      const newImg: ProductImage = {
+        url: result.url,
+        publicId: result.publicId,
+        sortOrder: images.length,
+        isPrimary: images.length === 0,
+      };
+      onImagesChange([...images, newImg]);
+      onFieldChange?.();
+    } catch {
+      // upload failed silently
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   }
 
   return (
@@ -48,10 +67,17 @@ export function ProductImageSection({ images, onImagesChange, onFieldChange }: P
             ))}
           </div>
           <div className="pe-image-add">
-            <label className="pe-label">Add Image URL</label>
+            <label className="pe-label">Choose Image</label>
             <div className="pe-image-add-row">
-              <input type="url" className="pe-input" placeholder="https://..." id="pe-image-url-input" />
-              <button type="button" className="btn-secondary" onClick={handleAdd}>+ Add</button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                className="pe-input"
+                onChange={handleFileSelect}
+                disabled={uploading}
+              />
+              {uploading && <span className="pe-label" style={{ marginLeft: 8 }}>Uploading...</span>}
             </div>
           </div>
         </div>

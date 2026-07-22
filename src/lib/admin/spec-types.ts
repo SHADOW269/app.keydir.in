@@ -31,6 +31,7 @@ export interface Product {
 export interface ProductImage {
   id?: string;
   url: string;
+  publicId?: string;
   alt?: string;
   sortOrder: number;
   isPrimary: boolean;
