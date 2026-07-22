@@ -11,7 +11,7 @@ import { ProductSeoSection } from './product-seo-section';
 import { ProductMetadataSection } from './product-metadata-section';
 import { useScrollSpy } from './hooks/use-scroll-spy';
 import { useDeleteEntity } from './hooks/use-delete-entity';
-import { createProduct, updateProduct, deleteProduct } from '@/lib/admin/actions';
+import { createProduct, updateProduct, deleteProduct, upsertProductImages } from '@/lib/admin/actions';
 import type { Brand, Product, ProductImage } from '@/lib/admin/spec-types';
 
 interface Props {
@@ -90,6 +90,10 @@ export function ProductEditor({
       const result = await createProduct(form);
       if (result?.error) { setError(result.error); setPending(false); return; }
       productId = result.id;
+    }
+
+    if (productId) {
+      await upsertProductImages(productId, images);
     }
 
     if (onFormSubmit) {
