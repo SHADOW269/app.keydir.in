@@ -7,7 +7,7 @@ import { CouponCard } from './coupon-card';
 import { VariantCard } from './variant-card';
 import type { ExistingVendorProduct, VendorEntry } from './vendor-types';
 import type { VendorOption } from '@/lib/admin/spec-types';
-import { AVAILABILITY_KEYS } from '@/lib/constants';
+import { AVAILABILITY_KEYS, AVAILABILITY_MAP } from '@/lib/constants';
 
 export interface VendorCardsHandle {
   getEntries: () => VendorEntry[];
@@ -64,7 +64,7 @@ export const VendorCards = forwardRef<VendorCardsHandle, Props>(({ productId, ve
                   <div className="pe-avail-group">
                     {AVAILABILITY_KEYS.map((opt) => (
                       <button key={opt} type="button" className={`pe-avail-btn ${entry.stockStatus === opt ? 'active' : ''}`} onClick={() => updateEntry(idx, 'stockStatus', opt)}>
-                        {opt === 'in_stock' ? 'In Stock' : opt === 'preorder' ? 'Pre-Order' : opt === 'group_buy' ? 'Group Buy' : opt === 'coming_soon' ? 'Coming Soon' : 'Out of Stock'}
+                        {AVAILABILITY_MAP[opt].label}
                       </button>
                     ))}
                   </div>

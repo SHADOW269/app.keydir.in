@@ -1,7 +1,7 @@
 'use client';
 
 import type { VariantEntry } from './vendor-types';
-import { AVAILABILITY_KEYS } from '@/lib/constants';
+import { AVAILABILITY_KEYS, AVAILABILITY_MAP } from '@/lib/constants';
 import { TagInput } from './form-primitives';
 
 interface Props {
@@ -41,7 +41,7 @@ export function VariantCard({ variant, variantIndex, onRemove, onUpdate }: Props
           <div className="pe-avail-group">
             {AVAILABILITY_KEYS.filter((k) => k === 'in_stock' || k === 'preorder' || k === 'out_of_stock').map((opt) => (
               <button key={opt} type="button" className={`pe-avail-btn ${variant.stockStatus === opt ? 'active' : ''}`} onClick={() => onUpdate('stockStatus', opt)}>
-                {opt === 'in_stock' ? 'In Stock' : opt === 'preorder' ? 'Pre-Order' : 'Out of Stock'}
+                {AVAILABILITY_MAP[opt].label}
               </button>
             ))}
           </div>

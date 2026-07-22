@@ -1,8 +1,8 @@
-export type Availability = 'IN_STOCK' | 'PREORDER' | 'GROUP_BUY' | 'COMING_SOON' | 'OUT_OF_STOCK';
-
 export type ScrapeStatus = 'SUCCESS' | 'FAILED' | 'PENDING' | 'MANUAL_OVERRIDE' | 'NEEDS_REVIEW';
 
 export type SortOption = 'lowest' | 'highest' | 'newest' | 'popular' | 'vendors' | 'drops';
+
+import type { Availability } from '@/lib/scraper/types';
 
 export interface VendorProductWithVendor {
   id: string;
