@@ -1,7 +1,7 @@
 # KEYDIR — Coding Rules
 
-> **Version:** 1.0
-> **Last Updated:** 2026-07-14
+> **Version:** 1.1
+> **Last Updated:** 2026-07-22
 
 These rules are mandatory for all contributions to KEYDIR. They are derived from the existing codebase conventions and must be followed without exception.
 
@@ -70,13 +70,12 @@ These rules are mandatory for all contributions to KEYDIR. They are derived from
 
 | Rule | Detail |
 |------|--------|
-| **Never modify schema without docs** | Update `docs/Database.md` when changing `schema.prisma`. |
+| **Never modify schema without docs** | Update `docs/database.md` when changing `schema.prisma`. |
 | **Use migrations** | Never manually alter the database. Use `prisma migrate`. |
-| **Always update Memory.md** | After completing a feature, update `docs/Memory.md`. |
-| **Cascade deletes** | Use `onDelete: Cascade` where appropriate (e.g., votes, specs, spec options). |
+| **Cascade deletes** | Use `onDelete: Cascade` where appropriate (e.g., votes, specs). |
 | **Index foreign keys** | Always add `@@index` for foreign key fields. |
 | **Use cuid()** | Primary keys use `@default(cuid())`. Never use auto-increment. |
-| **SpecField is the source of truth** | Never hardcode filter options, form fields, or spec display — always read from `SpecField` + `SpecOption`. |
+| **Use productType field** | Product categories are stored in the `productType` string field, not separate models. |
 
 ---
 
@@ -119,9 +118,10 @@ These rules are mandatory for all contributions to KEYDIR. They are derived from
 
 | Rule | Detail |
 |------|--------|
-| **Always update Memory.md** | After completing a feature, document what was done. |
-| **Update Database.md** | When changing the schema. |
-| **Update TODO.md** | When completing or discovering new tasks. |
+| **Update relevant docs** | When making changes, update the appropriate documentation file. |
+| **Database changes** | Update `docs/database.md` when modifying `prisma/schema.prisma`. |
+| **Architecture changes** | Update `docs/architecture.md` when changing system design. |
+| **New features** | Update `docs/development.md` if adding new development patterns. |
 | **No invented features** | Documentation must reflect what actually exists. |
 
 ---

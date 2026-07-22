@@ -1,4 +1,5 @@
 import { BannerForm } from '@/components/admin/banner-form';
+import { BannerToastWrapper } from '@/components/admin/banner-toast-wrapper';
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 
@@ -13,9 +14,11 @@ export default async function EditBannerPage({ params }: { params: Promise<{ id:
   if (!banner) notFound();
 
   return (
-    <BannerForm
-      banner={banner}
-      stats={{ clicks: banner.totalClicks, views: banner.totalViews, updatedAt: banner.updatedAt }}
-    />
+    <BannerToastWrapper>
+      <BannerForm
+        banner={banner}
+        stats={{ clicks: banner.totalClicks, views: banner.totalViews, updatedAt: banner.updatedAt }}
+      />
+    </BannerToastWrapper>
   );
 }

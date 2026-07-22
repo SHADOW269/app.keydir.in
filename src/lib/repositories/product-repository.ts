@@ -25,11 +25,13 @@ export async function findProductCards(
   where: Prisma.ProductWhereInput,
   orderBy: Prisma.ProductOrderByWithRelationInput,
   take: number,
+  skip?: number,
 ): Promise<ProductWithRelations[]> {
   return prisma.product.findMany({
     where,
     orderBy,
     take,
+    ...(skip ? { skip } : {}),
     include: PRODUCT_CARD_INCLUDE,
   });
 }
@@ -69,7 +71,7 @@ export async function findBestDeals() {
 export async function findTrendingProducts() {
   return prisma.product.findMany({
     orderBy: { createdAt: 'desc' },
-    take: 500,
+    take: 100,
     include: {
       brand: { select: { name: true } },
       votes: { select: { type: true } },

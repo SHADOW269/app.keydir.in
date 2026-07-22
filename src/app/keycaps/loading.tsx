@@ -1,9 +1,9 @@
 import { ProductGridSkeleton } from '@/components/skeleton';
 
-export function CatalogSkeletonGrid() {
+export default function KeycapsLoading() {
   return (
-    <div className="catalog-page pt-28">
+    <main className="catalog-page pt-28">
       <ProductGridSkeleton count={12} />
-    </div>
+    </main>
   );
 }

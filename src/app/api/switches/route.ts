@@ -3,9 +3,9 @@ import { fetchProductListings, SWITCH_SPEC_CONFIG } from '@/lib/services/product
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const { products, total } = await fetchProductListings('switches', searchParams, SWITCH_SPEC_CONFIG, {
+  const { products, total, page, pageSize, totalPages } = await fetchProductListings('switches', searchParams, SWITCH_SPEC_CONFIG, {
     defaultSort: 'popular',
     includeUserVotes: false,
   });
-  return NextResponse.json({ products, total });
+  return NextResponse.json({ products, total, page, pageSize, totalPages });
 }

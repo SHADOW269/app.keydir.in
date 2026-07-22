@@ -9,6 +9,8 @@ import { ProductCard } from '@/components/product/product-card';
 import { EmptyCategory } from '@/components/product/empty-category';
 import { HeroBanner } from '@/components/banner/hero-banner';
 import FilterPanel from '@/components/product/filter-panel';
+import { Pagination } from '@/components/ui/pagination';
+import { ProductGridSkeleton } from '@/components/skeleton';
 import { clamp } from '@/lib/utils';
 import { SORT_OPTIONS, type Banner, type FilterOptions } from '@/lib/constants';
 import type { ProductCard as ProductCardType, SortOption } from '@/types';
@@ -44,6 +46,8 @@ export function CategoryContent({
 
   const [products, setProducts] = useState<ProductCardType[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<SortOption>(() => (searchParams.get('sort') as SortOption) || defaultSort);
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
@@ -67,7 +71,7 @@ export function CategoryContent({
   const [pending, setPending] = useState<Record<string, string[]>>(() => {
     const init: Record<string, string[]> = {};
     for (const key of searchParams.keys()) {
-      if (key === 'q' || key === 'sort') continue;
+      if (key === 'q' || key === 'sort' || key === 'page') continue;
       init[key] = searchParams.getAll(key);
     }
     return init;
@@ -93,14 +97,15 @@ export function CategoryContent({
       .catch(() => {});
   }, [filtersEndpoint, fixedPriceMin, fixedPriceMax]);
 
-  const buildUrl = useCallback((s: SortOption, f: Record<string, string[]>, pMin: number, pMax: number) => {
-    const p = new URLSearchParams();
-    if (q) p.set('q', q);
-    if (s !== defaultSort) p.set('sort', s);
-    for (const [k, v] of Object.entries(f)) for (const val of v) p.append(k, val);
-    if (pMin > PRICE_MIN) p.set('priceMin', String(pMin));
-    if (pMax < PRICE_MAX) p.set('priceMax', String(pMax));
-    const qs = p.toString();
+  const buildUrl = useCallback((s: SortOption, f: Record<string, string[]>, pMin: number, pMax: number, p: number) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (s !== defaultSort) params.set('sort', s);
+    if (p > 1) params.set('page', String(p));
+    for (const [k, v] of Object.entries(f)) for (const val of v) params.append(k, val);
+    if (pMin > PRICE_MIN) params.set('priceMin', String(pMin));
+    if (pMax < PRICE_MAX) params.set('priceMax', String(pMax));
+    const qs = params.toString();
     return `${pathname}${qs ? `?${qs}` : ''}`;
   }, [pathname, q, defaultSort, PRICE_MIN, PRICE_MAX]);
 
@@ -110,19 +115,26 @@ export function CategoryContent({
       const p = new URLSearchParams();
       if (q) p.set('q', q);
       p.set('sort', sort);
+      p.set('page', String(page));
       for (const [k, v] of Object.entries(applied)) for (const val of v) p.append(k, val);
       if (applied.priceMin) p.set('priceMin', applied.priceMin[0]);
       if (applied.priceMax) p.set('priceMax', applied.priceMax[0]);
       const res = await fetch(`${productsEndpoint}?${p.toString()}`);
-      if (res.ok) { const d = await res.json(); setProducts(d.products ?? []); setTotal(d.total ?? 0); }
+      if (res.ok) {
+        const d = await res.json();
+        setProducts(d.products ?? []);
+        setTotal(d.total ?? 0);
+        setTotalPages(d.totalPages ?? 1);
+      }
     } catch {} finally { setLoading(false); }
-  }, [q, sort, applied, productsEndpoint]);
+  }, [q, sort, page, applied, productsEndpoint]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   function handleSortChange(s: SortOption) {
     setSort(s);
-    router.push(buildUrl(s, applied, priceMin, priceMax), { scroll: false });
+    setPage(1);
+    router.push(buildUrl(s, applied, priceMin, priceMax, 1), { scroll: false });
   }
 
   function toggleOption(key: string, val: string) {
@@ -139,14 +151,16 @@ export function CategoryContent({
     if (priceMax < PRICE_MAX) next.priceMax = [String(priceMax)];
     else delete next.priceMax;
     setApplied(next);
-    router.push(buildUrl(sort, next, priceMin, priceMax), { scroll: false });
+    setPage(1);
+    router.push(buildUrl(sort, next, priceMin, priceMax, 1), { scroll: false });
     setFiltersOpen(false);
   }
 
   function resetAndClose() {
     setPending({}); setApplied({});
     setPriceMin(PRICE_MIN); setPriceMax(PRICE_MAX);
-    router.push(buildUrl(sort, {}, PRICE_MIN, PRICE_MAX), { scroll: false });
+    setPage(1);
+    router.push(buildUrl(sort, {}, PRICE_MIN, PRICE_MAX, 1), { scroll: false });
     setFiltersOpen(false);
   }
 
@@ -157,9 +171,10 @@ export function CategoryContent({
       const u = { ...prev, [key]: (prev[key] || []).filter((v) => v !== val) };
       if (!u[key]?.length) delete u[key];
       setPending(u);
+      setPage(1);
       const pMin = key === 'priceMin' ? PRICE_MIN : priceMin;
       const pMax = key === 'priceMax' ? PRICE_MAX : priceMax;
-      router.push(buildUrl(sort, u, pMin, pMax), { scroll: false });
+      router.push(buildUrl(sort, u, pMin, pMax, 1), { scroll: false });
       return u;
     });
   }
@@ -226,26 +241,7 @@ export function CategoryContent({
 
             {loading ? (
               <div className="catalog-product-area">
-                <div className="catalog-grid">
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <div key={i} className="product-card animate-pulse">
-                      <div className="catalog-skel-img" />
-                      <div className="product-card-body">
-                        <div className="h-4 bg-[var(--border-subtle)] w-2/3 mb-3" />
-                        <div className="flex justify-between items-center mb-3">
-                          <div className="h-4 bg-[var(--border-subtle)] w-16" />
-                          <div className="h-3 bg-[var(--border-subtle)] w-10" />
-                        </div>
-                        <div className="flex gap-2 mb-3">
-                          <div className="h-3 bg-[var(--border-subtle)] w-12" />
-                          <div className="h-3 bg-[var(--border-subtle)] w-14" />
-                          <div className="h-3 bg-[var(--border-subtle)] w-10" />
-                        </div>
-                        <div className="h-3 bg-[var(--border-subtle)] w-1/2 mt-auto pt-3 border-t border-[var(--border-subtle)]" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <ProductGridSkeleton count={12} />
               </div>
             ) : products.length === 0 ? (
               <div className="catalog-empty">
@@ -261,6 +257,7 @@ export function CategoryContent({
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
+                <Pagination page={page} totalPages={totalPages} />
               </div>
             )}
           </>

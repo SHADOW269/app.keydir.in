@@ -96,21 +96,25 @@ export function mapToProductCard(
 
 // ═══ PRODUCT LISTINGS ═══
 
+const DEFAULT_PAGE_SIZE = 25;
+
 export async function fetchProductListings(
   productType: string,
   searchParams: URLSearchParams,
   specConfig: SpecFilterConfig,
-  options?: { defaultSort?: SortOption; includeUserVotes?: boolean; take?: number },
-): Promise<{ products: ProductCard[]; total: number }> {
+  options?: { defaultSort?: SortOption; includeUserVotes?: boolean; pageSize?: number },
+): Promise<{ products: ProductCard[]; total: number; page: number; pageSize: number; totalPages: number }> {
   const sort = (searchParams.get('sort') || options?.defaultSort || 'popular') as SortOption;
-  const take = parseInt(searchParams.get('take') || String(options?.take || 50), 10);
+  const pageSize = Math.min(parseInt(searchParams.get('pageSize') || String(options?.pageSize || DEFAULT_PAGE_SIZE), 10), 100);
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const skip = (page - 1) * pageSize;
   const brands = searchParams.getAll('brand');
 
   const where = buildProductWhere(productType, searchParams, specConfig, { brands });
   const orderBy = buildOrderBy(sort);
 
   const [products, total] = await Promise.all([
-    findProductCards(where, orderBy, take),
+    findProductCards(where, orderBy, pageSize, skip),
     countProducts(where),
   ]);
 
@@ -130,9 +134,14 @@ export async function fetchProductListings(
     }
   }
 
+  const totalPages = Math.ceil(total / pageSize);
+
   return {
     products: products.map((p) => mapToProductCard(p, (userVotes[p.id] as 'upvote' | 'downvote') || null)),
     total,
+    page,
+    pageSize,
+    totalPages,
   };
 }
 

@@ -7,6 +7,7 @@ import { ThemeScript } from '@/components/theme-script';
 import './base.css';
 import './catalog.css';
 import './globals.css';
+import './skeleton.css';
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--f-d',
