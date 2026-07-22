@@ -129,7 +129,7 @@ export function CategoryContent({
     } catch {} finally { setLoading(false); }
   }, [q, sort, page, applied, productsEndpoint]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => { const t = setTimeout(fetchProducts, 0); return () => clearTimeout(t); }, [fetchProducts]);
 
   function handleSortChange(s: SortOption) {
     setSort(s);

@@ -2,7 +2,6 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const CYAN = '#00e5ff';
 const YELLOW = '#ffd600';
 const GREEN = '#00e676';
 const BLUE = '#448aff';

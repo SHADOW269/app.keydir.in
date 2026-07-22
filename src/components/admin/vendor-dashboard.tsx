@@ -84,7 +84,7 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') || 'vendor') as Tab;
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
-  const { pending, error, setError, run } = useFormSubmit();
+  const { pending, error, run } = useFormSubmit();
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const {
     showDeleteModal, setShowDeleteModal,

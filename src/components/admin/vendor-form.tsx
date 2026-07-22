@@ -37,7 +37,7 @@ interface Vendor {
 }
 
 export function VendorForm({ vendor }: { vendor?: Vendor }) {
-  const { pending, error, setError, run } = useFormSubmit();
+  const { pending, error, run } = useFormSubmit();
   const {
     showDeleteModal, setShowDeleteModal,
     deletePassword, setDeletePassword,

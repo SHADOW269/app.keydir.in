@@ -117,7 +117,7 @@ export const VendorCards = forwardRef<VendorCardsHandle, Props>(({ productId, ve
                   <button type="button" className="pe-coupon-add-btn" onClick={() => addCoupon(idx)}>+ Add Coupon</button>
                 </div>
                 {entry.coupons.length === 0 ? (
-                  <div className="pe-coupon-empty">No coupons — click "+ Add Coupon" to create one</div>
+                  <div className="pe-coupon-empty">No coupons — click &quot;+ Add Coupon&quot; to create one</div>
                 ) : (
                   entry.coupons.map((coupon, cIdx) => (
                     <CouponCard
@@ -165,7 +165,7 @@ export const VendorCards = forwardRef<VendorCardsHandle, Props>(({ productId, ve
                   <button type="button" className="pe-add-variant-btn" onClick={() => addVariant(idx)}>+ Add Variant</button>
                 </div>
                 {entry.variants.length === 0 ? (
-                  <div className="pe-vendor-new-hint">No variants — click "+ Add Variant" to create one</div>
+                  <div className="pe-vendor-new-hint">No variants — click &quot;+ Add Variant&quot; to create one</div>
                 ) : (
                   entry.variants.map((variant, vIdx) => (
                     <VariantCard

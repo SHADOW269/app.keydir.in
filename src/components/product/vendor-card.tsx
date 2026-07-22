@@ -118,7 +118,7 @@ export function VendorCard({ vendorProduct: vp, isLowest = false }: VendorCardPr
       )}
       <div className="vendor-card-row vendor-card-footer">
         <span className="vendor-card-updated">
-          Last Updated: {timeAgo(new Date(vp.lastCheckedAt || vp.lastChecked || Date.now()))}
+          Last Updated: {vp.lastCheckedAt ? timeAgo(new Date(vp.lastCheckedAt)) : vp.lastChecked ? timeAgo(new Date(vp.lastChecked)) : '—'}
         </span>
         <a
           href={link}

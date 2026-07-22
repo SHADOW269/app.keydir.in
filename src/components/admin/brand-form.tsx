@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 import { createBrand, updateBrand, deleteBrand } from '@/lib/admin/actions';
 import { DeletePasswordModal } from './delete-password-modal';
@@ -42,7 +41,6 @@ function Card({ t, children }: { t: string; children: React.ReactNode }) {
 
 export function BrandForm({ brand, stats }: { brand?: Brand; stats?: Stats }) {
   const isEdit = !!brand;
-  const router = useRouter();
   const { pending, error, setError, run } = useFormSubmit();
 
   const [name, setName] = useState(brand?.name || '');

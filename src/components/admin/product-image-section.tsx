@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element -- Admin-only product image management preview; next/image adds no practical benefit here */
 
 import { useRef, useState } from 'react';
 import { CollapsibleCard } from './collapsible-card';

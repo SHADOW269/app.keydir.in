@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getScraper, testScraper } from '@/lib/scraper';
 import { applyScrapeResult, applyScrapeFailure } from '@/lib/services/pricing-service';
-import { availabilityToLegacy } from '@/lib/utils';
 
 async function scrapeOneProduct(vpId: string): Promise<{ ok: boolean; error?: string }> {
   const vp = await prisma.vendorProduct.findUnique({

@@ -12,6 +12,20 @@ interface InlineBanner {
   openNewTab: boolean;
 }
 
+function BannerLink({ banner, children }: { banner: InlineBanner; children: React.ReactNode }) {
+  const handleClick = () => {
+    import('@/lib/admin/banner-actions').then(m => m.trackBannerClick(banner.id));
+  };
+  if (banner.linkUrl) {
+    const openBlank = banner.openNewTab || banner.linkUrl.startsWith('http');
+    if (openBlank) {
+      return <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className="inline-banner-link" onClick={handleClick}>{children}</a>;
+    }
+    return <Link href={banner.linkUrl} className="inline-banner-link" onClick={handleClick}>{children}</Link>;
+  }
+  return <div className="inline-banner-link">{children}</div>;
+}
+
 export function InlineBanner({ banner }: { banner: InlineBanner }) {
   const viewed = useRef(false);
 
@@ -23,28 +37,14 @@ export function InlineBanner({ banner }: { banner: InlineBanner }) {
 
   if (!banner.desktopImage && !banner.mobileImage) return null;
 
-  function Wrapper({ children }: { children: React.ReactNode }) {
-    const handleClick = () => {
-      import('@/lib/admin/banner-actions').then(m => m.trackBannerClick(banner.id));
-    };
-    if (banner.linkUrl) {
-      const openBlank = banner.openNewTab || banner.linkUrl.startsWith('http');
-      if (openBlank) {
-        return <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className="inline-banner-link" onClick={handleClick}>{children}</a>;
-      }
-      return <Link href={banner.linkUrl} className="inline-banner-link" onClick={handleClick}>{children}</Link>;
-    }
-    return <div className="inline-banner-link">{children}</div>;
-  }
-
   return (
     <div className="inline-banner">
-      <Wrapper>
+      <BannerLink banner={banner}>
         <picture>
           {banner.mobileImage && <source media="(max-width: 768px)" srcSet={banner.mobileImage} />}
           <img src={banner.desktopImage || ''} alt={banner.title} className="inline-banner-img" />
         </picture>
-      </Wrapper>
+      </BannerLink>
     </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface HeroBanner {
@@ -41,6 +40,20 @@ interface HeroBanner {
  * and center 80% horizontally.
  */
 
+function BannerLink({ banner, children }: { banner: HeroBanner; children: React.ReactNode }) {
+  const handleClick = () => {
+    import('@/lib/admin/banner-actions').then(m => m.trackBannerClick(banner.id));
+  };
+  if (banner.linkUrl) {
+    const openBlank = banner.openNewTab || banner.linkUrl.startsWith('http');
+    if (openBlank) {
+      return <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className="hero-banner-link" onClick={handleClick}>{children}</a>;
+    }
+    return <Link href={banner.linkUrl} className="hero-banner-link" onClick={handleClick}>{children}</Link>;
+  }
+  return <div className="hero-banner-link">{children}</div>;
+}
+
 export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -75,21 +88,6 @@ export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
   if (banners.length === 0) return null;
 
   const banner = banners[current];
-
-  function Wrapper({ children }: { children: React.ReactNode }) {
-    const handleClick = () => {
-      import('@/lib/admin/banner-actions').then(m => m.trackBannerClick(banner.id));
-    };
-    if (banner.linkUrl) {
-      const openBlank = banner.openNewTab || banner.linkUrl.startsWith('http');
-      if (openBlank) {
-        return <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className="hero-banner-link" onClick={handleClick}>{children}</a>;
-      }
-      return <Link href={banner.linkUrl} className="hero-banner-link" onClick={handleClick}>{children}</Link>;
-    }
-    return <div className="hero-banner-link">{children}</div>;
-  }
-
   const hasImage = !!(banner.desktopImage || banner.mobileImage);
 
   return (
@@ -100,10 +98,10 @@ export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
       onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => {
         const dx = e.changedTouches[0].clientX - touchX.current;
-        if (Math.abs(dx) > 50) dx > 0 ? prev() : next();
+        if (Math.abs(dx) > 50) { if (dx > 0) prev(); else next(); }
       }}
     >
-      <Wrapper>
+      <BannerLink banner={banner}>
         <div className="hero-banner-inner">
           {hasImage ? (
             <picture>
@@ -113,12 +111,12 @@ export function HeroBanner({ banners }: { banners: HeroBanner[] }) {
           ) : (
             <div className="hero-placeholder">
               <div className="hero-placeholder-logo">KEYDIR</div>
-              <div className="hero-placeholder-sub">// NO_BANNER_LOADED</div>
+              <div className="hero-placeholder-sub">{'// NO_BANNER_LOADED'}</div>
             </div>
           )}
           <div className="hero-banner-overlay" />
         </div>
-      </Wrapper>
+      </BannerLink>
 
       {banners.length > 1 && (
         <>

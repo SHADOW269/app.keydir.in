@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     await deleteImage(publicId);
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
   }
 }

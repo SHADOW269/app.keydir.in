@@ -211,7 +211,7 @@ export async function setXP(profileId: string, amount: number) {
   const admin = await getAdminProfile();
   if (!admin) return { error: 'not_authorized' };
 
-  const xp = await ensureUserXP(profileId);
+  await ensureUserXP(profileId);
   const newTotal = Math.max(0, amount);
 
   await prisma.userXP.update({ where: { profileId }, data: { xp: newTotal } });
@@ -314,7 +314,7 @@ export async function adminDirectContribution(data: {
   const admin = await getAdminProfile();
   if (!admin) return { error: 'not_authorized' as const };
 
-  const contribution = await prisma.contribution.create({
+  await prisma.contribution.create({
     data: {
       profileId: data.profileId,
       type: data.type,

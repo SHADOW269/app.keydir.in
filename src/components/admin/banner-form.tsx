@@ -1,6 +1,7 @@
 'use client';
+/* eslint-disable @next/next/no-img-element -- Admin-only banner upload previews; next/image adds no practical benefit here */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 /* ══════════════════════════════════════════
@@ -169,7 +170,7 @@ export function BannerForm({ banner, stats }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const init = useRef(getInitial(banner));
+  const [init, setInit] = useState(() => getInitial(banner));
 
   const [title, setTitle] = useState(banner?.title || '');
   const [status, setStatus] = useState(banner?.status || 'draft');
@@ -187,16 +188,16 @@ export function BannerForm({ banner, stats }: Props) {
   const [dev, setDev] = useState<'d' | 'm'>('d');
 
   const current = getInitial({ title, status, priority: prio, startDate: dts ? new Date(dts) : null, endDate: dte ? new Date(dte) : null, bannerType: btype, displayRule: rule, desktopImage: dimg || null, mobileImage: mimg || null, linkType: ltype, linkUrl: lurl || null, openNewTab: ntab, locations: [...locs].map(l => ({ location: l })) } as BannerData);
-  const hasChanges = isDirty(init.current, current);
+  const hasChanges = isDirty(init, current);
 
   const eff = status === 'active' && dte && new Date(dte) < new Date() ? 'expired' : status;
   const effD = STATUS.find(s => s.v === eff) || STATUS[0];
   const startAfterEnd = !!(dts && dte && new Date(dts) > new Date(dte));
 
-  function tog(v: string) { setLocs(p => { const n = new Set(p); n.has(v) ? n.delete(v) : n.add(v); return n; }); }
+  function tog(v: string) { setLocs(p => { const n = new Set(p); if (n.has(v)) n.delete(v); else n.add(v); return n; }); }
 
   function resetForm() {
-    const i = init.current;
+    const i = init;
     setTitle(i.title); setStatus(i.status); setPrio(i.prio);
     setDts(i.dts); setDte(i.dte); setBtype(i.btype); setRule(i.rule);
     setDimg(i.dimg); setMimg(i.mimg); setLtype(i.ltype); setLurl(i.lurl);
@@ -222,7 +223,7 @@ export function BannerForm({ banner, stats }: Props) {
       addToast(r.error, 'error');
     } else {
       addToast(edit ? 'Banner updated' : 'Banner created', 'success');
-      init.current = getInitial({ title, status, priority: prio, startDate: dts ? new Date(dts) : null, endDate: dte ? new Date(dte) : null, bannerType: btype, displayRule: rule, desktopImage: dimg || null, mobileImage: mimg || null, linkType: ltype, linkUrl: lurl || null, openNewTab: ntab, locations: [...locs].map(l => ({ location: l })) } as BannerData);
+      setInit(getInitial({ title, status, priority: prio, startDate: dts ? new Date(dts) : null, endDate: dte ? new Date(dte) : null, bannerType: btype, displayRule: rule, desktopImage: dimg || null, mobileImage: mimg || null, linkType: ltype, linkUrl: lurl || null, openNewTab: ntab, locations: [...locs].map(l => ({ location: l })) } as BannerData));
     }
     setPend(false);
   }

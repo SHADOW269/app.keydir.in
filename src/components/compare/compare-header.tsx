@@ -2,6 +2,7 @@
 
 import { X, Plus, Search } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 interface SearchResult {
   name: string;
@@ -32,7 +33,6 @@ interface Props {
 export function CompareHeader({
   productSlugs,
   onAdd,
-  onRemove,
   onClear,
   onlyDiff,
   onOnlyDiffChange,
@@ -53,7 +53,7 @@ export function CompareHeader({
   const atMax = productSlugs.length >= 4;
 
   useEffect(() => {
-    if (!query || query.length < 2) { setResults([]); return; }
+    if (!query || query.length < 2) { const t = setTimeout(() => setResults([]), 0); return () => clearTimeout(t); }
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
@@ -111,7 +111,7 @@ export function CompareHeader({
                   onMouseDown={() => select(r.slug)}
                 >
                   {r.image && (
-                    <img src={r.image} alt="" className="compare-search-item-img" />
+                    <Image src={r.image} alt="" width={32} height={32} className="compare-search-item-img" unoptimized />
                   )}
                   <div className="compare-search-item-info">
                     <span className="compare-search-item-name">{r.name}</span>

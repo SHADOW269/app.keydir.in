@@ -3,6 +3,7 @@
 import { useOptimistic, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { X } from 'lucide-react';
 import { formatPrice, toNum } from '@/lib/utils';
 import { voteOnProduct } from '@/lib/profile/actions';
@@ -70,9 +71,9 @@ function ProductCard({ product, onRemove }: { product: CompareProduct; onRemove:
         <X size={12} />
       </button>
 
-      <div className="cmp-card-image">
+      <div className="cmp-card-image" style={{ position: 'relative' }}>
         {product.image ? (
-          <img src={product.image} alt={product.name} />
+          <Image src={product.image} alt={product.name} fill style={{ objectFit: 'cover' }} unoptimized />
         ) : (
           <span>{product.name.charAt(0)}</span>
         )}

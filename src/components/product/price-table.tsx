@@ -68,7 +68,7 @@ export function PriceTable({ vendorProducts }: PriceTableProps) {
                   <span className={`badge ${stock.class}`}>{stock.label}</span>
                 </td>
                 <td className="text-[var(--text-dim)]">
-                  {timeAgo(new Date(vp.lastCheckedAt || vp.lastChecked || Date.now()))}
+                  {vp.lastCheckedAt ? timeAgo(new Date(vp.lastCheckedAt)) : vp.lastChecked ? timeAgo(new Date(vp.lastChecked)) : '—'}
                 </td>
                 <td>
                   <a

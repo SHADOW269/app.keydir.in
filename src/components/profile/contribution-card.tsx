@@ -37,7 +37,6 @@ export default function ContributionCard({
   xpAwarded,
   status,
   createdAt,
-  approvedBy,
   onDelete,
   disabled,
 }: Props) {

@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useTransition, useMemo, useCallback } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   createBadge,
   updateBadge,
   deleteBadge,
-  reorderBadges,
   bulkDeleteBadges,
   duplicateBadge,
 } from '@/lib/reputation/actions';

@@ -18,7 +18,7 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({
-  breadcrumb, title, subtitle, icon, pending, pendingLabel, saveLabel,
+  breadcrumb, title, subtitle, pending, pendingLabel, saveLabel,
   cancelHref, isEdit, onDelete, extraActions, formId,
 }: AdminHeaderProps) {
   return (

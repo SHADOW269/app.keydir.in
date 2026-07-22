@@ -43,7 +43,6 @@ function valToPct(val: number, PRICE_MIN: number, PRICE_MAX: number) {
 }
 
 export default function FilterPanel({
-  filterOptions,
   pending,
   applied,
   priceMin,

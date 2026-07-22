@@ -8,8 +8,6 @@ import {
   removeCompareProduct,
   canAddToCompare,
   onCompareChange,
-  getCompareCategory,
-  getCompareCount,
 } from '@/lib/compare-store';
 
 interface Props {
@@ -25,7 +23,7 @@ export function CompareButton({ slug, name, image, price, category }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setInCompare(isProductInCompare(slug));
+    setTimeout(() => setInCompare(isProductInCompare(slug)), 0);
     return onCompareChange(() => {
       setInCompare(isProductInCompare(slug));
       setError(null);

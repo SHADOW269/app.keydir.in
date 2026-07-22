@@ -8,7 +8,7 @@ export function Footer() {
         <div>
           <div className="f-logo">⌨ KEYDIR.in</div>
           <div className="f-desc">
-            India's mechanical keyboard and more database featuring price tracking, historical pricing, vendor
+            India&apos;s mechanical keyboard and more database featuring price tracking, historical pricing, vendor
             comparison, community voting, and detailed product specifications.
           </div>
         </div>

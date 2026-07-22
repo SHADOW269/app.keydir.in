@@ -112,7 +112,7 @@ export async function duplicateBanner(id: string) {
   });
   if (!original) return;
 
-  const { id: _, createdAt, updatedAt, locations, ...rest } = original;
+  const { id: _, createdAt: _createdAt, updatedAt: _updatedAt, locations, ...rest } = original;
   await prisma.banner.create({
     data: {
       ...rest,

@@ -197,7 +197,7 @@ export function AdminUserActions({
     const hasBanAction = banReason.trim();
 
     startTransition(async () => {
-      let errors: string[] = [];
+      const errors: string[] = [];
 
       if (badgeChanged && communityBadgeId) {
         const r = await assignCommunityBadge(profileId, communityBadgeId);

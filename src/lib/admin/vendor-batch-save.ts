@@ -24,7 +24,7 @@ export async function saveVendorEntries(
     fd.set('shippingIncluded', entry.shippingIncluded ? 'on' : '');
     fd.set('stockStatus', entry.stockStatus || 'in_stock');
     fd.set('affiliateLink', entry.affiliateLink);
-    fd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed, ...c }) => c)));
+    fd.set('coupons', JSON.stringify(entry.coupons.map(({ collapsed: _, ...c }) => c)));
     const result = await createVendorProduct(fd);
     if (result && 'id' in result && entry.variants.length > 0) {
       await upsertVendorVariants(result.id as string, entry.variants);

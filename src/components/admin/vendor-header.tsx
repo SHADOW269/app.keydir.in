@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element -- Admin-only vendor logo preview; next/image adds no practical benefit here */
 
 import { useRouter } from 'next/navigation';
 import { timeAgo } from '@/lib/utils';
@@ -31,7 +32,7 @@ interface Props {
   onDelete: () => void;
 }
 
-export function VendorHeader({ vendor, stats, lastLog, healthColor, healthLabel, pending, onSave, onDelete }: Props) {
+export function VendorHeader({ vendor, stats, lastLog, healthColor, pending, onDelete }: Props) {
   const router = useRouter();
   return (
     <div className="vd-hd">

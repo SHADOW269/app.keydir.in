@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getScraper } from '@/lib/scraper';
-import { applyScrapeResult, applyScrapeFailure, calculateTotalPrice } from '@/lib/services/pricing-service';
+import { applyScrapeResult, applyScrapeFailure } from '@/lib/services/pricing-service';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const BATCH_SIZE = 100;

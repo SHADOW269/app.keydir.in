@@ -39,7 +39,7 @@ const SECTION_META: Record<string, { icon: string; label: string }> = {
 };
 
 export function ProductEditor({
-  product, brands, productType, productLabel, productIcon,
+  product, brands, productType, productLabel,
   images, onImagesChange, specContent, vendorContent, extraActions, onFormSubmit, renderForm,
 }: Props) {
   const formRef = useRef<HTMLFormElement>(null);

@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element -- Admin-only vendor logo previews; next/image adds no practical benefit here */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -40,6 +41,8 @@ export function ScraperOpsClient({
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showAllActivity, setShowAllActivity] = useState(false);
+  const [todayCount, setTodayCount] = useState(0);
+  const [hourCount, setHourCount] = useState(0);
 
   const refresh = useCallback(async () => {
     const [logs, prices, act] = await Promise.all([
@@ -50,9 +53,13 @@ export function ScraperOpsClient({
     setFailedLogs(logs);
     setPriceChanges(prices);
     setActivity(act);
+    const filtered = prices.filter((ch) => ch.oldPrice !== ch.newPrice && ch.oldPrice > 0);
+    const now = Date.now();
+    setTodayCount(filtered.filter((ch) => new Date(ch.recordedAt).toDateString() === new Date().toDateString()).length);
+    setHourCount(filtered.filter((ch) => now - new Date(ch.recordedAt).getTime() < 3600_000).length);
   }, [logVendorFilter]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { const t = setTimeout(refresh, 0); return () => clearTimeout(t); }, [refresh]);
   useEffect(() => { const iv = setInterval(refresh, 30_000); return () => clearInterval(iv); }, [refresh]);
 
   async function handleAction(fn: () => Promise<{ message?: string; error?: string }>, label: string) {
@@ -86,13 +93,6 @@ export function ScraperOpsClient({
   const isRunning = !!actionLoading;
 
   const actualPriceChanges = priceChanges.filter((ch) => ch.oldPrice !== ch.newPrice && ch.oldPrice > 0);
-  const todayCount = actualPriceChanges.filter((ch) => {
-    const d = new Date(ch.recordedAt);
-    return d.toDateString() === new Date().toDateString();
-  }).length;
-  const hourCount = actualPriceChanges.filter((ch) =>
-    Date.now() - new Date(ch.recordedAt).getTime() < 3600_000
-  ).length;
 
   return (
     <>

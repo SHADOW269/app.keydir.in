@@ -50,7 +50,7 @@ export async function scrapeWithCheerio(config: VendorConfig, url: string): Prom
   }
 }
 
-function extractPrice($: cheerio.CheerioAPI, config: VendorConfig, _url: string): number | null {
+function extractPrice($: cheerio.CheerioAPI, config: VendorConfig, _url?: string): number | null {
   if (!config.priceSelector) return null;
 
   const selectors = config.priceSelector.split(',').map((s) => s.trim()).filter(Boolean);

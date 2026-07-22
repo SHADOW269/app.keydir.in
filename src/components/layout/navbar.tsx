@@ -35,10 +35,12 @@ export function Navbar() {
   const [compareSlugs, setCompareSlugs] = useState<string[]>([]);
 
   useEffect(() => {
-    const stored = loadCompareFromStorage();
-    setCompareCount(stored.products.length);
-    setCompareCategory(stored.category);
-    setCompareSlugs(stored.products.map((p) => p.slug));
+    setTimeout(() => {
+      const stored = loadCompareFromStorage();
+      setCompareCount(stored.products.length);
+      setCompareCategory(stored.category);
+      setCompareSlugs(stored.products.map((p) => p.slug));
+    }, 0);
     return onCompareChange(() => {
       setCompareCount(getCompareCount());
       setCompareCategory(getCompareCategory());
@@ -47,20 +49,23 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        const email = data.user.email || '';
-        const username = data.user.user_metadata?.username || email.split('@')[0];
-        const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
-          .split(',')
-          .map(e => e.trim().toLowerCase());
-        setUser({
-          username,
-          isAdmin: adminEmails.includes(email.toLowerCase()),
-        });
-      }
-    });
+    const t = setTimeout(() => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user) {
+          const email = data.user.email || '';
+          const username = data.user.user_metadata?.username || email.split('@')[0];
+          const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+            .split(',')
+            .map(e => e.trim().toLowerCase());
+          setUser({
+            username,
+            isAdmin: adminEmails.includes(email.toLowerCase()),
+          });
+        }
+      });
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {

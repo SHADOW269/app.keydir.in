@@ -5,11 +5,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Votes — Admin' };
 
 export default async function AdminVotesPage() {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekAgo = new Date(now.getTime() - 7 * 86400000);
-
-  const [votes, totalToday, totalThisWeek, upvotes, downvotes] = await Promise.all([
+  const [votes, upvotes, downvotes] = await Promise.all([
     prisma.vote.findMany({
       include: {
         profile: { select: { username: true } },
@@ -18,8 +14,6 @@ export default async function AdminVotesPage() {
       orderBy: { createdAt: 'desc' },
       take: 50,
     }),
-    prisma.vote.count({ where: { createdAt: { gte: todayStart } } }),
-    prisma.vote.count({ where: { createdAt: { gte: weekAgo } } }),
     prisma.vote.count({ where: { type: 'upvote' } }),
     prisma.vote.count({ where: { type: 'downvote' } }),
   ]);

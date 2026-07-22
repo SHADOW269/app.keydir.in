@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 function loadState<T>(key: string, fallback: T): T {
   try {
@@ -18,10 +18,14 @@ function saveState<T>(key: string, value: T) {
 }
 
 export function usePersistentState<T>(key: string, fallback: T): [T, (value: T | ((prev: T) => T)) => void] {
-  const [state, setState] = useState<T>(fallback);
+  const [state, setState] = useState<T>(() => loadState(key, fallback));
+  const fallbackRef = useRef(fallback);
+
+  useEffect(() => { fallbackRef.current = fallback; });
 
   useEffect(() => {
-    setState(loadState(key, fallback));
+    const t = setTimeout(() => setState(loadState(key, fallbackRef.current)), 0);
+    return () => clearTimeout(t);
   }, [key]);
 
   const setPersistent = useCallback((value: T | ((prev: T) => T)) => {
