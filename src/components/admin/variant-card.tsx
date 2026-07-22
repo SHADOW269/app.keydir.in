@@ -1,38 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import type { VariantEntry } from './vendor-types';
 import { AVAILABILITY_KEYS } from '@/lib/constants';
-
-function TagInput({ label, value, onChange, placeholder }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
-  const [input, setInput] = useState('');
-  const add = () => {
-    const trimmed = input.trim();
-    if (trimmed && !value.includes(trimmed)) { onChange([...value, trimmed]); setInput(''); }
-  };
-  return (
-    <div className="pe-tag-wrap">
-      <label className="pe-label">{label}</label>
-      <div className="pe-tag-chips">
-        {value.map((tag) => (
-          <span key={tag} className="pe-tag-chip">
-            {tag}
-            <button type="button" className="pe-tag-remove" onClick={() => onChange(value.filter((t) => t !== tag))}>×</button>
-          </span>
-        ))}
-        <input
-          type="text"
-          className="pe-tag-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } }}
-          onBlur={add}
-          placeholder={placeholder || `+ Add ${label}`}
-        />
-      </div>
-    </div>
-  );
-}
+import { TagInput } from './form-primitives';
 
 interface Props {
   variant: VariantEntry;
@@ -57,9 +27,9 @@ export function VariantCard({ variant, variantIndex, onRemove, onUpdate }: Props
           <label className="pe-label">SKU (optional)</label>
           <input type="text" className="pe-input" placeholder="SKU" value={variant.sku} onChange={(e) => onUpdate('sku', e.target.value)} />
         </div>
-        <TagInput label="Color" value={variant.color} onChange={(v) => onUpdate('color', v)} placeholder="+ Add Color" />
-        <TagInput label="Switches" value={variant.switches} onChange={(v) => onUpdate('switches', v)} placeholder="+ Add Switch" />
-        <TagInput label="Keycaps" value={variant.keycaps} onChange={(v) => onUpdate('keycaps', v)} placeholder="+ Add Keycap" />
+        <TagInput label="Color" value={variant.color} onChange={(v) => onUpdate('color', v)} placeholder="+ Add Color" classPrefix="pe" />
+        <TagInput label="Switches" value={variant.switches} onChange={(v) => onUpdate('switches', v)} placeholder="+ Add Switch" classPrefix="pe" />
+        <TagInput label="Keycaps" value={variant.keycaps} onChange={(v) => onUpdate('keycaps', v)} placeholder="+ Add Keycap" classPrefix="pe" />
       </div>
       <div className="pe-variant-price-row">
         <div className="pe-field">

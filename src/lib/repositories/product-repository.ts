@@ -108,8 +108,8 @@ export async function getFilterData(productType: string, specSelect: Record<stri
     }),
     prisma.vendorProduct.aggregate({
       where: { product: { productType } },
-      _min: { totalPrice: true },
-      _max: { totalPrice: true },
+      _min: { effectivePrice: true },
+      _max: { effectivePrice: true },
     }),
   ]);
 

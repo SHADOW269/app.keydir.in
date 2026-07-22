@@ -1,23 +1,13 @@
 'use client';
 
 import { Card } from './admin-card';
+import { Seg } from './form-primitives';
 
 const ACTIONS = [
   { v: 'url', l: 'URL' }, { v: 'internal', l: 'Page' },
   { v: 'vendor', l: 'Vendor' }, { v: 'product', l: 'Product' },
   { v: 'category', l: 'Category' },
 ];
-
-function Seg({ items, val, set }: { items: { v: string; l: string }[]; val: string; set: (v: string) => void }) {
-  return (
-    <div className="sg">
-      {items.map(i => (
-        <button key={i.v} type="button" onClick={() => set(i.v)}
-          className={`sg-b ${val === i.v ? 'on' : ''}`}>{i.l}</button>
-      ))}
-    </div>
-  );
-}
 
 interface Props {
   ltype: string;

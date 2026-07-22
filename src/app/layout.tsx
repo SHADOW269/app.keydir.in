@@ -4,6 +4,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ProgressBar } from '@/components/progress-bar';
 import { ScrollReveal } from '@/components/scroll-reveal';
 import { ThemeScript } from '@/components/theme-script';
+import './base.css';
+import './catalog.css';
 import './globals.css';
 
 const spaceGrotesk = Space_Grotesk({

@@ -51,7 +51,7 @@ function ProductCard({ product, onRemove }: { product: CompareProduct; onRemove:
     }
   );
 
-  const prices = product.vendorProducts.map((vp) => toNum(vp.totalPrice)).filter((p) => p > 0);
+  const prices = product.vendorProducts.map((vp) => toNum(vp.effectivePrice)).filter((p) => p > 0);
   const lowest = prices.length ? Math.min(...prices) : null;
   const highest = prices.length > 1 ? Math.max(...prices) : lowest;
 

@@ -32,26 +32,27 @@ export function Toggle({ label, name, checked, onChange }: { label: string; name
   );
 }
 
-export function TagInput({ label, value, onChange, placeholder, name }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string; name?: string }) {
+export function TagInput({ label, value, onChange, placeholder, name, classPrefix = 'kb' }: { label: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string; name?: string; classPrefix?: string }) {
   const [input, setInput] = useState('');
   const add = () => {
     const trimmed = input.trim();
     if (trimmed && !value.includes(trimmed)) { onChange([...value, trimmed]); setInput(''); }
   };
+  const p = classPrefix;
   return (
-    <div className="kb-tag-input-wrap">
+    <div className={`${p}-tag-wrap`}>
       {name && <input type="hidden" name={name} value={JSON.stringify(value)} />}
-      <label className="kb-field-label">{label}</label>
-      <div className="kb-tag-chips">
+      <label className={`${p}-tag-label`}>{label}</label>
+      <div className={`${p}-tag-chips`}>
         {value.map((tag) => (
-          <span key={tag} className="kb-tag-chip">
+          <span key={tag} className={`${p}-tag-chip`}>
             {tag}
-            <button type="button" className="kb-tag-remove" onClick={() => onChange(value.filter((t) => t !== tag))}>×</button>
+            <button type="button" className={`${p}-tag-remove`} onClick={() => onChange(value.filter((t) => t !== tag))}>×</button>
           </span>
         ))}
         <input
           type="text"
-          className="kb-tag-input"
+          className={`${p}-tag-input`}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } }}
@@ -59,6 +60,17 @@ export function TagInput({ label, value, onChange, placeholder, name }: { label:
           placeholder={placeholder || `+ Add ${label}`}
         />
       </div>
+    </div>
+  );
+}
+
+export function Seg({ items, val, set }: { items: { v: string; l: string }[]; val: string; set: (v: string) => void }) {
+  return (
+    <div className="sg">
+      {items.map(i => (
+        <button key={i.v} type="button" onClick={() => set(i.v)}
+          className={`sg-b ${val === i.v ? 'on' : ''}`}>{i.l}</button>
+      ))}
     </div>
   );
 }

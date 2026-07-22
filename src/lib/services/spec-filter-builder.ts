@@ -57,7 +57,7 @@ export function buildVendorProductWhere(filters: VendorProductFilterInput): Pris
 
   if (filters.priceMin || filters.priceMax) {
     vpConditions.push({
-      totalPrice: {
+      effectivePrice: {
         ...(filters.priceMin ? { gte: parseFloat(filters.priceMin) } : {}),
         ...(filters.priceMax ? { lte: parseFloat(filters.priceMax) } : {}),
       },

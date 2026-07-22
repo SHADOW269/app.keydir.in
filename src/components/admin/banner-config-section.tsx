@@ -1,6 +1,7 @@
 'use client';
 
 import { Card } from './admin-card';
+import { Seg } from './form-primitives';
 
 const TYPES = [
   { v: 'hero', l: 'Hero Banner', d: 'Full-width homepage banner', i: '▬' },
@@ -17,17 +18,6 @@ const PAGES = [
   { v: 'switches', l: 'Switches' }, { v: 'keycaps', l: 'Keycaps' },
   { v: 'mouse', l: 'Mouse' },
 ];
-
-function Seg({ items, val, set }: { items: { v: string; l: string }[]; val: string; set: (v: string) => void }) {
-  return (
-    <div className="sg">
-      {items.map(i => (
-        <button key={i.v} type="button" onClick={() => set(i.v)}
-          className={`sg-b ${val === i.v ? 'on' : ''}`}>{i.l}</button>
-      ))}
-    </div>
-  );
-}
 
 function Chips({ items, sel, tog }: { items: { v: string; l: string }[]; sel: Set<string>; tog: (v: string) => void }) {
   return (

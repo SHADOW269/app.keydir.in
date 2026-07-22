@@ -51,8 +51,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         include: {
           brand: { select: { name: true } },
           vendorProducts: {
-            select: { totalPrice: true },
-            orderBy: { totalPrice: 'asc' },
+            select: { effectivePrice: true },
+            orderBy: { effectivePrice: 'asc' },
             take: 1,
           },
         },

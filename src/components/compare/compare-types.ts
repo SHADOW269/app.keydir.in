@@ -9,6 +9,7 @@ export interface CompareProduct {
   vendorProducts: {
     id: string;
     totalPrice: number;
+    effectivePrice: number;
     shippingCost: number;
     vendor: { name: string; chartColor: string | null };
   }[];

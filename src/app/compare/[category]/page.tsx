@@ -52,7 +52,7 @@ export default async function CompareCategoryPage({ params, searchParams }: Prop
               vendor: { select: { name: true, chartColor: true } },
             },
             where: { vendor: { enabled: true } },
-            orderBy: { totalPrice: 'asc' },
+            orderBy: { effectivePrice: 'asc' },
           },
           votes: { select: { type: true } },
         },
@@ -99,6 +99,7 @@ export default async function CompareCategoryPage({ params, searchParams }: Prop
     vendorProducts: p.vendorProducts.map((vp) => ({
       id: vp.id,
       totalPrice: toNum(vp.totalPrice),
+      effectivePrice: toNum(vp.effectivePrice),
       shippingCost: toNum(vp.shippingCost),
       vendor: { name: vp.vendor.name, chartColor: vp.vendor.chartColor },
     })),
