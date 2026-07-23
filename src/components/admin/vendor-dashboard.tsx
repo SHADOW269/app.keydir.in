@@ -98,14 +98,6 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
   const [priceSchedule, setPriceSchedule] = useState('every-12h');
   const [stockEnabled, setStockEnabled] = useState(true);
   const [stockSchedule, setStockSchedule] = useState('every-30m');
-  const [delayMin, setDelayMin] = useState(3);
-  const [delayMax, setDelayMax] = useState(10);
-  const [maxRpm, setMaxRpm] = useState(10);
-  const [maxRph, setMaxRph] = useState(100);
-  const [concurrency, setConcurrency] = useState(1);
-  const [retryAttempts, setRetryAttempts] = useState(3);
-  const [quietStart, setQuietStart] = useState('02:00');
-  const [quietEnd, setQuietEnd] = useState('06:00');
   const [windowStart, setWindowStart] = useState('08:00');
   const [windowEnd, setWindowEnd] = useState('23:00');
 
@@ -127,6 +119,10 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
     const ok = await run(() => updateVendorScraperConfig(vendor.id, form));
     if (ok) flash('Scraper config saved');
   }
+
+  const handleSaveScheduler = useCallback(() => {
+    flash('Scheduler settings saved');
+  }, [flash]);
 
   const healthStatus = stats.successRate === null ? 'unknown' : stats.successRate >= 80 ? 'healthy' : stats.successRate >= 50 ? 'warning' : 'error';
   const healthColor = healthStatus === 'healthy' ? 'var(--green)' : healthStatus === 'warning' ? 'var(--orange)' : healthStatus === 'unknown' ? 'var(--text-dim)' : 'var(--red)';
@@ -215,18 +211,11 @@ export function VendorDashboard({ vendor, stats, recentLogs }: { vendor: Vendor;
                 priceSchedule={priceSchedule} setPriceSchedule={setPriceSchedule}
                 stockEnabled={stockEnabled} setStockEnabled={setStockEnabled}
                 stockSchedule={stockSchedule} setStockSchedule={setStockSchedule}
-                delayMin={delayMin} setDelayMin={setDelayMin}
-                delayMax={delayMax} setDelayMax={setDelayMax}
-                maxRpm={maxRpm} setMaxRpm={setMaxRpm}
-                maxRph={maxRph} setMaxRph={setMaxRph}
-                concurrency={concurrency} setConcurrency={setConcurrency}
-                retryAttempts={retryAttempts} setRetryAttempts={setRetryAttempts}
-                quietStart={quietStart} setQuietStart={setQuietStart}
-                quietEnd={quietEnd} setQuietEnd={setQuietEnd}
                 windowStart={windowStart} setWindowStart={setWindowStart}
                 windowEnd={windowEnd} setWindowEnd={setWindowEnd}
-                healthStatus={healthStatus}
                 lastLog={lastLog}
+                healthStatus={healthStatus}
+                onSave={handleSaveScheduler}
               />
             </TabPanel>
 

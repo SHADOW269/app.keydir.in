@@ -12,12 +12,12 @@ export default async function ForgotPasswordPage({
 
   return (
     <AuthLayout title={'RESET\nYOUR\nPASSWORD.'}>
-      <AuthTerminal prompt="reset-password --email">
+      <AuthTerminal>
         {params.error && (
-          <div className="auth-msg error">{params.error}</div>
+          <div className="auth-msg error" role="alert">{params.error}</div>
         )}
         {params.message && (
-          <div className="auth-msg success">{params.message}</div>
+          <div className="auth-msg success" role="status">{params.message}</div>
         )}
 
         <p className="auth-message-sub auth-message-sub--block">
@@ -26,23 +26,26 @@ export default async function ForgotPasswordPage({
 
         <form action={forgotPassword}>
           <div className="auth-field">
-            <label className="auth-label">Email</label>
+            <label className="auth-label" htmlFor="forgot-email">Email</label>
             <input
               type="email"
               name="email"
+              id="forgot-email"
               required
               placeholder="you@email.com"
               className="auth-input"
+              autoComplete="email"
+              aria-label="Email address"
             />
           </div>
 
           <button type="submit" className="btn-primary auth-btn auth-btn-tight">
-            Send Reset Link →
+            Send Reset Link {'\u2192'}
           </button>
         </form>
 
         <div className="auth-alt-link">
-          Remember your password? <Link href="/auth/login">Login →</Link>
+          Remember your password? <Link href="/auth/login">Login {'\u2192'}</Link>
         </div>
       </AuthTerminal>
     </AuthLayout>

@@ -1588,8 +1588,13 @@
 
 /* ── Grid override — wider terminal, balanced gap ── */
 .page-hero:has(.auth-visible) .hero-grid {
-  grid-template-columns: 1fr clamp(560px, 42vw, 760px);
-  gap: 48px;
+  grid-template-columns: 1fr clamp(680px, 42vw, 760px);
+  gap: 56px;
+}
+
+/* ── Undo skeleton flex centering so terminal fills the grid column ── */
+.page-hero:has(.auth-visible) .hero-right {
+  display: block;
 }
 
 /* ── Yellow panel — no margin below (buttons removed) ── */
@@ -1597,16 +1602,38 @@
   margin-bottom: 0;
 }
 
-/* ── Terminal — more room for form content ── */
+/* ══════════════════════════════════════════
+   TERMINAL PANEL
+   ══════════════════════════════════════════ */
 .auth-visible {
-  padding: 40px;
+  padding: 40px 44px 44px;
+  border: 3px solid var(--border);
+  box-shadow:
+    8px 8px 0 var(--shadow),
+    16px 16px 0 rgba(0, 0, 0, .12);
 }
 
-/* ── Inputs — taller, more breathing room ── */
+/* ── Terminal title bar ── */
+.auth-term-title { font-size: .7rem; color: var(--text-muted); margin-left: 10px; }
+
+.terminal.auth-visible .t-bar {
+  gap: 8px;
+  margin-bottom: 4px;
+  padding-bottom: 16px;
+}
+
+.terminal.auth-visible .t-dot {
+  width: 11px;
+  height: 11px;
+}
+
+/* ══════════════════════════════════════════
+   INPUTS
+   ══════════════════════════════════════════ */
 .auth-input {
   width: 100%;
   height: 50px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   border: var(--bd-thick);
   background: var(--bg-alt);
   color: var(--text);
@@ -1619,6 +1646,10 @@
   box-sizing: border-box;
 }
 
+.auth-input:hover {
+  border-color: var(--text);
+}
+
 .auth-input:focus {
   background: var(--yellow);
   box-shadow: var(--sh-lg);
@@ -1627,7 +1658,40 @@
 
 .auth-input::placeholder { color: var(--text-dim); font-weight: 400; }
 
-/* ── Labels ── */
+/* ── Input wrapper (for password toggle) ── */
+.auth-input-wrap {
+  position: relative;
+}
+
+.auth-input-wrap .auth-input--toggle {
+  padding-right: 48px;
+}
+
+.auth-input-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--dur-fast);
+  padding: 0;
+}
+
+.auth-input-toggle:hover {
+  color: var(--text);
+}
+
+/* ══════════════════════════════════════════
+   LABELS & HELPERS
+   ══════════════════════════════════════════ */
 .auth-label {
   font-family: var(--f-m);
   font-size: var(--fs-filter-label);
@@ -1639,52 +1703,202 @@
   display: block;
 }
 
-/* ── Field spacing — comfortable vertical rhythm ── */
+.auth-helper {
+  margin-top: 8px;
+  font-family: var(--f-m);
+  font-size: .72rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* ══════════════════════════════════════════
+   FIELD SPACING
+   ══════════════════════════════════════════ */
 .auth-field { margin-bottom: 28px; }
 
-/* ── Button layout inside terminal ── */
-.auth-btn { width: 100%; justify-content: center; }
-.auth-btn-tight { margin-top: 16px; }
+/* ══════════════════════════════════════════
+   BUTTONS
+   ══════════════════════════════════════════ */
+.auth-btn {
+  width: 100%;
+  justify-content: center;
+  height: 50px;
+  padding: 0 28px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: .04em;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+  box-shadow: inset 0 0 20px rgba(250, 255, 0, .15);
+  pointer-events: none;
+}
+
+.auth-btn:hover::after {
+  opacity: 1;
+}
+
+.auth-btn-text { position: relative; z-index: 1; }
+
+.auth-btn-arrow {
+  position: relative;
+  z-index: 1;
+  transition: transform var(--dur-fast);
+  display: inline-block;
+}
+
+.auth-btn:hover .auth-btn-arrow {
+  transform: translateX(4px);
+}
+
+.auth-btn-tight { margin-top: 24px; }
 .auth-gap { margin-top: 28px; }
 
 /* ── Social buttons layout ── */
-.auth-social { display: flex; gap: 20px; }
+.auth-social { display: flex; gap: 12px; }
 .auth-social form { flex: 1; }
 
-/* ── Terminal title ── */
-.auth-term-title { font-size: .7rem; color: var(--text-muted); margin-left: 8px; }
+.auth-social .auth-btn {
+  height: 44px;
+  padding: 0 16px;
+  font-size: .78rem;
+  gap: 8px;
+}
 
-/* ── Messages ── */
+.auth-social .auth-btn img {
+  width: 16px;
+  height: 16px;
+}
+
+/* ══════════════════════════════════════════
+   PASSWORD STRENGTH
+   ══════════════════════════════════════════ */
+.auth-strength-wrap {
+  margin-top: 12px;
+}
+
+.auth-strength {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.auth-strength-track {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.auth-strength-seg {
+  height: 4px;
+  flex: 1;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  transition: background var(--dur-fast);
+}
+
+.auth-strength-seg.auth-strength--weak { background: #FF4444; }
+.auth-strength-seg.auth-strength--fair { background: #FF8844; }
+.auth-strength-seg.auth-strength--medium { background: #FFBB33; }
+.auth-strength-seg.auth-strength--strong { background: #88CC44; }
+.auth-strength-seg.auth-strength--very-strong { background: var(--green); }
+
+.auth-strength-label {
+  font-family: var(--f-m);
+  font-size: .68rem;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+.auth-strength-label.auth-strength--weak { color: #FF4444; }
+.auth-strength-label.auth-strength--fair { color: #FF8844; }
+.auth-strength-label.auth-strength--medium { color: #FFBB33; }
+.auth-strength-label.auth-strength--strong { color: #88CC44; }
+.auth-strength-label.auth-strength--very-strong { color: var(--green); }
+
+.auth-requirements {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+
+.auth-requirements li {
+  font-family: var(--f-m);
+  font-size: .68rem;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--dur-fast);
+}
+
+.auth-requirements li.auth-req--met {
+  color: var(--green);
+}
+
+.auth-req-icon {
+  font-size: .6rem;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════
+   MESSAGES
+   ══════════════════════════════════════════ */
 .auth-msg {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border: var(--bd-thick);
   font-family: var(--f-m);
   font-size: var(--fs-reveal);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   line-height: 1.5;
 }
 
 .auth-msg.error { border-color: var(--red); color: var(--red); background: rgba(255,42,42,.06); }
 .auth-msg.success { border-color: var(--green); color: var(--green); background: rgba(0,255,106,.06); }
 
-/* ── Links ── */
-.auth-alt-link {
-  text-align: center;
-  margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid #222;
+/* ══════════════════════════════════════════
+   CHECKBOX
+   ══════════════════════════════════════════ */
+.auth-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.auth-checkbox input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--green);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.auth-checkbox label {
   font-size: var(--fs-reveal);
   color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--f-m);
 }
 
-.auth-alt-link a {
-  color: var(--yellow);
-  text-decoration: none;
-  font-weight: var(--fw-bold);
-}
-
-.auth-alt-link a:hover { text-decoration: underline; }
-
+/* ══════════════════════════════════════════
+   FORGOT PASSWORD LINK
+   ══════════════════════════════════════════ */
 .auth-forgot-link {
   text-align: right;
   margin-bottom: 24px;
@@ -1695,32 +1909,49 @@
   font-size: var(--fs-reveal);
   text-decoration: none;
   font-weight: var(--fw-bold);
+  transition: opacity var(--dur-fast);
 }
 
 .auth-forgot-link a:hover { text-decoration: underline; }
 
-/* ── Checkbox ── */
-.auth-checkbox {
+/* ══════════════════════════════════════════
+   ROW (inline checkbox + forgot link)
+   ══════════════════════════════════════════ */
+.auth-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 
-.auth-checkbox input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--green);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface);
+.auth-row .auth-checkbox {
+  margin-bottom: 0;
 }
 
-.auth-checkbox label {
+.auth-row .auth-forgot-link {
+  margin-bottom: 0;
+}
+
+/* ══════════════════════════════════════════
+   ALT LINK (footer)
+   ══════════════════════════════════════════ */
+.auth-alt-link {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #222;
   font-size: var(--fs-reveal);
   color: var(--text-muted);
-  cursor: pointer;
-  font-family: var(--f-m);
 }
+
+.auth-alt-link a {
+  color: var(--yellow);
+  text-decoration: none;
+  font-weight: var(--fw-bold);
+  transition: opacity var(--dur-fast);
+}
+
+.auth-alt-link a:hover { text-decoration: underline; }
 
 /* ── Feature list (left column) ── */
 .auth-features {
@@ -7608,6 +7839,119 @@ select.kb-input {
   .sch-pri-row { grid-template-columns: 70px 1fr 1fr; }
   .sch-pri-desc { display: none; }
   .sch-section-subtitle { display: none; }
+}
+
+/* ══════════════════════════════════════════
+   SCHEDULER — Simple
+   ══════════════════════════════════════════ */
+.sch-s {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sch-s-card {
+  border: var(--bd);
+  background: var(--bg);
+}
+
+.sch-s-head {
+  padding: 8px 14px;
+  border-bottom: var(--bd);
+  background: var(--surface);
+  font-family: var(--f-m);
+  font-size: .68rem;
+  font-weight: var(--fw-extrabold);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text);
+}
+
+.sch-s-body {
+  padding: 10px 14px;
+}
+
+.sch-s-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.sch-s-row .admin-field { flex: 1; }
+.sch-s-row .admin-label { font-size: .56rem; margin-bottom: 2px; }
+.sch-s-row .admin-input { font-size: .64rem; padding: 4px 6px; }
+
+.sch-s-note {
+  margin-top: 8px;
+  font-family: var(--f-m);
+  font-size: .56rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.sch-s-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sch-s-freq {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sch-s-freq .admin-label {
+  font-size: .56rem;
+  margin-bottom: 2px;
+}
+
+.sch-s-freq .admin-input {
+  font-size: .64rem;
+  padding: 4px 6px;
+}
+
+.sch-s-status {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.sch-s-status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sch-s-status-label {
+  font-family: var(--f-m);
+  font-size: .52rem;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+
+.sch-s-status-value {
+  font-family: var(--f-m);
+  font-size: .68rem;
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+.sch-s-status-value--ok { color: var(--green); }
+.sch-s-status-value--err { color: var(--red); }
+
+.sch-s-save {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+@media (max-width: 600px) {
+  .sch-s-row { flex-direction: column; align-items: stretch; }
+  .sch-s-status { grid-template-columns: 1fr; gap: 6px; }
 }
 
 /* ══════════════════════════════════════════

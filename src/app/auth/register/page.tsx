@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { AuthTerminal } from '@/components/auth/auth-terminal';
+import { PasswordInput } from '@/components/auth/password-input';
+import { PasswordStrength } from '@/components/auth/password-strength';
 import { register } from '@/lib/auth/actions';
 
 export default async function RegisterPage({
@@ -12,66 +14,74 @@ export default async function RegisterPage({
 
   return (
     <AuthLayout title={'CREATE\nYOUR\nACCOUNT.'}>
-      <AuthTerminal prompt="register --new-user">
+      <AuthTerminal>
         {params.error && (
-          <div className="auth-msg error">{params.error}</div>
+          <div className="auth-msg error" role="alert">{params.error}</div>
         )}
 
-        <form action={register}>
+        <form action={register} noValidate>
           <div className="auth-field">
-            <label className="auth-label">Username</label>
+            <label className="auth-label" htmlFor="reg-username">Username</label>
             <input
               type="text"
               name="username"
+              id="reg-username"
               required
               minLength={3}
               maxLength={20}
               pattern="[a-zA-Z0-9_-]+"
-              placeholder="shadow269"
+              placeholder="@shadow269"
               className="auth-input"
+              autoComplete="username"
+              aria-label="Username"
             />
+            <p className="auth-helper">Your username is permanent and will be part of your public KeyDir profile.</p>
           </div>
           <div className="auth-field">
-            <label className="auth-label">Email</label>
+            <label className="auth-label" htmlFor="reg-email">Email</label>
             <input
               type="email"
               name="email"
+              id="reg-email"
               required
               placeholder="you@email.com"
               className="auth-input"
+              autoComplete="email"
+              aria-label="Email address"
             />
           </div>
           <div className="auth-field">
-            <label className="auth-label">Password</label>
-            <input
-              type="password"
+            <label className="auth-label" htmlFor="reg-password">Password</label>
+            <PasswordInput
               name="password"
+              id="reg-password"
               required
-              minLength={6}
-              placeholder="••••••••"
-              className="auth-input"
+              minLength={8}
+              autoComplete="new-password"
+              aria-label="Password"
             />
+            <PasswordStrength inputName="password" />
           </div>
           <div className="auth-field">
-            <label className="auth-label">Confirm Password</label>
-            <input
-              type="password"
+            <label className="auth-label" htmlFor="reg-confirm">Confirm Password</label>
+            <PasswordInput
               name="confirmPassword"
-              id="confirmPassword"
+              id="reg-confirm"
               required
-              minLength={6}
-              placeholder="••••••••"
-              className="auth-input"
+              minLength={8}
+              autoComplete="new-password"
+              aria-label="Confirm password"
             />
           </div>
 
           <button type="submit" className="btn-primary auth-btn auth-btn-tight">
-            Create Account →
+            <span className="auth-btn-text">Create Account</span>
+            <span className="auth-btn-arrow">{'\u2192'}</span>
           </button>
         </form>
 
         <div className="auth-alt-link">
-          Already have an account? <Link href="/auth/login">Login →</Link>
+          Already have an account? <Link href="/auth/login">Login {'\u2192'}</Link>
         </div>
       </AuthTerminal>
     </AuthLayout>

@@ -32,40 +32,43 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout title={'SET NEW\nPASSWORD.'}>
-      <AuthTerminal prompt="update-password --secure">
-        {error && <div className="auth-msg error">{error}</div>}
+      <AuthTerminal>
+        {error && <div className="auth-msg error" role="alert">{error}</div>}
 
         {success ? (
           <div className="auth-message-page">
-            <div className="auth-msg-icon">✓</div>
+            <div className="auth-msg-icon">{'\u2713'}</div>
             <h2>Password Updated</h2>
             <p>Your password has been changed successfully.</p>
             <div className="auth-alt-link auth-gap">
-              <Link href="/auth/login">Login →</Link>
+              <Link href="/auth/login">Login {'\u2192'}</Link>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="auth-field">
-              <label className="auth-label">New Password</label>
+              <label className="auth-label" htmlFor="reset-password">New Password</label>
               <input
                 type="password"
                 name="password"
+                id="reset-password"
                 required
                 minLength={6}
-                placeholder="••••••••"
+                placeholder="{'\u2022'}{'\u2022'}{'\u2022'}{'\u2022'}{'\u2022'}{'\u2022'}{'\u2022'}{'\u2022'}"
                 className="auth-input"
+                autoComplete="new-password"
+                aria-label="New password"
               />
             </div>
 
             <button type="submit" className="btn-primary auth-btn auth-btn-tight" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Password →'}
+              {loading ? 'Updating...' : 'Update Password \u2192'}
             </button>
           </form>
         )}
 
         <div className="auth-alt-link">
-          <Link href="/auth/login">← Back to Login</Link>
+          <Link href="/auth/login">{'\u2190'} Back to Login</Link>
         </div>
       </AuthTerminal>
     </AuthLayout>

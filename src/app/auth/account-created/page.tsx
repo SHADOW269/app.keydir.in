@@ -5,9 +5,9 @@ import { AuthTerminal } from '@/components/auth/auth-terminal';
 export default function AccountCreatedPage() {
   return (
     <AuthLayout title={'ACCOUNT\nCREATED.'}>
-      <AuthTerminal prompt="account --created">
+      <AuthTerminal>
         <div className="auth-message-page">
-          <div className="auth-msg-icon">✓</div>
+          <div className="auth-msg-icon">{'\u2713'}</div>
           <h2>Welcome to KeyDir</h2>
           <p>
             Your account has been created successfully.
@@ -16,11 +16,11 @@ export default function AccountCreatedPage() {
         </div>
 
         <Link href="/auth/login" className="btn-primary auth-btn auth-gap">
-          Login →
+          Login {'\u2192'}
         </Link>
 
         <div className="auth-alt-link">
-          <Link href="/">← Back to Home</Link>
+          <Link href="/">{'\u2190'} Back to Home</Link>
         </div>
       </AuthTerminal>
     </AuthLayout>

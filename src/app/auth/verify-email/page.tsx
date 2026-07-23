@@ -5,9 +5,9 @@ import { AuthTerminal } from '@/components/auth/auth-terminal';
 export default function VerifyEmailPage() {
   return (
     <AuthLayout title={'VERIFY\nYOUR\nEMAIL.'}>
-      <AuthTerminal prompt="verify-email --pending">
+      <AuthTerminal>
         <div className="auth-message-page">
-          <div className="auth-msg-icon">📧</div>
+          <div className="auth-msg-icon">{'\uD83D\uDCE7'}</div>
           <h2>Check Your Email</h2>
           <p>
             We&apos;ve sent a verification link to your email address.
@@ -19,7 +19,7 @@ export default function VerifyEmailPage() {
         </div>
 
         <div className="auth-alt-link auth-gap">
-          <Link href="/auth/login">← Back to Login</Link>
+          <Link href="/auth/login">{'\u2190'} Back to Login</Link>
         </div>
       </AuthTerminal>
     </AuthLayout>

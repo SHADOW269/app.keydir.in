@@ -18,7 +18,7 @@ function saveState<T>(key: string, value: T) {
 }
 
 export function usePersistentState<T>(key: string, fallback: T): [T, (value: T | ((prev: T) => T)) => void] {
-  const [state, setState] = useState<T>(() => loadState(key, fallback));
+  const [state, setState] = useState<T>(fallback);
   const fallbackRef = useRef(fallback);
 
   useEffect(() => { fallbackRef.current = fallback; });
