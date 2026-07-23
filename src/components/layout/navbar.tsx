@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { logout } from '@/lib/auth/actions';
 import { GlobalSearch } from './global-search';
-import { User, GitCompareArrows } from 'lucide-react';
+import { GitCompareArrows, ChevronDown } from 'lucide-react';
 import { getCompareCount, getCompareCategory, getCompareProducts, onCompareChange, loadCompareFromStorage } from '@/lib/compare-store';
+import Image from 'next/image';
 
 const NAV_ITEMS = [
   { href: '/keyboards', label: 'Keyboards' },
@@ -29,10 +30,12 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
-  const [user, setUser] = useState<{ username: string; isAdmin: boolean } | null>(null);
+  const [user, setUser] = useState<{ username: string; isAdmin: boolean; avatarUrl: string | null; displayName: string | null; email: string | null } | null>(null);
   const [compareCount, setCompareCount] = useState(0);
   const [compareCategory, setCompareCategory] = useState<string | null>(null);
   const [compareSlugs, setCompareSlugs] = useState<string[]>([]);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTimeout(() => {
@@ -61,6 +64,9 @@ export function Navbar() {
           setUser({
             username,
             isAdmin: adminEmails.includes(email.toLowerCase()),
+            avatarUrl: data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || null,
+            displayName: data.user.user_metadata?.full_name || data.user.user_metadata?.name || null,
+            email,
           });
         }
       });
@@ -72,6 +78,9 @@ export function Navbar() {
     function handleClick(e: MouseEvent) {
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
         setMoreOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -145,9 +154,36 @@ export function Navbar() {
           )}
 
           {user ? (
-            <Link href={`/profile/${user.username}`} className="nav-profile-icon" aria-label="Profile">
-              <User size={18} strokeWidth={1.5} />
-            </Link>
+            <div ref={profileRef} className={`nav-profile${profileOpen ? ' open' : ''}`}>
+              <button
+                className="nav-profile-btn"
+                onClick={() => setProfileOpen(!profileOpen)}
+              >
+                {user.avatarUrl ? (
+                  <Image
+                    src={user.avatarUrl}
+                    alt=""
+                    width={20}
+                    height={20}
+                    unoptimized
+                    style={{ borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                ) : null}
+                <span>{user.displayName || user.username}</span>
+                <ChevronDown size={12} />
+              </button>
+              <div className="nav-dropdown">
+                <Link href={`/profile/${user.username}`} onClick={() => setProfileOpen(false)}>
+                  Profile
+                </Link>
+                <Link href="/settings" onClick={() => setProfileOpen(false)}>
+                  Settings
+                </Link>
+                <form action={logout}>
+                  <button type="submit">Sign Out</button>
+                </form>
+              </div>
+            </div>
           ) : (
             <Link href="/auth/login" className="nav-login">
               Login
@@ -197,8 +233,9 @@ export function Navbar() {
         {user ? (
           <>
             <Link href={`/profile/${user.username}`} onClick={() => setMobileOpen(false)}>Profile</Link>
+            <Link href="/settings" onClick={() => setMobileOpen(false)}>Settings</Link>
             <form action={logout}>
-              <button type="submit">Logout</button>
+              <button type="submit">Sign Out</button>
             </form>
           </>
         ) : (

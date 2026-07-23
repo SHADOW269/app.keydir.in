@@ -30,7 +30,7 @@ export async function ensureProfile() {
     data: {
       userId: user.id,
       username,
-      displayName: user.user_metadata?.username || null,
+      displayName: user.user_metadata?.full_name || user.user_metadata?.username || null,
     },
   });
 }

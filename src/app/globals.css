@@ -1586,9 +1586,9 @@
    Terminal, buttons, hero reuse homepage classes
    ══════════════════════════════════════════ */
 
-/* ── Grid override — wider terminal, tighter gap ── */
+/* ── Grid override — wider terminal, balanced gap ── */
 .page-hero:has(.auth-visible) .hero-grid {
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr clamp(560px, 42vw, 760px);
   gap: 48px;
 }
 
@@ -1597,15 +1597,16 @@
   margin-bottom: 0;
 }
 
-/* ── Terminal — denser than homepage (form-heavy) ── */
+/* ── Terminal — more room for form content ── */
 .auth-visible {
-  padding: 20px;
+  padding: 40px;
 }
 
-/* ── Inputs — warmer than homepage search (inside dark terminal) ── */
+/* ── Inputs — taller, more breathing room ── */
 .auth-input {
   width: 100%;
-  padding: 10px 14px;
+  height: 50px;
+  padding: 14px 16px;
   border: var(--bd-thick);
   background: var(--bg-alt);
   color: var(--text);
@@ -1615,6 +1616,7 @@
   box-shadow: var(--sh);
   outline: none;
   transition: all var(--dur-fast);
+  box-sizing: border-box;
 }
 
 .auth-input:focus {
@@ -1633,20 +1635,20 @@
   text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 10px;
   display: block;
 }
 
-/* ── Field spacing — tighter ── */
-.auth-field { margin-bottom: 6px; }
+/* ── Field spacing — comfortable vertical rhythm ── */
+.auth-field { margin-bottom: 28px; }
 
 /* ── Button layout inside terminal ── */
 .auth-btn { width: 100%; justify-content: center; }
-.auth-btn-tight { margin-top: 4px; }
-.auth-gap { margin-top: 8px; }
+.auth-btn-tight { margin-top: 16px; }
+.auth-gap { margin-top: 28px; }
 
 /* ── Social buttons layout ── */
-.auth-social { display: flex; gap: 12px; }
+.auth-social { display: flex; gap: 20px; }
 .auth-social form { flex: 1; }
 
 /* ── Terminal title ── */
@@ -1658,7 +1660,7 @@
   border: var(--bd-thick);
   font-family: var(--f-m);
   font-size: var(--fs-reveal);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
   line-height: 1.5;
 }
 
@@ -1668,7 +1670,9 @@
 /* ── Links ── */
 .auth-alt-link {
   text-align: center;
-  margin-top: 12px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #222;
   font-size: var(--fs-reveal);
   color: var(--text-muted);
 }
@@ -1683,7 +1687,7 @@
 
 .auth-forgot-link {
   text-align: right;
-  margin-bottom: 8px;
+  margin-bottom: 24px;
 }
 
 .auth-forgot-link a {
@@ -1700,7 +1704,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .auth-checkbox input[type="checkbox"] {
@@ -1795,7 +1799,7 @@
 /* ══════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════ */
-@media (max-width: 860px) {
+@media (max-width: 960px) {
   .hero-grid { grid-template-columns: 1fr; gap: 32px; }
   .page-hero:has(.auth-visible) .hero-grid { grid-template-columns: 1fr; gap: 32px; }
   .terminal:not(.auth-visible) { display: none; }
@@ -8561,4 +8565,146 @@ select.kb-input {
 @keyframes dialog-in {
   from { opacity: 0; transform: scale(.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* ══════════════════════════════════════════
+   SETTINGS — Connected Accounts
+   ══════════════════════════════════════════ */
+.settings-page {
+  padding: 100px 1rem 3rem;
+}
+
+.settings-container {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.settings-title {
+  font-family: var(--f-d);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.ca-terminal {
+  margin-top: 0;
+}
+
+.ca-section {
+  margin-top: 8px;
+}
+
+.ca-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #222;
+}
+
+.ca-header-label {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--yellow);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.ca-header-count {
+  font-size: .75rem;
+  color: var(--text-muted);
+}
+
+.ca-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ca-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.ca-row:last-child {
+  border-bottom: none;
+}
+
+.ca-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ca-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.ca-icon-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ca-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ca-name {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ca-email {
+  font-size: .7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ca-row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.ca-status {
+  font-size: .7rem;
+  white-space: nowrap;
+}
+
+.ca-status--connected {
+  color: var(--green);
+}
+
+.ca-status--disconnected {
+  color: var(--text-dim);
+}
+
+.ca-btn {
+  padding: 4px 10px !important;
+  font-size: .7rem !important;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+[data-theme="dark"] .ca-icon {
+  background: #111;
+  border-color: #333;
 }

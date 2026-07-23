@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { AuthTerminal } from '@/components/auth/auth-terminal';
-import { SocialButtons } from '@/components/auth/social-buttons';
 import { register } from '@/lib/auth/actions';
 
 export default async function RegisterPage({
@@ -53,15 +52,23 @@ export default async function RegisterPage({
               className="auth-input"
             />
           </div>
+          <div className="auth-field">
+            <label className="auth-label">Confirm Password</label>
+            <input
+              type="password"
+              name="confirmPassword"
+              id="confirmPassword"
+              required
+              minLength={6}
+              placeholder="••••••••"
+              className="auth-input"
+            />
+          </div>
 
           <button type="submit" className="btn-primary auth-btn auth-btn-tight">
             Create Account →
           </button>
         </form>
-
-        <div className="auth-gap">
-          <SocialButtons />
-        </div>
 
         <div className="auth-alt-link">
           Already have an account? <Link href="/auth/login">Login →</Link>

@@ -7,13 +7,13 @@ export function SocialButtons() {
       <form action={signInWithGoogle}>
         <button type="submit" className="btn-secondary auth-btn">
           <Image src="/logos/google-logo.png" alt="" width={16} height={16} unoptimized />
-          Google
+          Login
         </button>
       </form>
       <form action={signInWithDiscord}>
         <button type="submit" className="btn-secondary auth-btn">
           <Image src="/logos/discord-logo.png" alt="" width={16} height={16} unoptimized />
-          Discord
+          Login
         </button>
       </form>
     </div>
